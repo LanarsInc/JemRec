@@ -1,5 +1,8 @@
 package com.jemcik.jemrec.ui
 
+import androidx.annotation.RequiresApi
+import android.os.Build
+import android.app.StatusBarManager
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -72,12 +75,22 @@ private const val LOG_LIMIT = 8_000
 /**
  * Which screen is showing.
  *
- * Three, and no navigation library. The whole app is a status page, a place to
- * put the things that are not it, and the trash reached from there; a nav graph
- * to express "or one of the others" would be more machinery than the problem
- * has.
+ * No navigation library. The whole app is a status page, a place to put the
+ * things that are not it, and a few screens reached from there; a nav graph to
+ * express "or one of the others" would be more machinery than the problem has.
+ * [up] is the whole of the back stack.
  */
-enum class Screen { HOME, SETTINGS, TRASH }
+enum class Screen {
+    HOME, SETTINGS,
+    // Reached from Settings, and back to it.
+    WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH;
+
+    /** Where Back goes from here. */
+    val up: Screen get() = when (this) {
+        HOME, SETTINGS -> HOME
+        WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH -> SETTINGS
+    }
+}
 
 /**
  * The two tabs of the home screen: the recordings, and the calls.
@@ -101,8 +114,8 @@ data class UiState(
      * nothing happened, with the permissions still granted.
      */
     val resetDone: Boolean = false,
-    /** A self-test's result just arrived (its time), for Settings to scroll
-     *  down to; 0 once it has. */
+    /** A self-test's result just arrived (its time), for Diagnostics to
+     *  scroll down to; 0 once it has. */
     val selfTestShown: Long = 0L,
     /** Setup's last step failed, and why: shown with a Try again. */
     val finishFailed: String? = null,
@@ -224,6 +237,9 @@ data class UiState(
     /** Whether the "tap a photo to select" hint has been shown its course - it
      *  retires the first time the user actually enters selection. */
     val selectHintSeen: Boolean = true,
+    /** The Quick Settings tile is in the panel, as far as Android has said
+     *  (see RecorderTile.isAdded). */
+    val tileAdded: Boolean = false,
     /**
      * How many of them the list is currently showing.
      *
@@ -275,8 +291,8 @@ class MainViewModel @JvmOverloads constructor(
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     /** Failures of something the user just did, for a snackbar where they are:
-     *  the log at the bottom of Settings is no place to learn that a share
-     *  or a delete did not work. */
+     *  the log in Diagnostics is no place to learn that a share or a delete
+     *  did not work. */
     private val _notices = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val notices: SharedFlow<String> = _notices.asSharedFlow()
 
@@ -301,23 +317,36 @@ class MainViewModel @JvmOverloads constructor(
         // test runs and then swaps in, with no empty gap.
         _state.update { it.copy(log = "") }
         say(result.report.trimEnd())
-        // For Settings to scroll down to it - this, not every log line.
+        // For Diagnostics to scroll down to it - this, not every log line.
         _state.update { it.copy(selfTestShown = System.currentTimeMillis()) }
     }
 
-    /** Settings scrolled to the self-test's result; not again on returning. */
+    /** Diagnostics scrolled to the self-test's result; not again on returning. */
     fun selfTestSeen() = _state.update { it.copy(selfTestShown = 0L) }
 
-    fun showSettings() = _state.update { it.copy(screen = Screen.SETTINGS) }
+    fun showSettings() {
+        pausePlayback()
+        _state.update { it.copy(screen = Screen.SETTINGS) }
+    }
 
-    fun showHome() = _state.update { it.copy(screen = Screen.HOME) }
+    fun showTrash() {
+        pausePlayback()
+        _state.update { it.copy(screen = Screen.TRASH) }
+    }
 
-    fun showTrash() = _state.update { it.copy(screen = Screen.TRASH) }
+    fun showScreen(screen: Screen) {
+        if (screen != Screen.HOME) pausePlayback()
+        _state.update { it.copy(screen = screen) }
+    }
+
+    /** One step back: a screen reached from Settings returns to it. */
+    fun back() = _state.update { it.copy(screen = it.screen.up) }
 
     /** Switch tabs. Leaving Recordings ends a selection, which only means
      *  something there; arriving at Calls reads the call log. */
     fun showTab(tab: HomeTab) {
         if (_state.value.homeTab == tab) return
+        pausePlayback()
         _state.update { it.copy(homeTab = tab, selecting = false, selected = emptySet()) }
         if (tab == HomeTab.CALLS) refresh()
     }
@@ -712,7 +741,7 @@ class MainViewModel @JvmOverloads constructor(
                 }
                 DeepLink.Kind.SELF_TEST -> {
                     MissedCalls.dismiss(app)
-                    showSettings()
+                    showScreen(Screen.DIAGNOSTICS)
                     _state.first { !it.busy }
                     selfTest()
                 }
@@ -1005,6 +1034,7 @@ class MainViewModel @JvmOverloads constructor(
                 honorDialer = FileNames.honorDialer(app),
                 inHonorFolder = FileNames.inHonorFolder(app),
                 selectHintSeen = Prefs.of(app).getBoolean("select_hint_seen", false),
+                tileAdded = RecorderTile.isAdded(app),
             )
         }
 
@@ -1045,6 +1075,7 @@ class MainViewModel @JvmOverloads constructor(
                 honorDialer = snapshot.honorDialer,
                 inHonorFolder = snapshot.inHonorFolder,
                 selectHintSeen = snapshot.selectHintSeen,
+                tileAdded = snapshot.tileAdded,
                 connected = AdbTransport.lastKnownConnected,
             ).let { next ->
                 // A name that is no longer shown cannot stay selected. It would
@@ -1095,6 +1126,7 @@ class MainViewModel @JvmOverloads constructor(
         val honorDialer: Boolean,
         val inHonorFolder: Boolean,
         val selectHintSeen: Boolean,
+        val tileAdded: Boolean,
     )
 
     /**
@@ -1202,6 +1234,45 @@ class MainViewModel @JvmOverloads constructor(
 
     /** The chevron on the scrubber: stop, and fold the row back. */
     fun stopPlaying() = stopPlayback()
+
+    /**
+     * Pause, keeping the place, whenever the player's controls leave the
+     * screen: another tab, Settings, the app in the background.
+     *
+     * The scrubber under the row is the only control there is, so a recording
+     * that went on playing without it went on with nothing on screen able to
+     * stop it - from a pocket, once the app was closed, a private call out
+     * loud. Android's way to play on in the background is a media session in
+     * a service, with the system's controls; JemRec has none, so it does not
+     * play on. Coming back, the row is still open where it was, and the play
+     * mark resumes it.
+     */
+    fun pausePlayback() {
+        if (player.isPlaying) player.pause()
+        ticker?.cancel()
+        _state.update { if (it.playing) it.copy(playing = false) else it }
+    }
+
+    /**
+     * Android's answer to "add the tile": added, already there, or declined.
+     * The answer is what Android knows, so it settles what the Settings row
+     * says - and "already there" is said back, so a tap is never met with
+     * nothing, which is what an added tile's row did before.
+     */
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    fun onTileAddAnswer(result: Int) {
+        val added = when (result) {
+            StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED,
+            StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED -> true
+            StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_NOT_ADDED -> false
+            else -> return
+        }
+        RecorderTile.setAdded(getApplication(), added)
+        _state.update { it.copy(tileAdded = added) }
+        if (result == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED) {
+            tell("it is in your Quick Settings panel already")
+        }
+    }
 
     private fun stopPlayback() {
         ticker?.cancel()
@@ -1337,6 +1408,12 @@ class MainViewModel @JvmOverloads constructor(
             rememberSelectHintSeen()
             it.copy(selecting = true, selected = setOf(recording.name), selectHintSeen = true)
         }
+    }
+
+    /** The tip's x: it is not shown again. */
+    fun dismissSelectHint() {
+        rememberSelectHintSeen()
+        _state.update { it.copy(selectHintSeen = true) }
     }
 
     /** The tap-a-photo hint has done its job once selection has been used. */
