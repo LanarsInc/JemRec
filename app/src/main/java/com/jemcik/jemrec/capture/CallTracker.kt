@@ -54,7 +54,13 @@ class CallTracker : InCallService() {
             // back whether or not tracking is still on.
             skips.trySend(applicationContext to false)
         }
-        if (!CallTracking.enabled(this)) return
+        if (!CallTracking.enabled(this)) {
+            // Switched off mid-call: nothing more is kept - but a call left
+            // out on purpose is still noted as such, or the missed-call check
+            // reports it, and the Calls tab marks it red.
+            if (wasLeftOut) CallLedger.noteSkipped(this, id, call.details.callDirection == Call.Details.DIRECTION_INCOMING, 0)
+            return
+        }
         val ended = System.currentTimeMillis()
         CallTracking.update(this, id) { old ->
             val base = old ?: track(call)
@@ -81,7 +87,9 @@ class CallTracker : InCallService() {
                     // is to the millisecond; a return from hold from now.
                     if (base.activations.isEmpty()) {
                         base.copy(activations = listOf(call.details.connectTimeMillis.takeIf { it > 0 } ?: now))
-                    } else if (old?.let { wasActive[id] } == true) {
+                    } else if (old == null || wasActive[id] == true) {
+                        // New here, and track() already took Telecom's
+                        // connect time; or ACTIVE again with no hold between.
                         base
                     } else {
                         base.copy(activations = base.activations + now)
@@ -103,7 +111,10 @@ class CallTracker : InCallService() {
         // The number only with the call-log permission: the same consent the
         // call log needs, for the same information.
         number = if (CallLogLookup.granted(this)) call.details.handle?.schemeSpecificPart else null,
-        activations = emptyList(),
+        // Already answered, if Telecom says so: a call first seen here late -
+        // tracking switched on mid-call, a service bound mid-call - is not
+        // then taken for one nobody answered, and deleted as such.
+        activations = listOfNotNull(call.details.connectTimeMillis.takeIf { it > 0 }),
         endedAt = 0L,
     )
 
@@ -132,7 +143,7 @@ class CallTracker : InCallService() {
         if (!RecorderSwitch.isOn(context) || RecordingMode.of(context) != RecordingMode.AUTOMATIC) return
         val number = call.details.handle?.schemeSpecificPart
         val contact = CallLogLookup.contactFor(context, number, mutableMapOf())
-        if (contact.failed || CallRules.keeps(context, contact.id)) return
+        if (contact.failed || CallRules.keeps(context, contact.ids)) return
         leftOut += id
         Log.i(TAG, "calltrack: the rules leave this call out; telling the recorder")
         skips.trySend(context to true)
@@ -146,15 +157,22 @@ class CallTracker : InCallService() {
     private fun collectSoon() {
         val context = applicationContext
         scope.launch {
-            delay(COLLECT_AFTER_MS)
-            runCatching { RecordingSaver.reconcile(context) }
-                .onFailure { Log.w(TAG, "calltrack: collecting after the call failed", it) }
+            // Twice: the daemon ends its file only once the audio mode has
+            // left the call, which can be seconds after Telecom says so - and
+            // a file still being written is not listed. Collecting twice is
+            // harmless (RecordingSaver claims and checks).
+            for (wait in COLLECT_AFTER_MS) {
+                delay(wait)
+                runCatching { RecordingSaver.reconcile(context) }
+                    .onFailure { Log.w(TAG, "calltrack: collecting after the call failed", it) }
+            }
         }
     }
 
     private companion object {
         const val TAG = "JemRec"
-        const val COLLECT_AFTER_MS = 5_000L
+        /** Five seconds after the last call, and fifteen after that. */
+        val COLLECT_AFTER_MS = longArrayOf(5_000L, 15_000L)
 
         /** Another call ended this recently: no skip (see decideEarly).
          *  Past the daemon's 2 s end check, with room to spare. */

@@ -169,6 +169,22 @@ public final class Main {
             prepareMainLooper();
             Ln.initLogLevel(Ln.Level.INFO);
 
+            // AN EXCEPTION ESCAPING A THREAD MUST NOT TAKE THE RECORDER DOWN.
+            // Android's default handler kills the process, and with no ADB
+            // session around nothing starts it again until the next Wi-Fi: a
+            // HAL that refuses VOICE_CALL for one call, throwing from the
+            // encoder's thread, cost every call after it. A worker's failure
+            // is logged and that worker ends. The main thread is the call
+            // watch's looper: deaf is worse than down, so that one still ends
+            // the process - and the app sees it down and says so.
+            final Thread mainThread = Thread.currentThread();
+            Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
+                Ln.e("uncaught on " + thread.getName(), error);
+                if (thread == mainThread) {
+                    System.exit(1);
+                }
+            });
+
             // Two optional positional arguments, and deliberately not a parser:
             // scrcpy's Options is 707 lines of command-line handling that also
             // reaches into the video, camera and display types, and dropping it
@@ -362,15 +378,55 @@ public final class Main {
         private final TelephonyManager telephony;
         private final AudioManager audio;
         private final Handler handler;
-        private boolean sawRinging;
-        private boolean inCall;
-        private Runnable pendingIdle;
+        /** What the events mean - see CallStates; this class only feeds it. */
+        private final CallStates states;
+
+        boolean phoneCallUp() {
+            return states.inCall();
+        }
+
+        boolean phoneCallRang() {
+            return states.rang();
+        }
+        private final Runnable endCheck;
 
         CallWatch(String token, TelephonyManager telephony, AudioManager audio, Handler handler) {
             this.token = token;
             this.telephony = telephony;
             this.audio = audio;
             this.handler = handler;
+            this.states = new CallStates(new CallStates.Effects() {
+                @Override
+                public void callStarted(boolean incoming) {
+                    onCallStart(incoming);
+                }
+
+                @Override
+                public void callEnded() {
+                    onCallEnd();
+                }
+
+                @Override
+                public void scheduleEndCheck(long delayMs) {
+                    handler.postDelayed(endCheck, delayMs);
+                }
+
+                @Override
+                public void cancelEndCheck() {
+                    handler.removeCallbacks(endCheck);
+                }
+
+                @Override
+                public boolean audioInCall() {
+                    return CallWatch.this.audioInCall();
+                }
+
+                @Override
+                public void log(String message) {
+                    Ln.i(message);
+                }
+            });
+            this.endCheck = states::endCheck;
         }
 
         @Override
@@ -381,99 +437,19 @@ public final class Main {
             lastCallEventAt = System.currentTimeMillis();
             switch (state) {
                 case TelephonyManager.CALL_STATE_RINGING:
-                    sawRinging = true;
-                    Ln.i("callwatch: ringing");
+                    states.ringing();
                     break;
                 case TelephonyManager.CALL_STATE_OFFHOOK:
                     offHooks.incrementAndGet();
                     lastOffHookAt = System.currentTimeMillis();
-                    cancelPendingIdle();
-                    inCall = true;
-                    Ln.i("callwatch: off-hook (" + (sawRinging ? "incoming" : "outgoing") + ")");
-                    onCallStart(sawRinging);
+                    states.offHook();
                     break;
                 case TelephonyManager.CALL_STATE_IDLE:
-                    onIdle();
+                    states.idle();
                     break;
                 default:
                     break;
             }
-        }
-
-        /**
-         * AN IDLE IS A CLAIM, NOT A FACT.
-         *
-         * Ending a recording is destructive - the app closes the socket, the
-         * encoder dies of ECONNRESET mid-frame, and whatever was left of the
-         * call is gone - so it must not be done on one unconfirmed signal.
-         *
-         * Measured on this phone: a twenty-second outgoing call recorded six
-         * seconds. The daemon's own log shows off-hook, the client connecting
-         * on VOICE_CALL, and then "idle" arriving while the call was still up,
-         * followed immediately by the encoder's ECONNRESET. The call was not
-         * over; the state said it was.
-         *
-         * So an idle before any off-hook is ignored outright - that one is just
-         * the current state being handed over at registration, which used to
-         * fire a CALL_ENDED at every daemon start. And a real idle is confirmed
-         * against the AUDIO MODE rather than the call state - see below for why.
-         */
-        private void onIdle() {
-            if (!inCall) {
-                if (sawRinging) {
-                    // It rang and was never answered - missed, or declined.
-                    // Forget the ring, or the next OUTGOING call is labelled
-                    // incoming: the flag only ever cleared when a call ended.
-                    sawRinging = false;
-                    Ln.i("callwatch: ringing ended without a call");
-                } else {
-                    Ln.i("callwatch: idle before any call, ignoring");
-                }
-                return;
-            }
-            // The ring was this call's, and this is its end: forget it now,
-            // not when the end is confirmed. The next call can ring inside
-            // those two seconds - and the confirmation then cleared ITS ring,
-            // and an incoming call was recorded as outgoing (emulator,
-            // 2026-10-21: the saver then took the call before for it).
-            sawRinging = false;
-            cancelPendingIdle();
-            scheduleEndConfirm();
-        }
-
-        /**
-         * CONFIRM THE END AGAINST THE AUDIO MODE, AND POLL - DO NOT TRUST ONE
-         * IDLE.
-         *
-         * Measured on this phone: with some dialers (Google Phone here)
-         * telephony CALL_STATE goes IDLE partway through a live call and STAYS
-         * idle - a 37s call reported idle at 11s, a 30s call at 6s - so a single
-         * re-read of getCallState() confirms an end that has not happened, and
-         * because the state never leaves idle there is no later edge to correct
-         * it. The recording was cut ~25s short, twice.
-         *
-         * Telecom, though, holds the audio mode at MODE_IN_CALL for the real
-         * length of the call: its dumpsys setMode history lines up to the second
-         * with the true spans. So the audio mode is the signal to trust, and
-         * because telephony gives no second idle edge we POLL it here rather
-         * than checking once - re-arming until telecom actually leaves in-call,
-         * then ending. A momentary idle with the audio still in-call simply
-         * keeps the recording running, which is the whole point.
-         */
-        private void scheduleEndConfirm() {
-            pendingIdle = () -> {
-                pendingIdle = null;
-                if (audioInCall()) {
-                    // Still up. Telephony won't tell us again; keep watching the
-                    // audio mode, which will.
-                    scheduleEndConfirm();
-                    return;
-                }
-                inCall = false;
-                Ln.i("callwatch: end confirmed (audio mode left in-call)");
-                onCallEnd();
-            };
-            handler.postDelayed(pendingIdle, IDLE_CONFIRM_MS);
         }
 
         /**
@@ -494,13 +470,6 @@ public final class Main {
                     || mode == AudioManager.MODE_IN_COMMUNICATION;
             Ln.i("callwatch: idle seen, audio mode=" + mode + (up ? " (still in a call)" : " (call is over)"));
             return up;
-        }
-
-        private void cancelPendingIdle() {
-            if (pendingIdle != null) {
-                handler.removeCallbacks(pendingIdle);
-                pendingIdle = null;
-            }
         }
     }
 
@@ -596,6 +565,26 @@ public final class Main {
      * away.
      */
     private static void cleanUpAfterApp() {
+        // The files first: turning the switches off can stop adbd, and this
+        // process with it. The jar, the logs, and any call audio the app
+        // never collected - nobody else ever will.
+        java.util.List<File> leftovers = new java.util.ArrayList<>();
+        leftovers.add(new File(JAR_PATH));
+        leftovers.add(new File(LOG_PATH));
+        leftovers.add(new File(LOG_PATH + ".1"));
+        File[] recordings = new File(REC_DIR).listFiles((d, n) -> n.startsWith(REC_PREFIX) && n.endsWith(REC_SUFFIX));
+        if (recordings != null) {
+            leftovers.addAll(java.util.Arrays.asList(recordings));
+        }
+        for (File file : leftovers) {
+            try {
+                if (file.delete()) {
+                    Ln.i("custodian: removed " + file.getName());
+                }
+            } catch (Throwable t) {
+                Ln.w("custodian: could not remove " + file.getName());
+            }
+        }
         // Both debugging switches. Wireless was turned on for setup; USB is the
         // off-Wi-Fi shield this daemon keeps up (see keepShieldUp) - and with the
         // app gone, nothing else will ever turn either of them back off.
@@ -606,15 +595,6 @@ public final class Main {
                 Ln.i("custodian: turned " + setting + " off");
             } catch (Throwable t) {
                 Ln.w("custodian: could not turn " + setting + " off");
-            }
-        }
-        for (String path : new String[]{JAR_PATH, LOG_PATH}) {
-            try {
-                if (new File(path).delete()) {
-                    Ln.i("custodian: removed " + path);
-                }
-            } catch (Throwable t) {
-                Ln.w("custodian: could not remove " + path);
             }
         }
     }
@@ -813,6 +793,10 @@ public final class Main {
 
     private static void serve(Socket client) {
         try {
+            if (!fromJemRec(client)) {
+                refuse(client, "not JemRec");
+                return;
+            }
             session(client);
         } catch (AudioCaptureException e) {
             // Already logged by the capture layer with a specific reason. One
@@ -909,10 +893,6 @@ public final class Main {
     private static final long PACKAGE_CHECK_INTERVAL_MS = 5 * 60 * 1000L;
     private static final long CONFIRM_DELAY_MS = 10 * 1000L;
 
-    /** Long enough to outlast a momentary idle, short enough not to
-     *  leave a finished call recording into silence. */
-    private static final long IDLE_CONFIRM_MS = 2000L;
-
     /** Six seconds of patience for a predecessor to let go of the port. */
     private static final int BIND_ATTEMPTS = 15;
     private static final long BIND_RETRY_MS = 400L;
@@ -1002,6 +982,10 @@ public final class Main {
     /** Whether a call is up, and its direction - so an on-demand yes that
      *  arrives mid-call knows what it is starting. */
     private static volatile boolean callActive;
+    /** Calls begun, and the latest of them that has ended: a CALL_STARTED
+     *  still being retried for a call already over is dropped (see wake). */
+    private static volatile long callSeq;
+    private static volatile long endedSeq;
     private static volatile boolean callIncoming;
 
     /** For waking the app, and for checking who connects. Set in main()
@@ -1105,24 +1089,9 @@ public final class Main {
         }
     }
 
-    /**
-     * Whether `cmd appops get --uid` says the UID is allowed: its own line,
-     * "Uid mode: MANAGE_ONGOING_CALLS: allow". The package's line follows it
-     * and says "allow" too when only the package is allowed - which is not
-     * enough (see above), so "allow" anywhere in the output proves nothing.
-     */
+    /** See Checks.uidAllowed. */
     static boolean uidAllowed(String said) {
-        if (said == null) {
-            return false;
-        }
-        // slurp joins lines with " | ".
-        for (String line : said.split("[|\n]")) {
-            String l = line.trim();
-            if (l.startsWith("Uid mode:") && l.endsWith(": allow")) {
-                return true;
-            }
-        }
-        return false;
+        return Checks.uidAllowed(said);
     }
 
     /** Run a command, return what it printed, or null if it could not run. */
@@ -1286,6 +1255,9 @@ public final class Main {
                         + (callVoipApp != null ? "a messenger call" : "a phone call") + "; not recording it");
                 return;
             }
+            if (!callActive) {
+                callSeq++;
+            }
             callActive = true;
             callIncoming = incoming;
             callVoipApp = app;
@@ -1304,6 +1276,14 @@ public final class Main {
                 }
                 break;
             case MODE_ON_DEMAND:
+                RecordingSession running = activeRecording;
+                if (running != null) {
+                    // Already said yes to, and recording: a second off-hook
+                    // in the same call (call waiting) is not a new question -
+                    // asked again, "Not now" would stop nothing.
+                    wake(ACTION_CALL_STARTED, incoming, running.name, app);
+                    break;
+                }
                 // Nothing is captured yet. Ask; an empty rec-file says "prompt".
                 Ln.i("recording: on-demand, asking before recording");
                 wake(ACTION_CALL_STARTED, incoming, "", app);
@@ -1347,6 +1327,13 @@ public final class Main {
             return;
         }
         endCall();
+        // A phone call answered during the messenger call - which is what
+        // ended it - was turned away while that one ran; it is the call now.
+        CallWatch watch = callWatch;
+        if (watch != null && watch.phoneCallUp()) {
+            Ln.i("recording: the messenger call gave way to a phone call; recording that");
+            onCallStart(watch.phoneCallRang(), null);
+        }
     }
 
     private static void endCall() {
@@ -1359,6 +1346,7 @@ public final class Main {
         // happened, and the next one is a whole call away.
         synchronized (Main.class) {
             callActive = false;
+            endedSeq = callSeq;
             app = callVoipApp;
             callVoipApp = null;
             wasRecording = activeRecording != null;
@@ -1399,8 +1387,16 @@ public final class Main {
             command.add("app");
             command.add(app);
         }
+        long seq = callSeq;
         new Thread(() -> {
             for (int attempt = 1; attempt <= WAKE_ATTEMPTS; attempt++) {
+                if (attempt > 1 && ACTION_CALL_STARTED.equals(action) && endedSeq >= seq) {
+                    // That call is over, and its CALL_ENDED is on its way or
+                    // there: a start landing after it would put up a prompt,
+                    // or a "Recording" notice, for a call that has ended.
+                    Ln.i("wake: the call is over, not retrying " + action);
+                    return;
+                }
                 try {
                     Process process = new ProcessBuilder(command)
                             .redirectErrorStream(true)
@@ -1473,13 +1469,19 @@ public final class Main {
             return;
         }
         if (command == COMMAND_QUIT) {
-            if (activeRecording != null) {
-                // Not mid-call. The app asks this to replace an older build,
-                // and will ask again; the call being recorded is worth more
-                // than the update being prompt.
+            boolean busy;
+            synchronized (Main.class) {
+                // Not mid-call - recording, ringing, or waiting on an
+                // ask-first answer - and not while a file is being fetched:
+                // a fetch cut short by the exit reads as a complete, shorter
+                // recording. The app asks this to replace an older build, and
+                // will ask again; the call is worth more than a prompt update.
+                busy = activeRecording != null || callActive || fetches.get() > 0;
+            }
+            if (busy) {
                 client.getOutputStream().write("BUSY\n".getBytes(StandardCharsets.UTF_8));
                 client.getOutputStream().flush();
-                Ln.w("session: quit requested during a recording, refused");
+                Ln.w("session: quit requested during a call or a fetch, refused");
                 return;
             }
             client.getOutputStream().write("BYE\n".getBytes("UTF-8"));
@@ -1519,20 +1521,26 @@ public final class Main {
             // line. The app fetches these on startup to collect anything a crash
             // or a reboot left behind before it could be saved.
             File dir = new File(REC_DIR);
-            File[] files = dir.listFiles((d, n) -> n.startsWith(REC_PREFIX) && n.endsWith(REC_SUFFIX));
+            java.util.List<String> names = new java.util.ArrayList<>();
+            // Under the lock a recording starts under: its file is created
+            // before it is the active one, and in between it looked finished.
+            synchronized (Main.class) {
+                File[] files = dir.listFiles((d, n) -> n.startsWith(REC_PREFIX) && n.endsWith(REC_SUFFIX));
+                if (files != null) {
+                    // Skip the one being written right now: it is not finished.
+                    String activeName = activeName();
+                    for (File f : files) {
+                        if (!f.getName().equals(activeName)) {
+                            names.add(f.getName());
+                        }
+                    }
+                }
+            }
             OutputStream os = client.getOutputStream();
             int count = 0;
-            if (files != null) {
-                // Skip the one being written right now: it is not finished.
-                RecordingSession active = activeRecording;
-                String activeName = active == null ? null : active.name;
-                for (File f : files) {
-                    if (f.getName().equals(activeName)) {
-                        continue;
-                    }
-                    os.write((f.getName() + "\n").getBytes("UTF-8"));
-                    count++;
-                }
+            for (String name : names) {
+                os.write((name + "\n").getBytes("UTF-8"));
+                count++;
             }
             os.flush();
             Ln.i("session: listed " + count + " pending recording(s)");
@@ -1624,6 +1632,15 @@ public final class Main {
         if (command == COMMAND_FETCH) {
             String name = readName(client);
             File file = recFileFor(name);
+            if (name.equals(activeName())) {
+                // Still being written: not to be collected - nor, by a
+                // collector that then finds it empty, deleted. Its hang-up
+                // brings it.
+                Ln.w("session: fetch of the recording in progress, answering gone");
+                client.getOutputStream().write(GONE.getBytes(StandardCharsets.US_ASCII));
+                client.getOutputStream().flush();
+                return;
+            }
             if (file == null || !file.isFile()) {
                 // Say so, in the slot the codec id would take. The app tells
                 // "collected by another path already" from "the file was
@@ -1634,6 +1651,7 @@ public final class Main {
                 return;
             }
             Ln.i("session: fetching " + name + " (" + file.length() + " bytes)");
+            fetches.incrementAndGet();
             try (FileInputStream in = new FileInputStream(file)) {
                 OutputStream os = client.getOutputStream();
                 byte[] buf = new byte[64 * 1024];
@@ -1642,19 +1660,30 @@ public final class Main {
                     os.write(buf, 0, n);
                 }
                 os.flush();
+            } finally {
+                fetches.decrementAndGet();
             }
             return;
         }
         if (command == COMMAND_DELETE) {
             String name = readName(client);
             File file = recFileFor(name);
-            boolean ok = file != null && file.delete();
+            boolean ok = !name.equals(activeName()) && file != null && file.delete();
             Ln.i("session: delete " + name + " -> " + ok);
             client.getOutputStream().write((ok ? "OK\n" : "NO\n").getBytes("UTF-8"));
             client.getOutputStream().flush();
             return;
         }
         Ln.w("session: unknown command " + command + ", closing");
+    }
+
+    /** Fetches under way, which QUIT waits out. */
+    private static final AtomicInteger fetches = new AtomicInteger();
+
+    /** The name of the file being recorded into, or null. */
+    private static String activeName() {
+        RecordingSession active = activeRecording;
+        return active == null ? null : active.name;
     }
 
     private static void pong(Socket client) throws IOException {
@@ -1825,6 +1854,35 @@ public final class Main {
             }
         }
         return -1;
+    }
+
+    /**
+     * JemRec itself, or the shell (adb, and the tools run over it): the only
+     * callers this daemon has. Anything else is turned away before a byte is
+     * read. Unknown - the table could not be read, or the app's uid not found
+     * - is let through to the handshake.
+     */
+    private static boolean fromJemRec(Socket client) {
+        int uid = peerUid(client);
+        if (Checks.callerAllowed(uid, appUid(false))) {
+            return true;
+        }
+        // Reinstalled since this daemon started, perhaps: a new uid. Asked
+        // again once before turning the caller away.
+        return Checks.callerAllowed(uid, appUid(true));
+    }
+
+    private static volatile int appUid = -1;
+
+    private static int appUid(boolean fresh) {
+        if (fresh || appUid < 0) {
+            try {
+                appUid = FakeContext.get().getPackageManager().getPackageUid(APP_PACKAGE, 0);
+            } catch (Throwable t) {
+                appUid = -1;
+            }
+        }
+        return appUid;
     }
 
     /** The port half of a /proc/net/tcp address, "0100007F:6F38" -> 28472. */
