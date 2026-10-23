@@ -2,7 +2,6 @@ package com.jemcik.jemrec.ui
 
 import android.net.Uri
 import com.jemcik.jemrec.capture.Recording
-import com.jemcik.jemrec.capture.RecordingFilter
 import com.jemcik.jemrec.capture.RecordingStore
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -36,31 +35,30 @@ class ListStateTest {
     }
 
     @Test fun aRowThatLeftTheListLeavesTheSelection() {
-        // Under "Today", a row from yesterday is not shown: not deletable.
-        val today = rec(daysAgo = 0)
-        val yesterday = rec(daysAgo = 1)
+        // Under Kept, a row no longer kept is not shown: not deletable.
+        val kept = rec(daysAgo = 0, kept = true)
+        val unkept = rec(daysAgo = 1)
         val state = UiState(
-            recordings = listOf(today, yesterday),
-            filter = RecordingFilter.TODAY,
+            recordings = listOf(kept, unkept),
+            recordingsNarrowing = RecordingsNarrowing(kept = true),
             selecting = true,
-            selected = setOf(today.name, yesterday.name),
+            selected = setOf(kept.name, unkept.name),
         )
-        assertEquals(setOf(today.name), stillShown(state))
+        assertEquals(setOf(kept.name), stillShown(state))
     }
 
     @Test fun aNotificationsRecordingIsBroughtOnScreen() {
         val narrowed = UiState(
             screen = Screen.SETTINGS, homeTab = HomeTab.CALLS,
-            query = "x", searchOpen = true, filter = RecordingFilter.TODAY,
-            favoritesOnly = true, keptOnly = true, selecting = true, selected = setOf("a"),
+            recordingsNarrowing = RecordingsNarrowing(
+                query = "x", searchOpen = true, sources = setOf("whatsapp"), favorites = true, kept = true,
+            ),
+            selecting = true, selected = setOf("a"),
         )
         val shown = narrowed.revealed()
         assertEquals(Screen.HOME, shown.screen)
         assertEquals(HomeTab.RECORDINGS, shown.homeTab)
-        assertEquals(RecordingFilter.ALL, shown.filter)
-        assertEquals("", shown.query)
-        assertFalse(shown.keptOnly)
-        assertFalse(shown.favoritesOnly)
+        assertEquals(RecordingsNarrowing(), shown.recordingsNarrowing)
         assertFalse(shown.selecting)
     }
 }

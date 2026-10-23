@@ -107,10 +107,21 @@ object RecordingStore {
         private val onAbandon: () -> Unit,
     ) : AutoCloseable {
 
+        /** Told once, when it is finished or abandoned (see open). */
+        internal var whenDone: () -> Unit = {}
+        private var done = false
+
+        private fun ended() {
+            if (done) return
+            done = true
+            runCatching { whenDone() }
+        }
+
         /** Delete it: a call that produced nothing should leave nothing. */
         fun abandon() {
             runCatching { descriptor.close() }
             runCatching { onAbandon() }
+            ended()
         }
 
         /** Publish it, so other apps can finally see it. */
@@ -124,6 +135,7 @@ object RecordingStore {
         fun publish(): Boolean {
             val closed = runCatching { descriptor.close() }.isSuccess
             val finished = runCatching { onFinish() }.isSuccess
+            ended()
             return closed && finished
         }
     }
@@ -167,16 +179,27 @@ object RecordingStore {
     }
 
     /**
-     * Open somewhere to record into, falling back rather than failing.
+     * Open somewhere to record [name] into - the chosen folder, Recordings,
+     * or app storage - falling back rather than failing. Mid-call is the
+     * worst moment to discover a storage problem, so a deleted folder or a
+     * revoked permission drops to the next option instead of losing the call.
      *
-     * Mid-call is the worst moment to discover a storage problem, so a deleted
-     * folder or a revoked permission drops to the next option instead of
-     * losing the call.
+     * Until it is finished its waveform waits (Waveforms.writingStarted): in a
+     * chosen folder or app storage it is listed while it fills, and a decode
+     * then would keep the first minutes' levels as the whole call's.
      */
-    fun open(context: Context, name: String): Target? =
-        openInChosenFolder(context, name)
+    fun open(context: Context, name: String): Target? {
+        Waveforms.writingStarted(name)
+        val target = openInChosenFolder(context, name)
             ?: openInRecordings(context, name)
             ?: openInAppStorage(context, name)
+        if (target == null) {
+            Waveforms.writingEnded(context, name)
+        } else {
+            target.whenDone = { Waveforms.writingEnded(context, name) }
+        }
+        return target
+    }
 
     private fun openInChosenFolder(context: Context, name: String): Target? {
         val tree = treeUri(context) ?: return null

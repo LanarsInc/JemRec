@@ -12,9 +12,9 @@ import com.jemcik.jemrec.adb.AdbTransport
 import android.content.Intent
 import android.content.IntentSender
 import android.net.Uri
+import android.os.SystemClock
 import com.jemcik.jemrec.DeepLink
 import com.jemcik.jemrec.capture.AfterCall
-import com.jemcik.jemrec.capture.CallMonitorService
 import com.jemcik.jemrec.capture.MissedCalls
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.asSharedFlow
@@ -42,16 +42,17 @@ import com.jemcik.jemrec.capture.Transcoder
 import androidx.core.content.FileProvider
 import java.io.File
 import com.jemcik.jemrec.capture.RecorderSwitch
-import com.jemcik.jemrec.capture.RecordingFilter
-import com.jemcik.jemrec.capture.filterRecordings
 import com.jemcik.jemrec.capture.RecordingMode
 import com.jemcik.jemrec.capture.RecordingPlayer
 import com.jemcik.jemrec.capture.RecordingStore
 import com.jemcik.jemrec.capture.Trash
+import com.jemcik.jemrec.capture.Waveforms
 import com.jemcik.jemrec.capture.Retention
 import com.jemcik.jemrec.capture.KeepMarks
 import com.jemcik.jemrec.capture.SelfTest
-import io.github.muntashirakon.adb.android.AdbMdns
+import com.jemcik.jemrec.ui.theme.LightDark
+import com.jemcik.jemrec.ui.theme.Look
+import com.jemcik.jemrec.ui.theme.Looks
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,6 +70,12 @@ import java.util.Locale
 /** Recordings added to the list per "show more" tap. */
 private const val PAGE = 20
 
+/** How long a recording the waveform fill-in could not decode waits before
+ *  it is tried again: long enough that a file that will not decode does not
+ *  log its warning at every refresh, short enough that one that failed for
+ *  the moment gets its waveform the same day. */
+private const val RETRY_UNDECODABLE_MS = 30 * 60_000L
+
 /** How much diagnostics log to keep. Roughly a screen or two of history,
  *  which is as far back as anyone reads. */
 private const val LOG_LIMIT = 8_000
@@ -84,12 +91,12 @@ private const val LOG_LIMIT = 8_000
 enum class Screen {
     HOME, SETTINGS,
     // Reached from Settings, and back to it.
-    WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE;
+    WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME;
 
     /** Where Back goes from here. */
     val up: Screen get() = when (this) {
         HOME, SETTINGS -> HOME
-        WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE -> SETTINGS
+        WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME -> SETTINGS
     }
 }
 
@@ -187,22 +194,10 @@ data class UiState(
      */
     val starting: Boolean = false,
     val recordings: List<Recording> = emptyList(),
-    /** Live search text over the recordings (name or number). */
-    val query: String = "",
-    /** Whether the search field is unfolded. Folded away by default: it is used
-     *  now and then, not every visit, so it does not sit taking height until the
-     *  search chip asks for it. */
-    val searchOpen: Boolean = false,
-    /** Which time preset is active: All / Today / This week. */
-    val filter: RecordingFilter = RecordingFilter.ALL,
-    /** Favourites is its own axis, not one of the time presets: narrowing to
-     *  calls with starred contacts ANDs with whatever time range is chosen,
-     *  rather than replacing it. */
-    val favoritesOnly: Boolean = false,
-    /** Only recordings marked to keep. Its own axis too, like favourites. */
-    val keptOnly: Boolean = false,
-    /** Only messages the answering machine took. Its own axis too. */
-    val messagesOnly: Boolean = false,
+    /** The Recordings tab's chips and search. */
+    val recordingsNarrowing: RecordingsNarrowing = RecordingsNarrowing(),
+    /** The Calls tab's own chips and search. */
+    val callsNarrowing: CallsNarrowing = CallsNarrowing(),
     /** What is in Recently deleted, soonest to go first. See Trash. */
     val trashed: List<Recording> = emptyList(),
     /** Which tab of the home screen is showing. */
@@ -276,6 +271,9 @@ data class UiState(
     val playing: Boolean = false,
     val positionMs: Int = 0,
     val durationMs: Int = 0,
+    /** The loaded recording's loudness, for its waveform (Waveforms); null
+     *  until worked out, or for one that cannot be - the plain scrubber then. */
+    val waveform: List<Float>? = null,
     val log: String = "",
 )
 
@@ -388,11 +386,24 @@ class MainViewModel @JvmOverloads constructor(
      * question comes up over this screen, and closing it resumes the screen,
      * whose re-check revives the recorder. See CaptureDaemon.askToAllowNetwork.
      */
-    fun allowThisWifi() = launchAction("allow this Wi-Fi") {
-        if (!CaptureDaemon.askToAllowNetwork(getApplication())) {
-            say("could not switch Wireless debugging - open it in Developer options and allow this network")
+    /** Waits its turn rather than being dropped, as setEnabled does: asked
+     *  for while the recorder is down, when the opening's check holds busy
+     *  for seconds, the tap went without a sign. One at a time - a second
+     *  tap while one waits is the same question. */
+    fun allowThisWifi() {
+        if (!askingForWifi.compareAndSet(false, true)) return
+        launchActionWhenFree("allow this Wi-Fi") {
+            try {
+                if (!CaptureDaemon.askToAllowNetwork(getApplication())) {
+                    say("could not switch Wireless debugging - open it in Developer options and allow this network")
+                }
+            } finally {
+                askingForWifi.set(false)
+            }
         }
     }
+
+    private val askingForWifi = java.util.concurrent.atomic.AtomicBoolean(false)
 
     /** "They are on already", from the Developer options card on a phone that
      *  hides them. See Setup.developerOptions. */
@@ -640,8 +651,7 @@ class MainViewModel @JvmOverloads constructor(
      * Wi-Fi - and stranded an "off" in the field until the next network.
      */
     fun setEnabled(on: Boolean) {
-        // Saved at once, outside the action below: that is skipped while
-        // another one runs, and the switch must not be.
+        // Saved at once, outside the action below, which waits its turn.
         RecorderSwitch.set(getApplication(), on)
         // `starting` matters as much as `enabled` here. The switch flips at
         // once, but the recorder takes a couple of seconds to come up, and in
@@ -650,7 +660,14 @@ class MainViewModel @JvmOverloads constructor(
         // while the recorder was starting normally. An error shown for a normal
         // operation in progress is how people learn to ignore errors.
         _state.update { it.copy(enabled = on, starting = on) }
-        launchAction(if (on) "turn on" else "turn off") {
+        // Waits its turn rather than being dropped: the record control takes
+        // a tap while the app is busy - each opening's check holds busy for
+        // seconds - and the tap was dropped without a sign, the control
+        // looking as ever. The control flips at once; the recorder follows
+        // when the app is free, as the switch then is - a quick on and off
+        // ends off.
+        launchActionWhenFree(if (on) "turn on" else "turn off") {
+            if (RecorderSwitch.isOn(getApplication()) != on) return@launchActionWhenFree
             try {
                 // Shared with the Quick Settings tile. See RecorderSwitch.turn.
                 RecorderSwitch.turn(getApplication(), on)
@@ -717,6 +734,18 @@ class MainViewModel @JvmOverloads constructor(
         _state.update { it.copy(afterCallNotice = on) }
     }
 
+    /** The app repaints at once: both activities draw from Looks, and
+     *  Settings reads the choice from the theme (LocalLookChoice). */
+    fun setLook(look: Look) {
+        val app = getApplication<Application>()
+        Looks.set(app, Looks.choice(app).copy(look = look))
+    }
+
+    fun setLightDark(lightDark: LightDark) {
+        val app = getApplication<Application>()
+        Looks.set(app, Looks.choice(app).copy(lightDark = lightDark))
+    }
+
     /**
      * A notification's button brought the user here: play that call, share
      * it, run the self-test, or pair again.
@@ -774,40 +803,23 @@ class MainViewModel @JvmOverloads constructor(
         // has left the visible list, and must leave the selection with it - a
         // later delete acts on names, and would otherwise take a row the user
         // can no longer see. Widening the query keeps everything, as it should.
-        val next = if (current.selecting) {
-            val stillShown = filterRecordings(
-                current.recordings, query, current.filter, current.favoritesOnly, current.keptOnly, current.messagesOnly,
-            ).map { it.name }.toSet()
-            current.selected intersect stillShown
-        } else {
-            current.selected
-        }
-        current.copy(query = query, selected = next)
+        val next = current.copy(recordingsNarrowing = current.recordingsNarrowing.copy(query = query))
+        next.copy(selected = stillShown(next))
     }
 
-    /** Fold the search field in or out. Folding it away also drops the query:
-     *  a filter still narrowing the list from behind a hidden field is a filter
-     *  the user cannot see is on, and the chip that reopens search would not
-     *  explain why half the recordings were missing. */
-    fun toggleSearch() = _state.update {
-        if (it.searchOpen) it.copy(searchOpen = false, query = "") else it.copy(searchOpen = true)
+    /** A chip of the Recordings tab tapped. Leaves a selection to the rows
+     *  still shown, as a search does: the chips are hidden while selecting,
+     *  but whichever way the list narrows, a delete must not take a row it
+     *  has stopped showing - only the sources' chip made sure of that. */
+    internal fun tapRecordingsChip(chip: ListChip) = _state.update { current ->
+        val next = current.copy(recordingsNarrowing = current.recordingsNarrowing.tapped(chip))
+        next.copy(selected = stillShown(next))
     }
 
-    fun setFilter(filter: RecordingFilter) = _state.update {
-        // Tapping the active chip again clears it back to All, the usual
-        // single-select filter-chip behaviour. These are the TIME presets only;
-        // favourites is separate and untouched here.
-        it.copy(filter = if (it.filter == filter) RecordingFilter.ALL else filter)
-    }
+    /** A chip of the Calls tab tapped. */
+    internal fun tapCallsChip(chip: ListChip) = _state.update { it.copy(callsNarrowing = it.callsNarrowing.tapped(chip)) }
 
-    /** Favourites is a toggle on its own axis, not one of the time presets:
-     *  turning it on narrows to starred contacts on TOP of the time range,
-     *  turning it off widens back. It never disturbs the time chips. */
-    fun toggleFavorites() = _state.update { it.copy(favoritesOnly = !it.favoritesOnly) }
-
-    fun toggleKeptOnly() = _state.update { it.copy(keptOnly = !it.keptOnly) }
-
-    fun toggleMessagesOnly() = _state.update { it.copy(messagesOnly = !it.messagesOnly) }
+    fun setCallsQuery(query: String) = _state.update { it.copy(callsNarrowing = it.callsNarrowing.copy(query = query)) }
 
     /** Mark one recording to keep, or take the mark off. Kept recordings are
      *  never auto-deleted. */
@@ -1107,7 +1119,75 @@ class MainViewModel @JvmOverloads constructor(
         _state.value.playingName?.let { name ->
             if (snapshot.recordings.none { it.name == name }) stopPlayback()
         }
+        fillInWaveforms()
     }
+
+    /**
+     * Rows of the list draw each recording's waveform, from its cache (see
+     * rememberRowLevels). A call saved since the waveform player has one
+     * (AfterCall); one recorded before has none until it is played - so they
+     * are worked out here, newest first, one at a time, while the app is on
+     * screen. Measured on the Honor (2026-10-23): 0.14 s a minute-long call,
+     * 2.5 s a half-hour one - once each, then read from the cache.
+     *
+     * Only on screen: it stops with the screen (stopFillingIn) and the next
+     * refresh - each opening makes one - goes on from there. It ran on when
+     * the app was left, with up to four decoders a call, during the next call
+     * too. Whether a recording has its levels is a file's size, not a read of
+     * them; one that cannot be decoded is not tried again this run of the
+     * app; and the levels of recordings no longer kept go (Waveforms.prune).
+     * Asked again while it runs, it goes over the list once more at the end,
+     * for the recordings the list gained meanwhile.
+     */
+    private fun fillInWaveforms() {
+        if (fillingIn?.isActive == true) {
+            fillAgain = true
+            return
+        }
+        val app = getApplication<Application>()
+        fillingIn = viewModelScope.launch(Dispatchers.IO) {
+            do {
+                fillAgain = false
+                val now = _state.value
+                // Not over a list that is not the phone's: the debug build's
+                // invented calls, or none for want of the audio permission -
+                // every waveform would go, to be worked out again.
+                if (Recordings.override == null && now.canReadAudio) {
+                    Waveforms.prune(app, (now.recordings + now.trashed).map { it.name })
+                }
+                for (recording in now.recordings) {
+                    if (!isActive) break
+                    val name = recording.name
+                    val failedAt = undecodable[name]
+                    if (failedAt != null && SystemClock.elapsedRealtime() - failedAt < RETRY_UNDECODABLE_MS) continue
+                    if (Waveforms.isBeingWritten(name) || Waveforms.has(app, name)) continue
+                    val levels = Waveforms.levels(app, name, recording.uri, keepGoing = { isActive })
+                    if (levels == null && isActive && !Waveforms.isBeingWritten(name)) {
+                        undecodable[name] = SystemClock.elapsedRealtime()
+                    } else {
+                        undecodable.remove(name)
+                    }
+                }
+            } while (fillAgain && isActive)
+        }
+    }
+
+    /** The list's fill-in stops with the screen. See fillInWaveforms. */
+    fun stopFillingIn() {
+        fillingIn?.cancel()
+    }
+
+    private var fillingIn: Job? = null
+
+    @Volatile
+    private var fillAgain = false
+
+    /** Recordings the fill-in could not decode, and when: tried on every
+     *  refresh, each logged its warning again and again; never again for
+     *  the life of the process, one that failed only for the moment - its
+     *  codec not to be had while AfterCall decoded another - kept no
+     *  waveform for days. Tried again after RETRY_UNDECODABLE_MS. */
+    private val undecodable = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     /** Everything refresh() reads off disk, gathered in one background pass. */
     private data class Snapshot(
@@ -1193,6 +1273,7 @@ class MainViewModel @JvmOverloads constructor(
 
     private val player by lazy { RecordingPlayer(getApplication()) }
     private var ticker: kotlinx.coroutines.Job? = null
+    private var waveformJob: Job? = null
 
     /**
      * Play or pause a recording, inside this app.
@@ -1203,12 +1284,27 @@ class MainViewModel @JvmOverloads constructor(
      * recording of a private call to whichever app claimed the intent.
      */
     fun play(recording: Recording) {
+        val another = _state.value.playingName != recording.name
         if (!player.toggle(recording.uri) { onPlaybackFinished() }) {
             tell("could not play that recording")
             stopPlayback()
             return
         }
         startTicker(recording)
+        if (another) loadWaveform(recording)
+    }
+
+    /** The waveform of the recording just loaded: the plain scrubber until
+     *  it is there, which for a long call can be a few seconds the first time. */
+    private fun loadWaveform(recording: Recording) {
+        waveformJob?.cancel()
+        _state.update { it.copy(waveform = null) }
+        waveformJob = viewModelScope.launch {
+            val levels = withContext(Dispatchers.IO) {
+                Waveforms.levels(getApplication(), recording.name, recording.uri, keepGoing = { isActive })
+            } ?: return@launch
+            _state.update { if (it.playingName == recording.name) it.copy(waveform = levels) else it }
+        }
     }
 
     fun seekTo(ms: Int) {
@@ -1294,9 +1390,10 @@ class MainViewModel @JvmOverloads constructor(
 
     private fun stopPlayback() {
         ticker?.cancel()
+        waveformJob?.cancel()
         player.release()
         _state.update {
-            it.copy(playing = false, playingName = null, positionMs = 0, durationMs = 0)
+            it.copy(playing = false, playingName = null, positionMs = 0, durationMs = 0, waveform = null)
         }
     }
 
@@ -1458,9 +1555,7 @@ class MainViewModel @JvmOverloads constructor(
     fun selectAllVisible() = _state.update { current ->
         // "All visible" means all that pass the search and preset - the same
         // rows the list is showing - not every recording on disk.
-        val visible = filterRecordings(
-            current.recordings, current.query, current.filter, current.favoritesOnly, current.keptOnly, current.messagesOnly,
-        ).take(current.visibleCount)
+        val visible = filterRecordings(current.recordings, current.recordingsNarrowing).take(current.visibleCount)
         current.copy(selected = visible.map { it.name }.toSet())
     }
 

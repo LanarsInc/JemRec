@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
@@ -60,6 +59,7 @@ import com.jemcik.jemrec.capture.FileNames
 import com.jemcik.jemrec.capture.Retention
 import com.jemcik.jemrec.capture.Trash
 import com.jemcik.jemrec.ui.theme.JemRecColors
+import com.jemcik.jemrec.ui.theme.LocalLookChoice
 
 /** Which of Settings' dialogs is open. Saved by name, so a rotation keeps it. */
 private enum class SettingsDialog { FOLDER, FILE_NAMES, OLD, SHORT }
@@ -186,8 +186,13 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
             }
         }
 
+        // The four settings the header marks carry its mark here, where their
+        // icon would be: one function decides both (headerMark).
+        val answer by vm.answer.state.collectAsState()
+        val headerFacts = marks(state, answer.enabled)
+        val status = recorderStatus(state)
         SettingsGroup("Recording") {
-            row { shape ->
+            row {
                 SwitchRow(
                     title = "Record every call",
                     summary = if (state.automatic) {
@@ -196,13 +201,12 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
                         "Asks with a notification when a call starts. The opening " +
                             "seconds are not saved."
                     },
-                    icon = SettingsIcons.Record,
+                    mark = headerMark(Marked.MODE, headerFacts, status),
                     checked = state.automatic,
                     onCheckedChange = vm::setAutomatic,
-                    shape = shape,
                 )
             }
-            row { shape ->
+            row {
                 val rules = rulesSummary(state)
                 SettingsRow(
                     title = "Whose calls to keep",
@@ -214,31 +218,27 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
                     },
                     icon = Icons.Filled.Person,
                     onClick = { vm.showScreen(Screen.WHOSE_CALLS) },
-                    shape = shape,
                 )
             }
-            row { shape ->
-                val answer by vm.answer.state.collectAsState()
+            row {
                 SettingsRow(
                     title = "Answering machine",
                     summary = answerSummary(answer),
-                    icon = SettingsIcons.Voicemail,
+                    mark = headerMark(Marked.ANSWERING, headerFacts, status),
                     onClick = { vm.showScreen(Screen.ANSWERING_MACHINE) },
-                    shape = shape,
                 )
             }
-            row { shape ->
+            row {
                 SettingsRow(
                     title = "Messenger calls",
                     summary = messengerSummary(state),
-                    icon = SettingsIcons.Chat,
+                    mark = headerMark(Marked.MESSENGERS, headerFacts, status),
                     onClick = { vm.showScreen(Screen.MESSENGER_CALLS) },
-                    shape = shape,
                 )
             }
             // Telecom's own account of each call. Its switch is on unless turned
             // off, and off is exactly how JemRec worked before it. See CallTracking.
-            row { shape ->
+            row {
                 SwitchRow(
                     title = "Exact call tracking",
                     summary = if (state.callTracking) {
@@ -249,22 +249,31 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
                     icon = Icons.Filled.Phone,
                     checked = state.callTracking,
                     onCheckedChange = vm::setCallTracking,
-                    shape = shape,
+                )
+            }
+        }
+
+        SettingsGroup("Look") {
+            row {
+                SettingsRow(
+                    title = "Theme",
+                    summary = LocalLookChoice.current.let { "${lookName(it.look)} · ${lightDarkSummary(it.lightDark)}" },
+                    icon = SettingsIcons.Palette,
+                    onClick = { vm.showScreen(Screen.THEME) },
                 )
             }
         }
 
         SettingsGroup("Saving") {
-            row { shape ->
+            row {
                 SettingsRow(
                     title = "Saving to",
                     summary = state.folder,
                     icon = SettingsIcons.Folder,
                     onClick = { dialog = SettingsDialog.FOLDER },
-                    shape = shape,
                 )
             }
-            row { shape ->
+            row {
                 val problem = fileNamesProblem(state)
                 SettingsRow(
                     title = "File names",
@@ -276,13 +285,12 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
                     },
                     icon = Icons.Filled.Edit,
                     onClick = { dialog = SettingsDialog.FILE_NAMES },
-                    shape = shape,
                 )
             }
             // Both rules off until chosen. Nothing they remove is gone: it waits
             // in Recently deleted, said in their dialogs so nobody picks a rule
             // fearing it.
-            row { shape ->
+            row {
                 SettingsRow(
                     title = "Auto-delete old recordings",
                     summary = if (state.autoDeleteAfterDays == 0) {
@@ -290,12 +298,11 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
                     } else {
                         "Older than ${ageChoice(state.autoDeleteAfterDays)}"
                     },
-                    icon = Icons.Filled.DateRange,
+                    mark = headerMark(Marked.AUTO_DELETE, headerFacts, status),
                     onClick = { dialog = SettingsDialog.OLD },
-                    shape = shape,
                 )
             }
-            row { shape ->
+            row {
                 SettingsRow(
                     title = "Auto-delete short calls",
                     summary = if (state.autoDeleteShorterThan == 0) {
@@ -305,10 +312,9 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
                     },
                     icon = SettingsIcons.Timer,
                     onClick = { dialog = SettingsDialog.SHORT },
-                    shape = shape,
                 )
             }
-            row { shape ->
+            row {
                 SettingsRow(
                     title = "Recently deleted",
                     summary = when (val count = state.trashed.size) {
@@ -318,7 +324,6 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
                     },
                     icon = Icons.Filled.Delete,
                     onClick = vm::showTrash,
-                    shape = shape,
                 )
             }
         }
@@ -327,7 +332,7 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
             // The notification that follows each call. Its switch is only about
             // the everyday one: a recording that came out silent is reported
             // either way, because that is the news nobody should miss.
-            row { shape ->
+            row {
                 SwitchRow(
                     title = "Show each call when it ends",
                     summary = if (state.afterCallNotice) {
@@ -338,7 +343,6 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
                     icon = Icons.Filled.Notifications,
                     checked = state.afterCallNotice,
                     onCheckedChange = vm::setAfterCallNotice,
-                    shape = shape,
                 )
             }
             // The tile is the same switch as the one in the header. Android 13
@@ -348,7 +352,7 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
             // because Android answers a tile already added without a word. The
             // row stays tappable: if the tile was taken out since, Android asks
             // again; if not, its answer is said back.
-            row { shape ->
+            row {
                 SettingsRow(
                     title = "Quick Settings tile",
                     summary = when {
@@ -363,14 +367,13 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
                     } else {
                         null
                     },
-                    shape = shape,
                 )
             }
             // Setup's debugging question, answerable again. Debugging itself is
             // not a choice here - the recorder needs it - so the summary says
             // what stays on whichever way the switch is set, and the switch is
             // only about Android's reminder of it. See DebugNotificationCleaner.
-            row { shape ->
+            row {
                 SwitchRow(
                     title = "Hide the debugging notification",
                     summary = if (state.debugNotificationProblem) {
@@ -387,7 +390,6 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
                     icon = SettingsIcons.Hidden,
                     checked = state.debugNotificationHidden,
                     onCheckedChange = vm::setHideDebugNotification,
-                    shape = shape,
                 )
             }
         }
@@ -398,18 +400,17 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
             // broken, which is worse than saying nothing - so AutoStart answers
             // whether the screen exists before the row is drawn at all.
             if (autoStart != null) {
-                row { shape ->
+                row {
                     SettingsRow(
                         title = "Survive a restart",
                         summary = "Allow JemRec in $autoStart, so it can " +
                             "start again by itself after a reboot",
                         icon = Icons.Filled.Refresh,
                         onClick = { AutoStart.open(context) },
-                        shape = shape,
                     )
                 }
             }
-            row { shape ->
+            row {
                 SettingsRow(
                     title = "Diagnostics",
                     summary = if (state.daemonRunning) "Recorder running" else "Recorder not running",
@@ -420,12 +421,11 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
                     },
                     icon = Icons.Filled.Build,
                     onClick = { vm.showScreen(Screen.DIAGNOSTICS) },
-                    shape = shape,
                 )
             }
             // In the destructive colour, so a glance tells it apart, and it
             // still asks before doing anything.
-            row { shape ->
+            row {
                 SettingsRow(
                     title = "Start fresh",
                     summary = "Set JemRec up again from the first step. Your " +
@@ -435,7 +435,6 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
                     icon = SettingsIcons.Restore,
                     onClick = vm::askReset,
                     enabled = !state.busy,
-                    shape = shape,
                 )
             }
         }
@@ -446,12 +445,8 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
 private const val KEPT_AND_TRASH = "Recordings you mark to keep are never removed. " +
     "Anything removed waits in Recently deleted for ${Trash.DAYS} days first."
 
-private fun ageChoice(days: Int): String = when (days) {
-    0 -> "Never"
-    180 -> "6 months"
-    365 -> "1 year"
-    else -> "$days days"
-}
+/** An age to choose, in the header's words for it (ageWords) - or Never. */
+private fun ageChoice(days: Int): String = if (days == 0) "Never" else ageWords(days)
 
 /** A format's name - the same words in the dialog and on the row, so the row
  *  shows the option that was picked. */
@@ -736,10 +731,9 @@ fun WhoseCallsScreen(state: UiState, vm: MainViewModel) {
             )
             SettingsGroup {
                 state.ruleChosen.forEach { chosen ->
-                    row(key = chosen.key) { shape ->
+                    row(key = chosen.key) {
                         SettingsRow(
                             title = chosen.name,
-                            shape = shape,
                             leading = { CallerAvatar(caller = chosen.name, photo = chosen.photo) },
                             trailing = {
                                 IconButton(
@@ -752,7 +746,7 @@ fun WhoseCallsScreen(state: UiState, vm: MainViewModel) {
                         )
                     }
                 }
-                row { shape ->
+                row {
                     SettingsRow(
                         title = "Add a contact",
                         titleColor = MaterialTheme.colorScheme.primary,
@@ -760,20 +754,18 @@ fun WhoseCallsScreen(state: UiState, vm: MainViewModel) {
                         icon = Icons.Filled.Person,
                         onClick = { contactPicker.launch(null) },
                         enabled = !state.busy,
-                        shape = shape,
                     )
                 }
             }
         }
 
         SettingsGroup("Everyone else") {
-            row { shape ->
+            row {
                 SwitchRow(
                     title = "Numbers not in your contacts",
                     summary = "And hidden numbers",
                     checked = state.ruleOtherNumbers,
                     onCheckedChange = vm::setRuleOtherNumbers,
-                    shape = shape,
                 )
             }
         }
@@ -819,13 +811,12 @@ fun MessengerCallsScreen(state: UiState, vm: MainViewModel) {
 
         SettingsGroup("Record calls in") {
             state.voipInstalled.forEach { app ->
-                row { shape ->
+                row {
                     SwitchRow(
                         title = app.label,
                         checked = app.pkg in state.voipEnabled,
                         onCheckedChange = { vm.setVoipApp(app.pkg, it) },
                         leading = { AppIcon(app.pkg) },
-                        shape = shape,
                     )
                 }
             }
@@ -833,7 +824,7 @@ fun MessengerCallsScreen(state: UiState, vm: MainViewModel) {
 
         if (state.voipEnabled.isNotEmpty()) {
             SettingsGroup("Caller names") {
-                row { shape ->
+                row {
                     SwitchRow(
                         title = "Show who called",
                         summary = if (state.voipNamesProblem) {
@@ -849,7 +840,6 @@ fun MessengerCallsScreen(state: UiState, vm: MainViewModel) {
                         checked = state.voipNames,
                         enabled = !state.busy,
                         onCheckedChange = vm::setVoipNames,
-                        shape = shape,
                     )
                 }
             }
@@ -920,7 +910,7 @@ fun DiagnosticsScreen(state: UiState, vm: MainViewModel) {
     val haptics = LocalHapticFeedback.current
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SettingsGroup {
-            row { shape ->
+            row {
                 SettingsRow(
                     title = if (state.daemonRunning) "Recorder running" else "Recorder not running",
                     titleColor = if (state.daemonRunning) {
@@ -937,7 +927,6 @@ fun DiagnosticsScreen(state: UiState, vm: MainViewModel) {
                     leading = {
                         StatusDot(if (state.daemonRunning) JemRecColors.play else MaterialTheme.colorScheme.error)
                     },
-                    shape = shape,
                 )
             }
         }

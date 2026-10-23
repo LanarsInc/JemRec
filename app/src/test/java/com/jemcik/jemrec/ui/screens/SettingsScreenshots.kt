@@ -8,6 +8,8 @@ import com.jemcik.jemrec.capture.FileNames
 import com.jemcik.jemrec.ui.AppScaffold
 import com.jemcik.jemrec.ui.Screen
 import com.jemcik.jemrec.ui.UiState
+import com.jemcik.jemrec.ui.theme.Look
+import com.jemcik.jemrec.ui.theme.LookChoice
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -27,9 +29,66 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [36], qualifiers = ScreenTest.PHONE)
 class SettingsScreenshots : ScreenTest() {
 
-    private fun settings(state: UiState, fontScale: Float = 1f) {
+    private fun settings(state: UiState, fontScale: Float = 1f, look: LookChoice = LookChoice()) {
         val shown = state.copy(screen = state.screen.takeIf { it != Screen.HOME } ?: Screen.SETTINGS)
-        show(fontScale) { AppScaffold(shown, viewModel(shown)) }
+        show(fontScale, look) { AppScaffold(shown, viewModel(shown)) }
+    }
+
+    // Settings > Theme: the home screen in the look picked, drawn by its own
+    // parts, the looks and light or dark under it - each look once.
+
+    @Test fun theme() {
+        settings(Fixtures.ready().copy(screen = Screen.THEME))
+        snap("theme")
+    }
+
+    @Config(qualifiers = "+night")
+    @Test fun themeDeckDark() {
+        // Deck chosen: the whole screen is Deck's, and so is the preview.
+        val deck = LookChoice(Look.DECK)
+        settings(Fixtures.ready().copy(screen = Screen.THEME), look = deck)
+        snap("theme-deck-dark")
+    }
+
+    @Test fun themeMultitrack() {
+        val multitrack = LookChoice(Look.MULTITRACK)
+        settings(Fixtures.ready().copy(screen = Screen.THEME), look = multitrack)
+        snap("theme-multitrack")
+    }
+
+    @Test fun themeLargeText() {
+        settings(Fixtures.ready().copy(screen = Screen.THEME), fontScale = 2f)
+        snap("theme-large-text")
+    }
+
+    // The rest of the app in the other looks: Material's own pieces in each
+    // look's colours, as Settings will be drawn.
+
+    @Config(qualifiers = "+h1500dp")
+    @Test fun overviewDeck() {
+        settings(Fixtures.ready(), look = LookChoice(Look.DECK))
+        snap("settings-deck")
+    }
+
+    @Config(qualifiers = "+h1500dp-night")
+    @Test fun overviewMultitrackDark() {
+        settings(Fixtures.ready(), look = LookChoice(Look.MULTITRACK))
+        snap("settings-multitrack-dark")
+    }
+
+    // Each look in light and dark: Deck dark (the user's own) and
+    // Multitrack light, beside Memo's two above and the two over these.
+
+    @Config(qualifiers = "+h1500dp-night")
+    @Test fun overviewDeckDark() {
+        settings(Fixtures.ready(), look = LookChoice(Look.DECK))
+        snap("settings-deck-dark")
+    }
+
+    @Config(qualifiers = "+h1500dp")
+    @Test fun overviewMultitrack() {
+        settings(Fixtures.ready(), look = LookChoice(Look.MULTITRACK))
+        snap("settings-multitrack")
     }
 
     // The whole overview, so the screen is taller than a phone's.

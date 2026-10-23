@@ -8,6 +8,7 @@ import com.jemcik.jemrec.capture.CallRules
 import com.jemcik.jemrec.capture.FileNames
 import com.jemcik.jemrec.capture.Recording
 import com.jemcik.jemrec.capture.VoipApps
+import com.jemcik.jemrec.capture.Waveforms
 import com.jemcik.jemrec.ui.SetupStep
 import com.jemcik.jemrec.ui.UiState
 import java.text.SimpleDateFormat
@@ -104,4 +105,27 @@ object Fixtures {
     )
 
     fun chosen(vararg names: String) = names.map { CallRules.Chosen(it, it, null) }
+
+    /** A call's loudness as the waveform draws it: phrases of words and the
+     *  pauses between them, two people at their own levels, and a quiet
+     *  stretch in the middle - the same every run, so the same pixels. */
+    fun waveform(from: Long = 20_261_022L): List<Float> = Waveforms.invented(from)
+
+    /** Olivia's call - the list's first, 4:12 - in the player, at
+     *  [positionMs], [playing] or paused, and its [waveform] worked out, or
+     *  null for the plain slider before it is. The same moment in every look
+     *  unless a test says otherwise: Memo's pictures were at 1:47 and the
+     *  others' at 1:43, for no reason. */
+    fun playing(
+        positionMs: Int = 107_000,
+        playing: Boolean = true,
+        waveform: List<Float>? = Fixtures.waveform(),
+        durationMs: Int = 252_000,
+    ): UiState = ready().copy(
+        playingName = recordings().first().name,
+        playing = playing,
+        positionMs = positionMs,
+        durationMs = durationMs,
+        waveform = waveform,
+    )
 }

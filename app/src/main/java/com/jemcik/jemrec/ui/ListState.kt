@@ -1,8 +1,5 @@
 package com.jemcik.jemrec.ui
 
-import com.jemcik.jemrec.capture.RecordingFilter
-import com.jemcik.jemrec.capture.filterRecordings
-
 /*
  * Small decisions about the recordings list, kept out of the ViewModel so
  * they can be tested (ListStateTest). Each acted on the wrong rows once.
@@ -21,13 +18,12 @@ internal fun picked(selected: Set<String>, shown: List<String>): Picked = when {
 }
 
 /** The selection, kept to the rows still shown: after a refresh, a row that
- *  left the visible list (past midnight under Today, unstarred under
- *  Favourites) must leave the selection too, or "Delete 3" takes rows the
+ *  left the visible list (unstarred under Favourites, kept no longer under
+ *  Kept) must leave the selection too, or "Delete 3" takes rows the
  *  user cannot see. */
 internal fun stillShown(state: UiState): Set<String> {
     if (state.selected.isEmpty()) return state.selected
-    val shown = filterRecordings(state.recordings, state.query, state.filter, state.favoritesOnly, state.keptOnly, state.messagesOnly)
-        .map { it.name }.toSet()
+    val shown = filterRecordings(state.recordings, state.recordingsNarrowing).map { it.name }.toSet()
     return state.selected intersect shown
 }
 
@@ -36,7 +32,6 @@ internal fun stillShown(state: UiState): Set<String> {
  *  player and its share sheet to be. */
 internal fun UiState.revealed(): UiState = copy(
     screen = Screen.HOME, homeTab = HomeTab.RECORDINGS,
-    query = "", searchOpen = false,
-    filter = RecordingFilter.ALL, favoritesOnly = false, keptOnly = false, messagesOnly = false,
+    recordingsNarrowing = RecordingsNarrowing(),
     selecting = false, selected = emptySet(),
 )
