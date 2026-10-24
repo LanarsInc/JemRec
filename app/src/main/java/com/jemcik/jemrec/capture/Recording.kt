@@ -157,13 +157,18 @@ internal object Recordings {
      */
     fun list(context: Context, withCallers: Boolean = true): List<Recording> {
         override?.let { return it(context) }
-        val kept = KeepMarks.all(context)
-        val messages = MessageMarks.all(context)
-        val found = (fromMediaStore(context) + fromChosenFolder(context) + fromAppStorage(context))
+        val listed = (fromMediaStore(context) + fromChosenFolder(context) + fromAppStorage(context))
             .distinctBy { it.name }
             // By when the call was, not by name: a name can start with the
             // caller now (FileNames.Format.HONOR).
             .sortedWith(compareByDescending<Recording> { it.startedAtMillis ?: 0L }.thenByDescending { it.name })
+        // What the files say of themselves, for any the preferences have not
+        // heard of: every one, after a reinstall (RecordingTags). Before the
+        // marks are read - and auto-delete reads them from here.
+        RecordingTags.recover(context, listed)
+        val kept = KeepMarks.all(context)
+        val messages = MessageMarks.all(context)
+        val found = listed
             .map { if (it.name in kept) it.copy(kept = true) else it }
             .map { if (it.name in messages) it.copy(message = true) else it }
         if (!withCallers) return withDirections(context, found, emptyMap())
@@ -212,22 +217,34 @@ internal object Recordings {
         }
     }
 
-    /** A recording as the list shows it, from what its source knows. */
+    /**
+     * A recording as the list shows it, from what its source knows.
+     * [whenMillis] is the file's own date, shown only for a name that does
+     * not say when the call was: a file's date moves whenever it is written,
+     * and marking a recording kept writes it (RecordingTags) - its date moved
+     * 4 s on the Android 17 emulator (2026-10-24), and with it the time on a
+     * row with no caller. The name's time is the call's start, as the day it
+     * is listed under and a named row's time already were.
+     */
     internal fun describe(
         name: String,
         uri: Uri,
         sizeBytes: Long,
         durationMillis: Long,
-        whenMillis: Long = startOf(name),
-    ) = Recording(
-        name = name,
-        uri = uri,
-        whenLabel = whenLabel(whenMillis),
-        incoming = FileNames.parse(name)?.incoming ?: RecordingStore.isIncoming(name),
-        durationLabel = duration(durationMillis),
-        sizeLabel = size(sizeBytes),
-        durationMillis = durationMillis.coerceAtLeast(0),
-    )
+        whenMillis: Long = 0L,
+    ): Recording {
+        // Once: every row of every list comes through here.
+        val parsed = FileNames.parse(name)
+        return Recording(
+            name = name,
+            uri = uri,
+            whenLabel = whenLabel(parsed?.startedAt ?: whenMillis),
+            incoming = parsed?.incoming ?: RecordingStore.isIncoming(name),
+            durationLabel = duration(durationMillis),
+            sizeLabel = size(sizeBytes),
+            durationMillis = durationMillis.coerceAtLeast(0),
+        )
+    }
 
     /** The same, for a source that does not know the duration: the file is
      *  opened to ask. */
@@ -236,11 +253,8 @@ internal object Recordings {
         name: String,
         uri: Uri,
         sizeBytes: Long,
-        whenMillis: Long = startOf(name),
+        whenMillis: Long = 0L,
     ) = describe(name, uri, sizeBytes, durationOf(context, uri), whenMillis)
-
-    /** When the call started, from the name, or 0. */
-    private fun startOf(name: String): Long = FileNames.parse(name)?.startedAt ?: 0L
 
     /** One file in the folder the user picked. */
     internal class Document(val name: String, val uri: Uri, val sizeBytes: Long, val modifiedMillis: Long)
