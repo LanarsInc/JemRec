@@ -128,6 +128,63 @@ A pre-push hook runs the tests and lint before anything leaves the machine:
 
     git config core.hooksPath tools/hooks
 
+## Checks beyond the tests
+
+CI runs the first four on every push and pull request; each runs locally too.
+They exist because reviews kept finding bugs by chance that a tool finds every
+time.
+
+- **Lint is a gate.** `./gradlew lint`: every warning is an error. The ones
+  still there from before the gate (103, mostly `UseKtx`) are listed in
+  `app/lint-baseline.xml`, and `app/lint.xml` says what is off by design and
+  why - the view model handed down to the screens, the checks that compare
+  with the newest versions online, trust-all managers inside two libraries.
+  So only something new fails. After fixing listed ones, run
+  `./gradlew updateLintBaseline` and commit the smaller file.
+- **Compose rules.** Slack's [compose-lints](https://slackhq.github.io/compose-lints/)
+  run inside lint (`lintChecks` in `app/build.gradle.kts`): modifiers passed
+  on and placed right, parameter order, new `CompositionLocal`s.
+- **Error Prone on the daemon.** `./gradlew :daemon-tests:errorProne` compiles
+  all of `shellserver/src` with [Error Prone](https://errorprone.info) into
+  `shellserver/tests/build/errorprone` and throws the classes away. Warnings
+  fail too: the checks off by design (style the daemon does not use) are
+  listed in `shellserver/tests/build.gradle.kts`, and each other finding was
+  fixed or suppressed where the code says why. It does not know Android's API
+  levels - a replacement it suggests can be newer than Android 12, which the
+  daemon runs on (`Scanner(InputStream, Charset)` is Android 14) - and the
+  next check is what catches that. The jar in the APK is still built by
+  `shellserver/build.sh` alone. NullAway was tried and left out: 88 warnings, nearly all because the
+  daemon has no `@Nullable` annotations yet.
+- **Android API levels in the daemon.** The daemon runs from Android 12 but
+  compiles against 16's `android.jar`, so a call from a newer Android builds
+  fine and then crashes an older phone. `shellserver/lint` is an Android module
+  that exists only so lint's `NewApi` and `InlinedApi` checks read
+  `shellserver/src` at the daemon's floor (minSdk 31); nothing is built from
+  it. It runs inside `./gradlew lint`, or alone with
+  `./gradlew :daemon-lint:lint`. Proven on two planted calls (Android 13's
+  `ByteArrayOutputStream.toString(Charset)`, 14's `Scanner(InputStream,
+  Charset)`); the daemon itself had none.
+- **CodeQL.** `.github/workflows/codeql.yml`: GitHub's code scanning with the
+  security-and-quality queries, on pushes to `main`, pull requests and weekly.
+  Findings go to the Security tab.
+
+Reports, not gates - run them when wanted:
+
+- **App coverage:** `./gradlew createDebugUnitTestCoverageReport -Pcoverage`,
+  then `app/build/reports/coverage/test/debug/index.html`. 55% of lines at
+  0.21: 73% of `ui`, 99% of the themes, 36% of `capture`.
+- **Daemon coverage:** `./gradlew :daemon-tests:test -Pcoverage`, then
+  `shellserver/tests/build/reports/jacoco/test/html`. 98% of instructions,
+  90% of branches.
+- **Mutation testing:** `./gradlew :daemon-tests:pitest`, then
+  `shellserver/tests/build/reports/pitest`. [PIT](https://pitest.org) changes
+  the daemon's decision classes one small way at a time and runs the tests on
+  each; at 0.21, 378 of 478 changes failed a test (79%). The 98 that did not
+  are decisions no test pins, most of them in `AnswerMachine`.
+
+None of this changes what ships: built with all of it in place, the release
+APK and the daemon jar were byte-for-byte those of `main` (2026-10-25).
+
 ## Releases
 
 To release, bump the version in a pull request and merge it. Nobody types a
