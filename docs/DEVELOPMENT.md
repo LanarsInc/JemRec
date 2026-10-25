@@ -157,8 +157,23 @@ time.
   levels - a replacement it suggests can be newer than Android 12, which the
   daemon runs on (`Scanner(InputStream, Charset)` is Android 14) - and the
   next check is what catches that. The jar in the APK is still built by
-  `shellserver/build.sh` alone. NullAway was tried and left out: 88 warnings, nearly all because the
-  daemon has no `@Nullable` annotations yet.
+  `shellserver/build.sh` alone.
+- **NullAway, in the same run.** What may be null in the daemon's package is
+  marked `@Nullable` - the daemon's own (`shellserver/src/.../Nullable.java`),
+  source only, so the jar gains that one type and nothing else - and
+  [NullAway](https://github.com/uber/NullAway) fails the run on a marked value
+  used before it is checked, and on null given where nothing is marked. Two
+  planted dereferences both failed it (2026-10-25). What it cannot see: what
+  scrcpy's files and Android's methods return is taken as never null -
+  `android.jar` carries none of the platform's nullness marks (the SDK keeps
+  them apart, in `annotations.zip`, for lint and the IDE) - and it trusts a
+  field from its check to its use, so another thread clearing it in between
+  goes unseen. The daemon runs several (the call watch, the cable watch, the
+  kill watch, the acceptor): a nullable field another thread writes is read
+  into a local first, or under the lock its writers hold. The four fields
+  read twice in a row were each found safe (2026-10-26): `activeRecording` is
+  written only under `Main.class`, which its reader holds; `Voip.policy` only
+  under `Voip.class`; a capture's pumps are set once and never cleared.
 - **Android API levels in the daemon.** The daemon runs from Android 12 but
   compiles against 16's `android.jar`, so a call from a newer Android builds
   fine and then crashes an older phone. `shellserver/lint` is an Android module
@@ -191,8 +206,10 @@ Reports, not gates - run them when wanted:
   sign or its octave's phase - each one read in the report (2026-10-26). Some tests read records the Honor itself
   printed (`shellserver/tests/fixtures`, `app/src/test/resources/honor`).
 
-None of this changes what ships: built with all of it in place, the release
-APK and the daemon jar were byte-for-byte those of `main` (2026-10-25).
+None of these checks changes what ships but NullAway, whose `Nullable` - a
+type the daemon's sources now use - is one more class in the daemon jar.
+Built with the rest in place, the release APK and the daemon jar were
+byte-for-byte those of `main` (2026-10-25).
 
 ## Releases
 
