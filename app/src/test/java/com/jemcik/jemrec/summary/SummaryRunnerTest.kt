@@ -112,4 +112,8 @@ class SummaryRunnerTest {
         assertTrue(outcome is SummaryOutcome.Failed)
         assertNull(repo.summary("a.ogg"))
     }
+
+    @Test fun outputKeysNeverOverwriteInput() {
+        assertTrue(SummaryWorker.INPUT_KEYS.intersect(SummaryWorker.OUTPUT_KEYS).isEmpty())
+    }
 }

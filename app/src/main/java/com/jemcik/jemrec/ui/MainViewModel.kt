@@ -68,6 +68,7 @@ import com.jemcik.jemrec.capture.RecordingStore
 import com.jemcik.jemrec.capture.StartWithoutWifi
 import com.jemcik.jemrec.capture.Trash
 import com.jemcik.jemrec.capture.Waveforms
+import com.jemcik.jemrec.transcripts.TranscriptRepository
 import com.jemcik.jemrec.capture.Retention
 import com.jemcik.jemrec.capture.KeepMarks
 import com.jemcik.jemrec.capture.SelfTest
@@ -118,13 +119,15 @@ private const val LOG_LIMIT = 8_000
  */
 enum class Screen {
     HOME, SETTINGS,
+    // Reached from a recording, and back home.
+    TRANSCRIPT,
     // Reached from Settings, and back to it.
-    WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME, WHEN_OFF;
+    WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME, WHEN_OFF, TRANSCRIPTS;
 
     /** Where Back goes from here. */
     val up: Screen get() = when (this) {
-        HOME, SETTINGS -> HOME
-        WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME, WHEN_OFF -> SETTINGS
+        HOME, SETTINGS, TRANSCRIPT -> HOME
+        WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME, WHEN_OFF, TRANSCRIPTS -> SETTINGS
     }
 }
 
@@ -373,6 +376,9 @@ class MainViewModel @JvmOverloads constructor(
     /** The answering machine's settings, greeting and diagnostics. */
     val answer = AnswerController(app, viewModelScope, ::say, initialAnswer, quiet = { controller?.pause() })
 
+    /** The Transcript screen's state and actions (TranscriptsController). */
+    val transcripts = TranscriptsController(app, viewModelScope)
+
     /** Failures of something the user just did, for a snackbar where they are:
      *  the log in Diagnostics is no place to learn that a share or a delete
      *  did not work. */
@@ -466,7 +472,16 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     /** One step back: a screen reached from Settings returns to it. */
-    fun back() = _state.update { it.copy(screen = it.screen.up) }
+    fun back() {
+        if (_state.value.screen == Screen.TRANSCRIPT) transcripts.close()
+        _state.update { it.copy(screen = it.screen.up) }
+    }
+
+    /** A recording's transcript, from the row's Transcript button. */
+    fun openTranscript(recording: Recording) {
+        transcripts.open(recording)
+        _state.update { it.copy(screen = Screen.TRANSCRIPT) }
+    }
 
     /** Switch tabs. Leaving Recordings ends a selection, which only means
      *  something there; arriving at Calls reads the call log. */
@@ -1073,6 +1088,12 @@ class MainViewModel @JvmOverloads constructor(
                         play(recording)
                     }
                 }
+                // A finished transcript's notice: that call's Transcript screen.
+                DeepLink.Kind.TRANSCRIPT -> {
+                    refreshNow()
+                    val recording = _state.value.recordings.firstOrNull { it.name == link.name }
+                    if (recording == null) tell("that recording is no longer there") else openTranscript(recording)
+                }
                 DeepLink.Kind.SELF_TEST -> {
                     MissedCalls.dismiss(app)
                     showScreen(Screen.DIAGNOSTICS)
@@ -1552,7 +1573,12 @@ class MainViewModel @JvmOverloads constructor(
                 // invented calls, or none for want of the audio permission -
                 // every waveform would go, to be worked out again.
                 if (Recordings.override == null && now.canReadAudio) {
-                    Waveforms.prune(app, (now.recordings + now.trashed).map { it.name })
+                    val kept = (now.recordings + now.trashed).map { it.name }
+                    Waveforms.prune(app, kept)
+                    // A recording deleted for good takes its transcript and
+                    // summary with it, however it went (TranscriptRepository.prune).
+                    runCatching { TranscriptRepository.of(app).prune(kept) }
+                        .onFailure { Log.w("JemRec", "could not prune transcripts", it) }
                 }
                 for (recording in now.recordings) {
                     if (!isActive) break
@@ -1829,6 +1855,33 @@ class MainViewModel @JvmOverloads constructor(
             } ?: return@launch
             _state.update { if (it.playingName == recording.name) it.copy(waveform = levels) else it }
         }
+    }
+
+    /**
+     * Plays [recording] from [ms]: a transcript line's time. Starts it if it
+     * is not the one loaded, and keeps it playing if it is; unlike [play], it
+     * never pauses - a tap on a line means "from here".
+     */
+    fun playFrom(recording: Recording, ms: Long) {
+        if (inCall()) {
+            tell("a recording does not play during a call")
+            return
+        }
+        if (_state.value.playingName != recording.name) {
+            _state.update { it.copy(playingName = recording.name, playing = false, positionMs = ms.toInt(), durationMs = 0) }
+            loadWaveform(recording)
+        }
+        withController { c ->
+            if (c.currentMediaItem?.mediaId != recording.name) {
+                c.setMediaItem(mediaItem(recording), ms)
+                c.prepare()
+            } else {
+                if (c.playbackState == Player.STATE_IDLE) c.prepare()
+                c.seekTo(ms)
+            }
+            c.play()
+        }
+        _state.update { it.copy(positionMs = ms.toInt()) }
     }
 
     fun seekTo(ms: Int) {
@@ -2145,6 +2198,11 @@ class MainViewModel @JvmOverloads constructor(
     private fun tell(text: String) {
         say(text)
         _notices.tryEmit(text.replaceFirstChar { it.uppercase() })
+    }
+
+    /** A snackbar alone, not logged: confirmation of a small thing done, like a line copied. */
+    fun notice(text: String) {
+        _notices.tryEmit(text)
     }
 
     private fun say(text: String) {

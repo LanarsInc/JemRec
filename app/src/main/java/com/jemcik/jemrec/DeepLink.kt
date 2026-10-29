@@ -28,7 +28,7 @@ import java.security.SecureRandom
  */
 object DeepLink {
 
-    enum class Kind { PLAY, SHARE, SELF_TEST, PAIR_AGAIN, ALLOW_WIFI, BACKGROUND_SETTINGS }
+    enum class Kind { PLAY, SHARE, SELF_TEST, PAIR_AGAIN, ALLOW_WIFI, BACKGROUND_SETTINGS, TRANSCRIPT }
 
     data class Link(val kind: Kind, val name: String?)
 

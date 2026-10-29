@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Date
+import com.jemcik.jemrec.transcribe.TranscriptionScheduler
 
 /**
  * Turns a finished recording the daemon wrote during a call into a saved .ogg.
@@ -687,6 +688,8 @@ object RecordingSaver {
                     // AfterCall leaves out anything long past.
                     runCatching { AfterCall.saved(context, outcome, outcome.incoming, outcome.startMillis) }
                         .onFailure { Log.w(TAG, "reconcile: after-call notice failed", it) }
+                    runCatching { TranscriptionScheduler.afterCall(context, outcome.name, outcome.uri, null) }
+                        .onFailure { Log.w(TAG, "reconcile: could not queue the transcript", it) }
                 }
                 Outcome.Empty -> Log.i(TAG, "reconcile: dropped empty $recfile")
                 Outcome.Gone -> Log.i(TAG, "reconcile: $recfile was collected meanwhile")

@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -350,6 +351,18 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Modif
                     },
                     icon = Icons.Filled.Delete,
                     onClick = vm::showTrash,
+                )
+            }
+        }
+
+        SettingsGroup("Transcripts") {
+            // Made on the phone; the settings of what they are made with.
+            row {
+                SettingsRow(
+                    title = "Transcripts",
+                    summary = "Language, speech models, who spoke",
+                    icon = Icons.AutoMirrored.Filled.List,
+                    onClick = { vm.showScreen(Screen.TRANSCRIPTS) },
                 )
             }
         }

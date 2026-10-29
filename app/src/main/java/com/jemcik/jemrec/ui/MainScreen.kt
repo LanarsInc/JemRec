@@ -198,6 +198,7 @@ internal fun AppScaffold(state: UiState, vm: MainViewModel) {
     val ready = state.step == SetupStep.READY
     val offHome = ready && state.screen != Screen.HOME
     val inTrash = ready && state.screen == Screen.TRASH
+    val inTranscript = ready && state.screen == Screen.TRANSCRIPT
     val inDiagnostics = ready && state.screen == Screen.DIAGNOSTICS
     val selecting = ready && !offHome && state.selecting
 
@@ -328,6 +329,9 @@ internal fun AppScaffold(state: UiState, vm: MainViewModel) {
             } else if (inTrash) {
                 // A list too, with its own scroll, for the same reason.
                 TrashScreen(state, vm, modifier = Modifier.padding(padding))
+            } else if (inTranscript) {
+                // A list as well: a long call is hundreds of lines.
+                TranscriptScreen(state, vm, modifier = Modifier.padding(padding))
             } else {
                 Column(
                     modifier = Modifier
@@ -355,6 +359,7 @@ internal fun AppScaffold(state: UiState, vm: MainViewModel) {
                             Screen.DIAGNOSTICS -> DiagnosticsScreen(state, vm)
                             Screen.ANSWERING_MACHINE -> AnsweringMachineScreen(state, vm)
                             Screen.WHEN_OFF -> WhenOffScreen(state, vm)
+                            Screen.TRANSCRIPTS -> TranscriptsSettingsScreen(vm)
                             else -> SettingsScreen(state, vm)
                         }
                     }
@@ -418,6 +423,8 @@ internal fun AppHeader(state: UiState, vm: MainViewModel, panel: (@Composable ()
             Screen.DIAGNOSTICS -> "Diagnostics"
             Screen.ANSWERING_MACHINE -> "Answering machine"
             Screen.TRASH -> "Recently deleted"
+            Screen.TRANSCRIPT -> "Transcript"
+            Screen.TRANSCRIPTS -> "Transcripts"
             Screen.THEME -> "Theme"
             Screen.WHEN_OFF -> "When JemRec is off"
             else -> "Settings"

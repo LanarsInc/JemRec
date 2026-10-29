@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
@@ -382,6 +383,10 @@ internal fun RowActions(recording: Recording, vm: MainViewModel, tint: Color, ke
                 tint = if (recording.kept) kept else tint,
                 modifier = Modifier.size(20.dp),
             )
+        }
+        // The call as text, made on the phone (TranscriptScreen).
+        SmallIconButton({ haptics.tap(); vm.openTranscript(recording) }, size) {
+            Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Transcript", tint = tint, modifier = Modifier.size(20.dp))
         }
         SmallIconButton({ haptics.tap(); vm.share(recording) }, size) {
             Icon(Icons.Filled.Share, contentDescription = "Share", tint = tint, modifier = Modifier.size(20.dp))
