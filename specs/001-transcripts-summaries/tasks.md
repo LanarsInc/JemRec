@@ -214,13 +214,13 @@ and screen tests for new screens (spec SC-006).
 
 **Independent Test**: search a word only in a transcript; the row shows with the words.
 
-- [ ] T087 [P] [US5] Port `CVT/data/transcripts/PageSearchTest.kt` and `SearchIndexingTest.kt` to `JRT/transcripts/`; add a test in `JRT/ui/ListChipsTest.kt` for the Transcribed chip (offered only when it leaves some, not all, not none)
-- [ ] T088 [US5] Create `JR/transcripts/TranscriptSearch.kt` from `CV/data/transcripts/PageSearch.kt`: FTS query over segments and summaries → recording names with a snippet; escape user input for FTS
-- [ ] T089 [US5] In `JR/ui/MainViewModel.kt` and `JR/ui/HomeScreen.kt`: merge transcript hits into the Recordings search; a row matched by text shows the snippet with the words highlighted under its details line
-- [ ] T090 [US5] In `JR/ui/ListChips.kt`: `ChipKind.TRANSCRIBED` ("Transcribed"), facts from `TranscriptRepository.hasTranscript`; in `JR/ui/RecordingRows.kt` the small transcribed mark and the in-progress ring in the details line
-- [ ] T091 [P] [US5] Port `CV/data/transcripts/export/TranscriptFormat.kt`, `TranscriptExport.kt`, `TranscriptExportFile.kt`, `ExportLabels.kt` to `JR/transcripts/export/` (TXT, Markdown, SRT, VTT, JSON) with speaker names; share through the existing `FileProvider` (`app/src/main/res/xml/file_paths.xml` gets an `exports` cache path); port their tests from `CVT/data/transcripts/` if present, else write `JRT/transcripts/export/TranscriptExportTest.kt` (SRT/VTT timing format, Markdown escaping)
-- [ ] T092 [US5] In `JR/ui/TranscriptScreen.kt` overflow: Copy all, Export (format picker → share sheet)
-- [ ] T093 [US5] Screen tests: a search with a transcript snippet and the Transcribed chip in `JRT/ui/screens/HomeScreenshots.kt`; record and look at every PNG
+- [x] T087 [P] [US5] *Written here: `TranscriptSearchTest`, a repository search test on SQLite, and ListChipsTest cases.* Port `CVT/data/transcripts/PageSearchTest.kt` and `SearchIndexingTest.kt` to `JRT/transcripts/`; add a test in `JRT/ui/ListChipsTest.kt` for the Transcribed chip (offered only when it leaves some, not all, not none)
+- [x] T088 [US5] Create `JR/transcripts/TranscriptSearch.kt` from `CV/data/transcripts/PageSearch.kt`: FTS query over segments and summaries → recording names with a snippet; escape user input for FTS
+- [x] T089 [US5] In `JR/ui/MainViewModel.kt` and `JR/ui/HomeScreen.kt`: merge transcript hits into the Recordings search; a row matched by text shows the snippet with the words highlighted under its details line
+- [x] T090 [US5] *The chip; no mark on the row (it would redraw every list for a fact the chip already gives).* In `JR/ui/ListChips.kt`: `ChipKind.TRANSCRIBED` ("Transcribed"), facts from `TranscriptRepository.hasTranscript`; in `JR/ui/RecordingRows.kt` the small transcribed mark and the in-progress ring in the details line
+- [x] T091 [P] [US5] *Shared from the cache through the existing FileProvider; `TranscriptExportTest` written here.* Port `CV/data/transcripts/export/TranscriptFormat.kt`, `TranscriptExport.kt`, `TranscriptExportFile.kt`, `ExportLabels.kt` to `JR/transcripts/export/` (TXT, Markdown, SRT, VTT, JSON) with speaker names; share through the existing `FileProvider` (`app/src/main/res/xml/file_paths.xml` gets an `exports` cache path); port their tests from `CVT/data/transcripts/` if present, else write `JRT/transcripts/export/TranscriptExportTest.kt` (SRT/VTT timing format, Markdown escaping)
+- [x] T092 [US5] *As buttons under the transcript, beside Transcribe again: the screen's bar has no overflow.* In `JR/ui/TranscriptScreen.kt` overflow: Copy all, Export (format picker → share sheet)
+- [x] T093 [US5] Screen tests: a search with a transcript snippet and the Transcribed chip in `JRT/ui/screens/HomeScreenshots.kt`; record and look at every PNG
 
 ---
 
