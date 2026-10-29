@@ -89,3 +89,9 @@ They must all say the same thing; a feature is not done until they do.
 - Check Material 3 and Android's docs before calling a UI pattern standard.
 - No runnable commands for steps that only hold after a merge.
 - One line of status before emulator or device work.
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan:
+[specs/001-transcripts-summaries/plan.md](specs/001-transcripts-summaries/plan.md)
+<!-- SPECKIT END -->
