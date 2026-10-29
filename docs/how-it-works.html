@@ -233,7 +233,7 @@
      to guess at:</p>
   <table>
     <tr><th>Permission</th><th>Why</th></tr>
-    <tr><td><code>INTERNET</code></td><td>Not about the internet: Android requires it for any TCP socket, including one to <code>127.0.0.1</code>.</td></tr>
+    <tr><td><code>INTERNET</code></td><td>Android requires it for any TCP socket, including one to <code>127.0.0.1</code>; and it downloads a transcript or summary model when you tap Download, nothing else.</td></tr>
     <tr><td><code>ACCESS_NETWORK_STATE</code></td><td>To tell whether there is Wi-Fi to rebuild the recorder over, instead of trying and failing.</td></tr>
     <tr><td><code>WRITE_SECURE_SETTINGS</code></td><td>Granted by the app to itself over its own ADB session. Nothing but a shell can grant it, so no user can be talked into it. It lets JemRec switch debugging back on when the phone turns it off, and off with JemRec when you ask it to.</td></tr>
     <tr><td><code>POST_NOTIFICATIONS</code></td><td>The recording notice, the ask-first prompt, the pairing code box.</td></tr>

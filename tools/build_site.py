@@ -2029,6 +2029,33 @@ SETUP = [
           "that puts names on recordings; the tab asks for it if you have not "
           "given it."),
 
+    ("h2", "Transcripts and summaries"),
+    ("p", "The list button on a recording opens its **Transcript**: the call as "
+          "text, made on the phone - the call never leaves it. The first time, "
+          "JemRec offers to download the speech model, with its size; the "
+          "phone then works for about as long as the call, with a notification "
+          "and **Cancel**, and goes on with the screen off. Each line has the "
+          "time it was said, and **You** or **Them** where the call's two sides "
+          "are on the two channels - every messenger call, and phone calls on "
+          "phones that keep them apart. A tap on a line plays the recording from "
+          "there; a long press copies it."),
+    ("p", "**The language.** Settings → Transcripts says which language calls "
+          "are in - seventeen, Norwegian with a model made for it, NB-Whisper - "
+          "and **Change**, on a transcript, sets one for that call alone. "
+          "Detecting it is offered, but it can mistake one language for another; "
+          "say it when you can."),
+    ("p", "**Summary**, beside Transcript, writes why the call happened, what was "
+          "said, and the points, decisions, things to do and facts, each with the "
+          "time it was said - a tap goes to that line. It needs a second "
+          "download, a language model, and a phone with 6 GB of memory or more; "
+          "a phone with 8 GB gets a larger one. It is made from the transcript, "
+          "so it can leave things out: check what matters."),
+    ("p", "**Without asking** - Settings → Transcripts → When: **After each "
+          "call**, or **Overnight**, while charging, for the last 30 days' calls "
+          "without one; a summary can follow each transcript. **Copy all** and "
+          "**Export** (text, Markdown with the summary, SRT or VTT subtitles, "
+          "JSON) are under a transcript, and the Recordings search finds words "
+          "said in a call."),
     ("h2", "Three looks"),
     ("p", "**Settings → Theme** changes how JemRec looks, never what it does. "
           "**Memo**, the default, is calm and simple, with one big record button; "
@@ -3113,6 +3140,13 @@ FEATURES = [
      "an emergency number. A test call tells you whether it works on your "
      "phone.",
      "the-answering-machine"),
+    ("Read a call, and its summary",
+     "Transcribed on the phone &mdash; the call never leaves it &mdash; in 17 "
+     "languages, Norwegian with a model made for it; each line marked You or "
+     "Them where the call&rsquo;s sides are apart, and a tap plays from there. "
+     "A summary beside it: why the call happened, what was decided, what to do. "
+     "Search the words said, copy, or export as text or subtitles.",
+     "transcripts-and-summaries"),
     ("Three looks",
      "Memo, calm and simple; Deck, a pocket recorder with an LCD and a REC key; "
      "Multitrack, a sound editor with a colour for each caller. Each light, dark "
@@ -3135,7 +3169,8 @@ PRIVACY_POINTS = [
      "No account, no server, no analytics, and nothing is collected about you. "
      "<em>Copy a report</em> in Diagnostics puts how the last call was recorded "
      "on the clipboard, with no number, name or sound in it, only when you tap "
-     "it."),
+     "it. Transcripts and summaries are made on the phone; the one thing fetched "
+     "is the model that makes them, when you tap Download."),
     ("person", "Calls and contacts only if you allow them",
      "To name callers, keep calls by who they were with, and notice a call that "
      "went unrecorded. Everything works without them."),
@@ -3152,6 +3187,13 @@ PRIVACY_POINTS = [
 ]
 
 FAQ = [
+    ("Do transcripts send my calls anywhere?",
+     "No. The speech and summary models run on the phone; the only thing fetched "
+     "is the model itself, once, from Hugging Face, when you tap Download "
+     "&mdash; 175 MB to 2.6 GB. On a Galaxy A24 a short call took about as long "
+     "again to transcribe, and a summary a minute and a half to two. Set the "
+     "call&rsquo;s language rather than leaving it to detection: left to guess, "
+     "it once wrote Russian as English words nobody said."),
     ("Does it really record both sides?",
      "Yes, where the phone&rsquo;s audio hardware hands both sides over &mdash; "
      "which it did on every phone above. The Self-test tells you for yours in "
@@ -3294,7 +3336,7 @@ FEATURE_ROWS = [
                            "hung up during the greeting"),
      ["See every call", "Messenger calls"]),
     (lambda: crop("home", "A recording playing, as its waveform"),
-     ["Play, keep, clean up", "Name files your way"]),
+     ["Play, keep, clean up", "Name files your way", "Read a call, and its summary"]),
     (shade, ["Hear about problems"]),
     (lambda: crop("answering", "The answering machine&rsquo;s settings"), ["Answering machine"]),
     (trio, ["Three looks"]),
@@ -3429,6 +3471,8 @@ INDEX_BODY = f"""
         <tr><th scope="row">Messenger calls</th>
             <td class="n" colspan="2">Android does not allow it</td>
             <td class="y" colspan="4"><span aria-hidden="true">&#10003;</span> WhatsApp, Telegram, Viber, Google Meet</td></tr>
+        <tr><th scope="row">Transcripts</th>
+            <td class="y" colspan="6"><span aria-hidden="true">&#10003;</span> on the phone; summaries with 6 GB of memory or more</td></tr>
       </table>
     </div>
     <ul class="table-card devices tested">
@@ -3666,7 +3710,7 @@ HOW_BODY = f"""
      to guess at:</p>
   <table>
     <tr><th>Permission</th><th>Why</th></tr>
-    <tr><td><code>INTERNET</code></td><td>Not about the internet: Android requires it for any TCP socket, including one to <code>127.0.0.1</code>.</td></tr>
+    <tr><td><code>INTERNET</code></td><td>Android requires it for any TCP socket, including one to <code>127.0.0.1</code>; and it downloads a transcript or summary model when you tap Download, nothing else.</td></tr>
     <tr><td><code>ACCESS_NETWORK_STATE</code></td><td>To tell whether there is Wi-Fi to rebuild the recorder over, instead of trying and failing.</td></tr>
     <tr><td><code>WRITE_SECURE_SETTINGS</code></td><td>Granted by the app to itself over its own ADB session. Nothing but a shell can grant it, so no user can be talked into it. It lets JemRec switch debugging back on when the phone turns it off, and off with JemRec when you ask it to.</td></tr>
     <tr><td><code>POST_NOTIFICATIONS</code></td><td>The recording notice, the ask-first prompt, the pairing code box.</td></tr>
@@ -3707,6 +3751,19 @@ HOW_BODY = f"""
 # never add to them; where they differ, the words are the policy.
 # (data, where, how long, when, the words)
 PRIVACY_DATA = [
+    ("Transcripts and summaries", "the app&rsquo;s private storage", "until the recording is deleted", "only if you transcribe a call",
+     "Only for the calls you transcribe, or that a setting does: each line with "
+     "its time and side, a summary if you ask for one, and a language you set for "
+     "one call. Made on the phone and kept in a database in the app&rsquo;s "
+     "private storage, in no backup; deleting a recording for good deletes its "
+     "text, and so does uninstalling. Copy and Export hand it on only where you "
+     "send it."),
+    ("Speech and summary models", "the app&rsquo;s private storage", "until you delete them", "only if you download one",
+     "Only the ones you download, from Hugging Face, on your tap: files that "
+     "turn sound into text and text into a summary, the same for everyone. "
+     "Nothing about you or your calls is sent to fetch them. Settings &rarr; "
+     "Transcripts lists them with their size and Delete; uninstalling deletes "
+     "them."),
     ("Call recordings", "Recordings/JemRec, or your folder", "until you delete them", "every recorded call",
      "The phone&rsquo;s <code>Recordings/JemRec</code> folder, or a folder you "
      "choose. Yours to play, share, move or delete like any other file. One "
@@ -3841,7 +3898,7 @@ PRIVACY_BODY = f"""
   <h2>What it collects</h2>
   <p><strong>Nothing is sent anywhere.</strong> There is no backend to send it to.
      The developer cannot see your recordings, your contacts, your call history,
-     or that you use the app at all.</p>
+     your transcripts, or that you use the app at all.</p>
 
   <h2>What stays on the phone</h2>
   <p class="muted">Each row in short, then in full: open a row for the
@@ -3857,12 +3914,19 @@ PRIVACY_BODY = f"""
      turned away. Nothing of it is kept: it goes when the recording stops.</p>
 
   <h2>Network use</h2>
-  <p>The app holds the <code>INTERNET</code> permission and uses no network. Android
-     requires that permission for <em>any</em> TCP socket, including one to
-     <code>127.0.0.1</code>, and the app&rsquo;s two sockets are both to the phone
-     itself: pairing with the phone&rsquo;s own Wireless debugging during setup, and
-     talking to its recorder afterwards. Neither reaches your router, let alone the
-     internet.</p>
+  <p>The app holds the <code>INTERNET</code> permission. Android requires it for
+     <em>any</em> TCP socket, including one to <code>127.0.0.1</code>, and the
+     app&rsquo;s own sockets are both to the phone itself: pairing with the
+     phone&rsquo;s own Wireless debugging during setup, and talking to its recorder
+     afterwards. Neither reaches your router, let alone the internet.</p>
+  <p>The one exception is a model for transcripts or summaries, and only when you
+     tap <em>Download</em>: the file is fetched from Hugging Face
+     (<code>huggingface.co</code>), over Wi-Fi only unless you switch that off,
+     and checked against its published digest. What is sent is the request for a
+     file that is the same for everyone; Hugging Face sees that this address
+     asked for it, as any site does. No recording, transcript, summary, contact
+     or anything else about you is sent, then or ever: the models run on the
+     phone.</p>
   <p><em>Start without Wi-Fi</em>, off until you switch it on, has the
      phone&rsquo;s own debugging service listen on port 5555 as well, so that the
      app can reach it at <code>127.0.0.1</code> with no Wi-Fi. The app still
