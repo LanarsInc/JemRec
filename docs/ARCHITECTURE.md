@@ -29,7 +29,8 @@ this one is - or to check that it does what it says.
   [keeping and deleting](#keeping-deleting-and-cleaning-up) ·
   [marks inside the recording](#marks-inside-the-recording) ·
   [notifications](#after-the-call-and-when-something-is-wrong) ·
-  [the last call's report](#the-last-calls-report)
+  [the last call's report](#the-last-calls-report) ·
+  [transcripts and summaries](#transcripts-and-summaries)
 - The phone: [permissions](#what-it-does-not-ask-for) ·
   [what stays switched on](#what-stays-switched-on) ·
   [off, and debugging with it](#off-and-debugging-with-it)
@@ -1049,8 +1050,9 @@ of it, as loud as the loudest twentieth of a second in that slice, so words
 stand out of the pauses and a long silence reads as one. A tap or a drag on it
 seeks; to a screen reader it is a slider, read as a time. The loudness is
 worked out from the file itself, decoded by Android's own decoder - the one
-the silence check after each call already uses - so there is no library, no
-native code, and nothing new for the reproducible build to match. It is
+the silence check after each call already uses - so the waveform needs no
+library and no native code of its own (the speech engines, which do, are
+[their own section](#transcripts-and-summaries)). It is
 worked out as a call is saved, an older recording's while the list is on
 screen (one at a time, stopping with the screen), or one played before then
 - with a plain slider until it is there - and kept in the app's cache: 800
@@ -1372,6 +1374,74 @@ themselves; on 12 the app says *Report copied*, as Android's guidance asks
 ("Copy and paste", developer.android.com) - which the answering machine's
 *Copy a report* had not said until then.
 
+## Transcripts and summaries
+
+A recording can be turned into text, and the text into a summary, on the
+phone: the call never leaves it. The engines are whisper.cpp for speech and
+llama.cpp for summaries, built into the app from pinned submodules, with
+small JNI bridges taken from CallVault (madkongo/CallVault), whose
+measurements most of the choices below rest on and say so.
+
+**Models are downloaded, not shipped.** They are 175 MB to 2.6 GB. Each is
+fetched from Hugging Face on the user's tap, over Wi-Fi only unless that is
+switched off, resumed where it stopped, and used only after its size and
+SHA-256 match the published ones - ggml's answer to a damaged model is a
+crash in native code. Speech: Whisper small and large-v3-turbo (8-bit, which
+CallVault measured twice as fast as the 5-bit one, at no loss), and the
+National Library of Norway's NB-Whisper small and medium, which are Whisper
+trained further on Norwegian. Summaries: Qwen3 1.7B, and Gemma 4 E2B on
+phones with 8 GB. A model is offered only where the phone has twice its
+peak memory: Gemma 4 E2B peaks at 3.5 GB (CallVault, OnePlus 12), which on a
+Galaxy A24's 5.9 GB would leave Android too little; Qwen3 1.7B peaked at
+2.5 GB there.
+
+**Who said which line comes from the channels.** JemRec records in stereo,
+you on the left (Recording, and being asked). Before transcribing, the app
+compares the two channels' loudness over the first minute: where they are
+the two sides, each is transcribed alone and its lines are named You and
+Them, merged in time; where they carry the same mix, as a Galaxy A24's
+phone calls do, the call is transcribed once and no line is named. Messenger
+calls always have their sides apart.
+
+**The language is told, not guessed.** Seventeen: CallVault's sixteen and
+Norwegian, the default in this fork. Settings sets it for every call, and a
+recording can have its own. Detection is offered and works, but on the A24
+it heard a Russian test call's other side as English words nobody said
+(2026-10-29); with Russian set, the same side came out right. For Norwegian,
+NB-Whisper is used when it is downloaded.
+
+**What it costs, on a Galaxy A24** (Helio G99: two fast cores, six slow
+ones, 2026-10-29): Whisper small took 33.6 s for a 9 s call and 59.5 s for a
+16 s one split into its two sides - whisper processes 30 s at a time, so a
+short call costs a whole window per side. Six threads were fastest (two:
+75 s, eight: 67 s, six: 56 s). With the phone locked and the app in the
+background the same 9 s call took 447 s: Android refused the work its
+foreground service, and the phone ran it on its slow cores. A transcription
+started from the screen gets one; one started after a call is queued from
+the call's own service, as expedited work, for the same reason.
+
+**Summaries** follow CallVault's method: the lines in chunks, each summed up
+as JSON that a grammar keeps well-formed, the parts merged, timestamps the
+transcript does not have dropped, repeats removed, and the language named
+in the prompt. Checked on the A24 against three invented calls whose facts
+were all known, in English, Norwegian and Ukrainian: Qwen3 1.7B wrote each
+in its language with every figure right and nothing invented, in 92 to 139
+s; it left some facts out, and copied lines where it should have summed
+up, which the app now drops. Gemma 3 1B was tried and is not offered: it
+invented details and wrote the Norwegian summary in English.
+
+**When.** Only when asked (the default); after each call; or overnight,
+while charging, for the last 30 days not yet transcribed. A summary can
+follow each transcript. One heavy job runs at a time, so a speech model and
+a language model are never in memory together.
+
+**Where it is kept.** Transcripts and summaries in a database of their own,
+indexed so the Recordings search finds words said in a call; models in the
+app's no-backup storage. A recording deleted for good takes its text with
+it, however it went. A transcript can be copied, or exported as text,
+Markdown (with the summary), SRT or VTT subtitles, or JSON, through
+Android's share sheet.
+
 ## What it does not ask for
 
 No `RECORD_AUDIO`. This app never records — the shell-side process
@@ -1384,7 +1454,7 @@ permission a call recorder does not explain is one its user has to guess at:
 
 | Permission | Why |
 | --- | --- |
-| `INTERNET` | Not about the internet: Android requires it for any TCP socket, including one to `127.0.0.1`. |
+| `INTERNET` | Android requires it for any TCP socket, including one to `127.0.0.1`, which is what it was for until 0.26. Since then it also downloads a speech or summary model from Hugging Face when you tap Download - over Wi-Fi only unless you say otherwise - and nothing else: no call, transcript or summary is ever sent. |
 | `ACCESS_NETWORK_STATE` | To tell whether there is Wi-Fi to rebuild the recorder over, instead of trying and failing. |
 | `WRITE_SECURE_SETTINGS` | Granted by the app to itself over its own ADB session. Nothing but a shell can grant it, so no user can be talked into it. It lets JemRec switch debugging back on when the phone turns it off, and off with JemRec when you ask it to. |
 | `POST_NOTIFICATIONS` | The recording notice, the ask-first prompt, the pairing code box. |
