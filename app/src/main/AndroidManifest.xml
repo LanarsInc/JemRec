@@ -346,6 +346,27 @@
           service does nothing without it. Its own internal actions are
           unchanged.
         -->
+        <!--
+          WorkManager's own foreground service, which transcriptions and
+          summaries run in (transcribe/HeavyWorkNotification). Android 14
+          and later refuse a foreground start whose type the manifest does not
+          declare. specialUse because no other type fits: dataSync is for
+          moving data and is capped at six hours a day from Android 15, and a
+          long call's transcription on a slow phone can be most of an hour.
+        -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="specialUse"
+            tools:node="merge">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Turns the user's own call recordings into text and
+                    short summaries on the phone, with the user's speech and
+                    language models. Runs only while a transcription or summary
+                    the user asked for, or set to run after calls, is under way;
+                    nothing leaves the phone." />
+        </service>
+
         <service
             android:name=".capture.CallMonitorService"
             android:exported="true"
