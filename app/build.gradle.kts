@@ -4,6 +4,8 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
+    // Room's annotation processor, for the transcripts database.
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -36,6 +38,13 @@ android {
     // takes BUILD_TOOLS from the environment, so it can be told otherwise.
     buildToolsVersion = "36.0.0"
 
+    // The NDK builds whisper.cpp and llama.cpp (src/main/cpp/CMakeLists.txt):
+    // transcripts and summaries run on the phone. Pinned for the same reason
+    // as build-tools above: named, so a machine that has never built this
+    // installs the one the build expects. CallVault built the same engines
+    // with 27.2; this is the one installed here (2026-10-29).
+    ndkVersion = "28.2.13676358"
+
     defaultConfig {
         applicationId = "com.jemcik.jemrec"
         minSdk = 31
@@ -48,6 +57,17 @@ android {
         // would have been versionCode 1.
         versionCode = (property("jemrecVersionCode") as String).toInt()
         versionName = property("jemrecVersionName") as String
+
+        // arm64 only. The speech and language engines are native, and their
+        // ARM kernels (dotprod, i8mm) are the reason they run at phone speed;
+        // a 32-bit build would be both slower and a second set of libraries
+        // to ship. Every phone that runs Android 12 and has the memory for
+        // these models is arm64.
+        ndk { abiFilters += "arm64-v8a" }
+
+        // Instrumented tests: the JNI bridges and Room migrations can only
+        // be checked on a phone (app/src/androidTest).
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     // Release signing comes from the environment, never from the repo.
@@ -101,6 +121,13 @@ android {
 
     buildFeatures { compose = true }
 
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
     // Lint as a gate, not noise. Until 0.21 it ran on every build with its
     // warnings ignored - 108 of them, nobody reading. Now every warning is an
     // error, and there is no baseline of old ones left to hide behind: all
@@ -136,16 +163,30 @@ android {
     // asked for one. Keeping the symbols removes the step on every machine,
     // and costs nothing: Conscrypt ships its libraries stripped already, which
     // is why the size never changed.
+    //
+    // Only the libraries that come from Maven, though. The speech and language
+    // engines are built here, unstripped, and the build now needs an NDK on
+    // every machine anyway - so stripping them is no longer a step that some
+    // builders skip. Kept whole they made the debug APK 95 MB, 78 MB of it
+    // libllama.so's symbols (2026-10-29).
     packaging {
         jniLibs {
-            keepDebugSymbols += "**/*.so"
+            keepDebugSymbols += listOf(
+                "**/libconscrypt_jni.so",
+                "**/libspake2.so",
+                "**/libandroidx.graphics.path.so",
+            )
             // Phones are ARM. The x86 and x86_64 copies of Conscrypt's
             // BoringSSL are 4.9 MB that only an emulator could run, and this
             // app cannot record a call on an emulator anyway - there is no
-            // voice-call audio source to open. armeabi-v7a stays: a 32-bit
-            // phone on Android 12 is rare, and 1.3 MB is a fair price for not
-            // finding out from the one person who has one.
+            // voice-call audio source to open. armeabi-v7a went with the
+            // native engines (abiFilters above).
             excludes += listOf("**/x86/**", "**/x86_64/**")
+            // Extracted to the native library directory as real files.
+            // ggml picks its CPU backend at run time by dlopen'ing one of
+            // several libggml-cpu-*.so from there; left compressed inside the
+            // APK there is nothing to open, and no model loads.
+            useLegacyPackaging = true
         }
         resources {
             // BouncyCastle's jar carries 1.3 MB of Java resources this app
@@ -271,6 +312,18 @@ dependencies {
     // service: a periodic job revives it when it is down and Wi-Fi is around.
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 
+    // Transcripts and summaries, with full-text search over both. The only
+    // database in the app: everything else is kept in files, and these are
+    // the one thing searched word by word. The schema is CallVault's,
+    // trimmed (specs/001-transcripts-summaries/data-model.md).
+    implementation("androidx.room:room-runtime:2.8.4")
+    implementation("androidx.room:room-ktx:2.8.4")
+    ksp("androidx.room:room-compiler:2.8.4")
+    testImplementation("androidx.room:room-testing:2.8.4")
+
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+
     // Compose's own pitfalls, which Android Lint does not know: Slack's rules
     // for modifiers (passed on, in the right place), state hoisting, unstable
     // parameters and the like. Only lint loads it - the release build's
@@ -299,6 +352,12 @@ dependencies {
 
 kotlin {
     compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
+}
+
+// Room writes each schema version here, so a migration can be tested against
+// the one before it.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 // The shell-side capture daemon ships INSIDE the APK as an asset.

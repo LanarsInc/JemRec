@@ -79,4 +79,12 @@
         <option name="allowed-composition-locals"
             value="LocalNow,LocalLook,LocalLookChoice,LocalDark,LocalCallerColours,LocalRowsSelectable,LocalPlayerHere,LocalBarSides,LocalInventedLevels,LocalLabelsShrink" />
     </issue>
+
+    <!--
+      The speech and language engines are built for arm64 only (abiFilters in
+      app/build.gradle.kts): their ARM kernels are why they run at phone speed,
+      and this fork goes to phones as an APK. A Chromebook runs arm64 apps
+      through its own translation, as this rule's own text says.
+    -->
+    <issue id="ChromeOsAbiSupport" severity="ignore" />
 </lint>
