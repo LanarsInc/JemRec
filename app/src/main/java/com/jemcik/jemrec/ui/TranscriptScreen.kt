@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jemcik.jemrec.summary.TranscriptTimestamp
+import com.jemcik.jemrec.transcripts.export.TranscriptFormat
 import com.jemcik.jemrec.transcribe.LanguageNames
 import com.jemcik.jemrec.transcribe.Speaker
 import com.jemcik.jemrec.transcribe.TranscriptionLanguageChoice
@@ -129,15 +130,52 @@ internal fun TranscriptContent(ui: TranscriptUi, playingName: String?, vm: MainV
                 )
             }
             item { Facts(transcript, playingName == recording.name) }
-            item {
-                if (ui.job == JobState.Idle && ui.model is ModelState.Ready) {
-                    TextButton(onClick = { haptics.tap(); vm.transcripts.transcribe() }, modifier = Modifier.padding(horizontal = 8.dp)) {
-                        Text("Transcribe again")
-                    }
-                }
-            }
+            item { TranscriptActions(ui, vm, transcript.lines.isNotEmpty()) }
         }
     }
+}
+
+/**
+ * What can be done with a finished transcript: copy it all, send it as a
+ * file (text, Markdown with the summary, SRT or VTT subtitles to play beside
+ * the recording, JSON), or make it again.
+ */
+@Composable
+private fun TranscriptActions(ui: TranscriptUi, vm: MainViewModel, hasLines: Boolean) {
+    val haptics = LocalHapticFeedback.current
+    val clipboard = LocalClipboardManager.current
+    var exporting by remember { mutableStateOf(false) }
+    Row(Modifier.padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (hasLines) {
+            TextButton(onClick = {
+                haptics.tap()
+                vm.transcripts.plainText()?.let { clipboard.setText(AnnotatedString(it)); vm.notice("Transcript copied") }
+            }) { Text("Copy all") }
+            TextButton(onClick = { haptics.tap(); exporting = true }) { Text("Export") }
+        }
+        if (ui.job == JobState.Idle && ui.model is ModelState.Ready) {
+            TextButton(onClick = { haptics.tap(); vm.transcripts.transcribe() }) { Text("Transcribe again") }
+        }
+    }
+    if (exporting) {
+        ChoiceDialog(
+            title = "Export as",
+            choices = TranscriptFormat.entries.toList<TranscriptFormat?>(),
+            selected = null,
+            label = { it?.label.orEmpty() },
+            detail = { formatDetail(it) },
+            onChoose = { it?.let(vm.transcripts::export) },
+            onDismiss = { exporting = false },
+        )
+    }
+}
+
+private fun formatDetail(format: TranscriptFormat?): String = when (format) {
+    TranscriptFormat.TXT -> "The lines, with times and who spoke"
+    TranscriptFormat.MARKDOWN -> "With the summary, for notes"
+    TranscriptFormat.SRT, TranscriptFormat.VTT -> "Subtitles, to read along in a player"
+    TranscriptFormat.JSON -> "Everything, for another program"
+    null -> ""
 }
 
 /** The items above a transcript's lines: the call, the tabs, the language and status. */

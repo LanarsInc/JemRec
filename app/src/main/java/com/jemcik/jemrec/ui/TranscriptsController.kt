@@ -3,7 +3,15 @@ package com.jemcik.jemrec.ui
 import android.app.Application
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import android.content.Intent
+import androidx.core.content.FileProvider
 import com.jemcik.jemrec.capture.Recording
+import com.jemcik.jemrec.summary.SummaryRunner
+import com.jemcik.jemrec.transcripts.export.ExportDocument
+import com.jemcik.jemrec.transcripts.export.ExportLabels
+import com.jemcik.jemrec.transcripts.export.TranscriptExport
+import com.jemcik.jemrec.transcripts.export.TranscriptExportFile
+import com.jemcik.jemrec.transcripts.export.TranscriptFormat
 import com.jemcik.jemrec.summary.CallSummary
 import com.jemcik.jemrec.summary.SummaryModel
 import com.jemcik.jemrec.summary.SummaryWorker
@@ -184,6 +192,42 @@ class TranscriptsController(
     }
 
     fun showTab(tab: TranscriptTab) = _state.update { it.copy(tab = tab) }
+
+    /** The transcript as one text, each line with its time and who said it: for Copy all. */
+    fun plainText(): String? {
+        val t = _state.value.transcript ?: return null
+        return TranscriptExport.plainText(SummaryRunner.linesOf(t, _state.value.recording?.caller))
+    }
+
+    /**
+     * The transcript, and its summary where the format has room, written as
+     * [format] and handed to Android's share sheet. Nothing leaves the phone
+     * unless the user picks where to send it there.
+     */
+    fun export(format: TranscriptFormat) {
+        val ui = _state.value
+        val recording = ui.recording ?: return
+        val transcript = ui.transcript ?: return
+        scope.launch(Dispatchers.IO) {
+            val doc = ExportDocument(
+                title = recording.caller ?: recording.whenLabel,
+                segments = SummaryRunner.linesOf(transcript, recording.caller),
+                summary = ui.summary,
+                note = null,
+                tags = emptyList(),
+                language = transcript.facts.language,
+                model = transcript.facts.modelId,
+            )
+            val text = TranscriptExport.render(format, doc, EXPORT_LABELS)
+            val file = TranscriptExportFile.write(app, TranscriptExport.fileName(format, recording.name), text) ?: return@launch
+            val uri = FileProvider.getUriForFile(app, "${app.packageName}.recordings", file)
+            val send = Intent(Intent.ACTION_SEND)
+                .setType(format.mimeType)
+                .putExtra(Intent.EXTRA_STREAM, uri)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            runCatching { app.startActivity(Intent.createChooser(send, "Share transcript").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        }
+    }
 
     /** From a summary point: back to the transcript, at the line said at [ms]. */
     fun jumpTo(ms: Long) = _state.update { it.copy(tab = TranscriptTab.TRANSCRIPT, jumpToMs = ms) }
@@ -415,6 +459,12 @@ class TranscriptsController(
     private var pinned = false
 
     companion object {
+        /** The Markdown export's headings: the app speaks English. */
+        private val EXPORT_LABELS = ExportLabels(
+            summary = "Summary", notes = "Notes", transcript = "Transcript", keyPoints = "Key points",
+            decisions = "Decisions", actionItems = "To do", keyFacts = "Facts", language = "Language", model = "Model",
+        )
+
         /** The newest work for the recording decides: a finished one leaves Idle, the transcript shows. */
         internal fun jobOf(infos: List<WorkInfo>): JobState {
             val running = infos.firstOrNull { it.state == WorkInfo.State.RUNNING }
