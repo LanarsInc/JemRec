@@ -18,7 +18,7 @@ the phone sets itself up.
 [![Android](https://img.shields.io/badge/Android-12%2B%20(API%2031)-3DDC84)](#phones-and-android-versions)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.3.21-7F52FF)](https://kotlinlang.org)
 [![Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4)](https://developer.android.com/jetpack/compose)
-[![Tests](https://img.shields.io/badge/tests-895-success)](docs/DEVELOPMENT.md#tests)
+[![Tests](https://img.shields.io/badge/tests-1108-success)](docs/DEVELOPMENT.md#tests)
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/memo/home-dark.png"><img src="docs/screenshots/memo/home.png" width="26%" alt="Memo: the recordings list"></picture>
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/deck/home-dark.png"><img src="docs/screenshots/deck/home.png" width="26%" alt="Deck: the recordings list"></picture>
@@ -160,6 +160,7 @@ are in [How JemRec works](docs/ARCHITECTURE.md#after-a-restart).
 | **Hear about problems** | A notification after each call, and one when a recording is silent, the recorder is down, a call went unrecorded, or the phone stopped JemRec or held it back in the background. A call that came out wrong? *Copy a report* in Diagnostics says how it was recorded, for an issue on GitHub. → [more](docs/ARCHITECTURE.md#after-the-call-and-when-something-is-wrong) |
 | **Answering machine** | Off until you switch it on. Answers a phone call you have not taken after 5 to 30 seconds - after two rings when Do Not Disturb would silence the caller - plays the greeting you recorded and keeps the message, by the same rules as recording. Take the call or hang up from its notification while they speak. It stands down for a day after you call an emergency number. A test call tells you whether it works on your phone. → [more](docs/ARCHITECTURE.md#the-answering-machine) |
 | **Open your banking app** | Some banking apps won't open while Developer options or debugging is on. Turning JemRec off can hide Developer options too, or switch all debugging off; turning it on puts back what it switched off - away from Wi-Fi too, with *Start without Wi-Fi*. Settings → When JemRec is off. → [more](docs/ARCHITECTURE.md#off-and-debugging-with-it) |
+| **Read a call, and its summary** | Transcribed on the phone - the call never leaves it - in 17 languages, Norwegian with a model made for it; each line marked You or Them where the call's two sides are apart, and a tap plays from there. A summary beside it: why the call happened, what was decided, what to do. Only when you ask, after each call, or overnight on the charger; search the words said, copy, or export as text or subtitles. → [more](docs/ARCHITECTURE.md#transcripts-and-summaries) |
 | **Three looks** | Memo, calm and simple; Deck, a pocket recorder with an LCD and a REC key; Multitrack, a sound editor with a colour for each caller. Each light, dark or as the phone, in Settings → Theme. → [more](docs/ARCHITECTURE.md#three-looks) |
 
 Recordings are Opus files in the phone's standard `Recordings/JemRec` folder,
@@ -240,7 +241,10 @@ Honor - so the answering machine's settings hold its own checks and a test call.
   capturing - calls, and your answering-machine greeting.
 - **Nothing leaves the phone**, and nothing is collected about you. *Copy a
   report* in Diagnostics puts how the last call was recorded on the clipboard,
-  with no number, name or sound in it, only when you tap it.
+  with no number, name or sound in it, only when you tap it. Transcripts and
+  summaries are made on the phone; the one thing fetched is the model that
+  makes them, from Hugging Face, when you tap Download - and no call, word or
+  summary is ever sent anywhere.
 - **Calls and contacts only if you allow them** - to name callers, keep calls
   by who they were with, and notice a call that went unrecorded. Everything
   works without them.
@@ -268,7 +272,7 @@ recorder does not explain is one its user has to guess at:
 
 | Permission | Why |
 | --- | --- |
-| `INTERNET` | Not about the internet: Android requires it for any TCP socket, including one to `127.0.0.1`. |
+| `INTERNET` | Android requires it for any TCP socket, including one to `127.0.0.1`, which is what it was for until 0.26. It also downloads a speech or summary model when you tap Download - over Wi-Fi only unless you say otherwise - and nothing else. |
 | `ACCESS_NETWORK_STATE` | To tell whether there is Wi-Fi to rebuild the recorder over, instead of trying and failing. |
 | `WRITE_SECURE_SETTINGS` | Granted by the app to itself over its own ADB session. Nothing but a shell can grant it, so no user can be talked into it. It lets JemRec switch debugging back on when the phone turns it off, and off with JemRec when you ask it to. |
 | `POST_NOTIFICATIONS` | The recording notice, the ask-first prompt, the pairing code box. |
@@ -304,6 +308,22 @@ is heard on your side too: your side is the plain microphone, without the call
 app's echo cancellation. A call that still comes out with one side - over
 Wi-Fi Calling, say - is worth an issue on GitHub: tap *Copy a report* in
 Diagnostics right after it and paste that in.
+
+</details>
+
+<details>
+<summary><b>Do transcripts send my calls anywhere?</b></summary>
+
+<br>
+
+No. The speech and summary models run on the phone; the only thing fetched
+is the model itself, once, from Hugging Face, when you tap Download. They are
+175 MB to 2.6 GB: Whisper small or large-v3-turbo, or NB-Whisper for
+Norwegian, and Qwen3 1.7B for summaries - Gemma 4 E2B as well on a phone with
+8 GB of memory. On a Galaxy A24 a short call took about as long again to
+transcribe, and a summary a minute and a half to two. Set the call's language
+rather than leaving it to detection: left to guess, it once wrote Russian as
+English words nobody said.
 
 </details>
 
@@ -454,10 +474,12 @@ been useful to you, you can support its development on
 ## For developers
 
 Build with **JDK 21** (exactly - the daemon's bytes depend on it) and an Android
-SDK with platforms 37 and 36 and build-tools 36.0.0:
+SDK with platforms 37 and 36, build-tools 36.0.0, NDK 28.2.13676358 and CMake
+3.22.1 (the speech and language engines are native), after fetching them:
 
-    ./gradlew assembleDebug     # build
-    ./gradlew test              # 895 tests, screenshots of the screens included
+    git submodule update --init  # whisper.cpp and llama.cpp
+    ./gradlew assembleDebug      # build
+    ./gradlew test               # 1108 tests, screenshots of the screens included
 
 | | |
 | --- | --- |
