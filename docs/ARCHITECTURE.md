@@ -490,7 +490,12 @@ person's from the other (2026-10-27). One call of ten checked on 2026-10-20
 had nearly all its sound on one channel, both voices in it; why is not known.
 On a Pixel with Android 17 both channels carry the same mix (reported in
 [issue #20](https://github.com/jemcik/JemRec/issues/20), 2026-10-27, not
-measured here). Splitting such a call would take two captures at once, the
+measured here). On a Galaxy A24 (One UI, Android 14) it is the same: a 9 s
+phone call on 2026-10-29 had both channels equal to within Opus's rounding
+(correlation 1.000, largest difference 0.002 of full scale), while a
+Telegram call on the same phone minutes earlier had the sides apart
+(correlation 0.00, one side 10 dB louder than the other in 92% of its 20 ms
+frames). Splitting such a call would take two captures at once, the
 call's uplink and downlink, which other recorders report working only on some
 phones; it is not built.
 
