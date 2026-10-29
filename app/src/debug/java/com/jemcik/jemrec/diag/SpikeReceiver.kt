@@ -226,6 +226,21 @@ class SpikeReceiver : BroadcastReceiver() {
                         }
                     }
 
+                    // Summarise a recording, as the screen's Summarise does:
+                    //   --es op summarise --es name <file>
+                    "summarise" -> {
+                        val name = intent.getStringExtra("name").orEmpty()
+                        com.jemcik.jemrec.summary.SummaryWorker.enqueue(appContext, name, null)
+                        report(appContext, "summarise", "queued $name")
+                    }
+
+                    // A recording's summary as stored. --es op summary --es name <file>
+                    "summary" -> {
+                        val name = intent.getStringExtra("name").orEmpty()
+                        val entry = TranscriptRepository.of(appContext).summary(name)
+                        report(appContext, "summary", entry?.let { "${it.modelId} ${it.language} ${it.wallMs} ms\n${it.json}" } ?: "none for $name")
+                    }
+
                     // A transcript as stored: its facts and lines.
                     //   --es op transcript [--es name <file>]
                     "transcript" -> {
