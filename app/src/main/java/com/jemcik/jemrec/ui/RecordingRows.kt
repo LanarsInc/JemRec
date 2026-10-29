@@ -1,5 +1,9 @@
 package com.jemcik.jemrec.ui
 
+import com.jemcik.jemrec.transcripts.db.SearchMarks
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -242,8 +246,47 @@ internal fun NameLine(label: String, favorite: Boolean, style: TextStyle) {
  * cannot be had, even before it. The length is not here: it ends the
  * waveform's line.
  */
+/**
+ * The recordings the search found by their words, each with the words around
+ * the match (TextFacts.hits): provided over the list, so every look's row
+ * shows why it is there without each being handed it.
+ */
+internal val LocalTextHits = staticCompositionLocalOf<Map<String, String>> { emptyMap() }
+
+/**
+ * Where a recording matched the search inside its transcript or summary: the
+ * words around the match, the match in bold - otherwise a row found by
+ * something said in it would not say why it is in the list.
+ */
+@Composable
+internal fun TextHitLine(snippet: String, style: TextStyle, tint: Color) {
+    val bold = SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+    Text(
+        buildAnnotatedString {
+            var inMatch = false
+            snippet.forEach { ch ->
+                when (ch) {
+                    SearchMarks.START -> inMatch = true
+                    SearchMarks.END -> inMatch = false
+                    else -> if (inMatch) withStyle(bold) { append(ch) } else append(ch)
+                }
+            }
+        },
+        style = style,
+        color = tint,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
 @Composable
 internal fun RowMeta(recording: Recording, day: Day, style: TextStyle, tint: Color) {
+    RowDetails(recording, day, style, tint)
+    LocalTextHits.current[recording.name]?.let { TextHitLine(it, style, tint) }
+}
+
+@Composable
+private fun RowDetails(recording: Recording, day: Day, style: TextStyle, tint: Color) {
     // Which app, by its own icon - unless the headline already says it
     // ("Viber call").
     val app = recording.app?.takeIf { recording.caller != "$it call" }

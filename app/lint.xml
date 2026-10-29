@@ -71,13 +71,15 @@
       LocalDark), each caller's colour on the Calls tab (LocalCallerColours),
       the side panel's rows and player (LocalRowsSelectable, LocalPlayerHere),
       a bar's insets (LocalBarSides), the screen tests' invented waveforms
-      (LocalInventedLevels) and ButtonPair's shrinking labels
-      (LocalLabelsShrink). A NEW one is still reported, so it gets the same
-      thought before it is added here.
+      (LocalInventedLevels), ButtonPair's shrinking labels
+      (LocalLabelsShrink), and the words a search found in each recording's
+      transcript (LocalTextHits), which every look's row shows and none is
+      handed. A NEW one is still reported, so it gets the same thought before
+      it is added here.
     -->
     <issue id="ComposeCompositionLocalUsage">
         <option name="allowed-composition-locals"
-            value="LocalNow,LocalLook,LocalLookChoice,LocalDark,LocalCallerColours,LocalRowsSelectable,LocalPlayerHere,LocalBarSides,LocalInventedLevels,LocalLabelsShrink" />
+            value="LocalNow,LocalLook,LocalLookChoice,LocalDark,LocalCallerColours,LocalRowsSelectable,LocalPlayerHere,LocalBarSides,LocalInventedLevels,LocalLabelsShrink,LocalTextHits" />
     </issue>
 
     <!--

@@ -104,6 +104,15 @@ class TranscriptRepositoryTest {
         assertEquals("her", repo.load("here.ogg")!!.lines.single().text)
     }
 
+    /** What is typed, end to end: a word's start, any case, in any script, and nonsense never throws. */
+    @Test fun searchFindsTheStartOfWordsAndTheirSnippets() = runBlocking {
+        repo.save("no.ogg", facts, listOf(line(0, "Leveransen kommer på fredag")))
+        repo.save("uk.ogg", facts, listOf(line(0, "Доставка буде в п'ятницю")))
+        assertEquals(setOf("no.ogg"), repo.search("LEVER").keys)
+        assertEquals(setOf("uk.ogg"), repo.search("достав").keys)
+        assertEquals(emptyMap<String, String>(), repo.search("\"OR NEAR*"))
+    }
+
     @Test fun aLanguageForOneRecordingIsKeptAndCanBeCleared() = runBlocking {
         repo.setLanguage("a.ogg", "no")
         assertEquals("no", repo.languageFor("a.ogg"))

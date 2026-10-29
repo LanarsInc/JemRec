@@ -30,7 +30,18 @@ fun sourceOf(recording: Recording): String = recording.parsedName?.app ?: PHONE_
  *  2026-10-23). No Today or This week: the list is newest first under Today,
  *  Yesterday and Earlier, which says what they did without hiding the rest
  *  (the user's call, the same day). */
-internal enum class ChipKind { SEARCH, FAVORITES, SOURCE, KEPT, MESSAGES, NOT_RECORDED }
+internal enum class ChipKind { SEARCH, FAVORITES, SOURCE, KEPT, MESSAGES, TRANSCRIBED, NOT_RECORDED }
+
+/**
+ * What the recordings' text adds to the list: which have a transcript (the
+ * Transcribed chip), and which match the search in their transcript or
+ * summary, with the words around the match (TranscriptRepository.search).
+ * Apart from the recordings themselves, as it comes from the database.
+ */
+data class TextFacts(
+    val transcribed: Set<String> = emptySet(),
+    val hits: Map<String, String> = emptyMap(),
+)
 
 /** A chip; a SOURCE chip says which: [PHONE_SOURCE] or a messenger's tag. */
 internal data class ListChip(val kind: ChipKind, val source: String? = null)
@@ -43,6 +54,7 @@ internal fun chipName(chip: ListChip): String = when (chip.kind) {
     ChipKind.SOURCE -> chip.source.let { if (it == PHONE_SOURCE) "Phone" else VoipApps.labelForTag(it) ?: it.orEmpty() }
     ChipKind.KEPT -> "Kept"
     ChipKind.MESSAGES -> "Messages"
+    ChipKind.TRANSCRIBED -> "Transcribed"
     ChipKind.NOT_RECORDED -> "Not recorded"
 }
 
@@ -68,6 +80,7 @@ internal data class ChipFacts(
     val message: Boolean,
     val source: String?,
     val notRecorded: Boolean,
+    val transcribed: Boolean = false,
 )
 
 /**
@@ -82,6 +95,7 @@ internal fun ChipFacts.leftBy(chip: ListChip): Boolean = when (chip.kind) {
     ChipKind.SOURCE -> source == chip.source
     ChipKind.KEPT -> kept
     ChipKind.MESSAGES -> message
+    ChipKind.TRANSCRIBED -> transcribed
     ChipKind.NOT_RECORDED -> notRecorded
 }
 
@@ -105,6 +119,7 @@ internal fun chipsFor(items: List<ChipFacts>, on: Set<ListChip>): List<ListChip>
     on.filter { it.kind == ChipKind.SOURCE && it.source !in sources }.forEach { chips += it }
     offer(ListChip(ChipKind.KEPT))
     offer(ListChip(ChipKind.MESSAGES))
+    offer(ListChip(ChipKind.TRANSCRIBED))
     offer(ListChip(ChipKind.NOT_RECORDED))
     return chips
 }
@@ -125,8 +140,8 @@ private fun questions(on: Set<ListChip>): Collection<List<ListChip>> =
 private fun ChipFacts.answers(questions: Collection<List<ListChip>>): Boolean =
     questions.all { kind -> kind.any { leftBy(it) } }
 
-internal fun Recording.chipFacts(): ChipFacts =
-    ChipFacts(callerFavorite, kept, message, sourceOf(this), notRecorded = false)
+internal fun Recording.chipFacts(text: TextFacts = TextFacts()): ChipFacts =
+    ChipFacts(callerFavorite, kept, message, sourceOf(this), notRecorded = false, transcribed = name in text.transcribed)
 
 internal fun CallHistory.Call.chipFacts(): ChipFacts =
     ChipFacts(favorite, recording?.kept == true, recording?.message == true, source = null, notRecorded = status in NOT_RECORDED)
@@ -160,7 +175,9 @@ data class RecordingsNarrowing(
     val kept: Boolean = false,
     /** Only messages the answering machine took. */
     val messages: Boolean = false,
-    /** Live search text: the caller, the number, or the time. */
+    /** Only recordings with a transcript. */
+    val transcribed: Boolean = false,
+    /** Live search text: the caller, the number, the time, or words said in the call. */
     val query: String = "",
     /** Whether the search field is unfolded. Folded away by default: it is
      *  used now and then, not every visit, so it does not sit taking height
@@ -173,6 +190,7 @@ internal fun RecordingsNarrowing.chipsOn(): Set<ListChip> = buildSet {
     sources.forEach { add(ListChip(ChipKind.SOURCE, it)) }
     if (kept) add(ListChip(ChipKind.KEPT))
     if (messages) add(ListChip(ChipKind.MESSAGES))
+    if (transcribed) add(ListChip(ChipKind.TRANSCRIBED))
     if (searchOpen) add(ListChip(ChipKind.SEARCH))
 }
 
@@ -187,6 +205,7 @@ internal fun RecordingsNarrowing.tapped(chip: ListChip): RecordingsNarrowing = w
     ChipKind.SOURCE -> chip.source?.let { copy(sources = if (it in sources) sources - it else sources + it) } ?: this
     ChipKind.KEPT -> copy(kept = !kept)
     ChipKind.MESSAGES -> copy(messages = !messages)
+    ChipKind.TRANSCRIBED -> copy(transcribed = !transcribed)
     ChipKind.SEARCH -> if (searchOpen) copy(searchOpen = false, query = "") else copy(searchOpen = true)
     // The Calls tab's alone: a recording was recorded.
     ChipKind.NOT_RECORDED -> this
@@ -199,15 +218,21 @@ internal fun RecordingsNarrowing.tapped(chip: ListChip): RecordingsNarrowing = w
  * selection's pruning, so they can never disagree about which rows are on
  * screen. Pure and cheap; it runs on every keystroke and chip tap.
  */
-internal fun filterRecordings(recordings: List<Recording>, narrowing: RecordingsNarrowing): List<Recording> {
+internal fun filterRecordings(
+    recordings: List<Recording>,
+    narrowing: RecordingsNarrowing,
+    text: TextFacts = TextFacts(),
+): List<Recording> {
     val asked = questions(narrowing.chipsOn())
     val q = narrowing.query.trim()
     return recordings.filter { r ->
-        r.chipFacts().answers(asked) && (
+        r.chipFacts(text).answers(asked) && (
             q.isEmpty() ||
                 r.caller?.contains(q, ignoreCase = true) == true ||
                 r.number?.contains(q) == true ||
-                r.whenLabel.contains(q, ignoreCase = true)
+                r.whenLabel.contains(q, ignoreCase = true) ||
+                // Words said in the call, or in its summary.
+                r.name in text.hits
             )
     }
 }
@@ -241,8 +266,9 @@ internal fun CallsNarrowing.tapped(chip: ListChip): CallsNarrowing = when (chip.
     ChipKind.MESSAGES -> copy(messages = !messages)
     ChipKind.NOT_RECORDED -> copy(notRecorded = !notRecorded)
     ChipKind.SEARCH -> if (searchOpen) copy(searchOpen = false, query = "") else copy(searchOpen = true)
-    // The Recordings tab's alone: the call log holds phone calls only.
-    ChipKind.SOURCE -> this
+    // The Recordings tab's alone: the call log holds phone calls only, and
+    // a transcript is a recording's.
+    ChipKind.SOURCE, ChipKind.TRANSCRIBED -> this
 }
 
 /** The calls [narrowing] leaves, by the same questions as the recordings':

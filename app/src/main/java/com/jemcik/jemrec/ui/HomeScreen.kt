@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -212,7 +213,9 @@ fun HomeScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Modifier,
     // times a second.
     val now = LocalNow.current
     val today = dayStamp(now())
-    val filtered = remember(state.recordings, narrowing) { filterRecordings(state.recordings, narrowing) }
+    // The calls' words searched as the query changes; a new letter cancels the search before.
+    LaunchedEffect(narrowing.query) { vm.searchText(narrowing.query) }
+    val filtered = remember(state.recordings, narrowing, state.text) { filterRecordings(state.recordings, narrowing, state.text) }
     val shown = remember(filtered, state.visibleCount) { filtered.take(state.visibleCount) }
     val days = remember(shown, today) { byDay(shown, now()) { it.startedAtMillis } }
     // A day's count is all of its recordings, not the ones the endless
@@ -393,7 +396,7 @@ fun HomeScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Modifier,
                 if (!state.selecting && state.recordings.isNotEmpty() && !narrowingAside) {
                     val on = narrowing.chipsOn()
                     val chips = remember(state.recordings, on) {
-                        chipsFor(state.recordings.map { it.chipFacts() }, on)
+                        chipsFor(state.recordings.map { it.chipFacts(state.text) }, on)
                     }
                     ListChipRow(chips, on, calls = false) { chip -> haptics.tap(); vm.tapRecordingsChip(chip) }
                 }
@@ -924,6 +927,7 @@ private fun ListChip(chip: ListChip, selected: Boolean, calls: Boolean, words: B
         )
         // The calls the answering machine took.
         ChipKind.MESSAGES -> IconFilterChip(selected, chipVector(chip.kind), "Only messages", tap)
+        ChipKind.TRANSCRIBED -> IconFilterChip(selected, chipVector(chip.kind), "Only transcribed recordings", tap)
         ChipKind.NOT_RECORDED -> IconFilterChip(selected, chipVector(chip.kind), "Only calls not recorded", tap)
         // The fold-out. A filter chip in looks, a disclosure in
         // job: selected while the field is open, so the icon
@@ -967,6 +971,7 @@ private fun chipVector(kind: ChipKind): ImageVector = when (kind) {
     ChipKind.KEPT -> KeepIcons.Kept
     // The calls the answering machine took.
     ChipKind.MESSAGES -> messageIcon
+    ChipKind.TRANSCRIBED -> Icons.AutoMirrored.Filled.List
     ChipKind.NOT_RECORDED -> CallIcons.NotRecorded
 }
 
@@ -1061,7 +1066,7 @@ internal fun NarrowingPanel(state: UiState, vm: MainViewModel) {
     val query = if (calls) state.callsNarrowing.query else state.recordingsNarrowing.query
     val on = if (calls) state.callsNarrowing.chipsOn() else state.recordingsNarrowing.chipsOn()
     val chips = remember(if (calls) state.calls else state.recordings, on) {
-        if (calls) chipsFor(state.calls.map { it.chipFacts() }, on) else chipsFor(state.recordings.map { it.chipFacts() }, on)
+        if (calls) chipsFor(state.calls.map { it.chipFacts() }, on) else chipsFor(state.recordings.map { it.chipFacts(state.text) }, on)
     }
     LaunchedEffect(open) {
         if (open) runCatching { focus.requestFocus() }

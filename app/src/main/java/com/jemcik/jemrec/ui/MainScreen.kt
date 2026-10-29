@@ -219,7 +219,10 @@ internal fun AppScaffold(state: UiState, vm: MainViewModel) {
     val window = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.let { DpSize(it.width.toDp(), it.height.toDp()) } }
     val aside = ready && !offHome && headerAside(window.width.value.toInt(), window.height.value.toInt())
 
-    CompositionLocalProvider(LocalCallerColours provides state.callerColours) {
+    // The words around a match only while there is a search: folded away by
+    // its chip, the last search's hits would still hang under the rows.
+    val textHits = if (state.recordingsNarrowing.query.isBlank()) emptyMap() else state.text.hits
+    CompositionLocalProvider(LocalCallerColours provides state.callerColours, LocalTextHits provides textHits) {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbars) },
             topBar = {

@@ -83,6 +83,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -108,6 +109,9 @@ private const val RECORDER_ELSEWHERE_MS = 30_000L
 /** How much diagnostics log to keep. Roughly a screen or two of history,
  *  which is as far back as anyone reads. */
 private const val LOG_LIMIT = 8_000
+
+/** How long typing has to pause before the calls' words are searched. */
+private const val TEXT_SEARCH_DELAY_MS = 250L
 
 /**
  * Which screen is showing.
@@ -266,6 +270,8 @@ data class UiState(
     val recordings: List<Recording> = emptyList(),
     /** The Recordings tab's chips and search. */
     val recordingsNarrowing: RecordingsNarrowing = RecordingsNarrowing(),
+    /** Which recordings have a transcript, and which match the search by their words (TextFacts). */
+    val text: TextFacts = TextFacts(),
     /** The Calls tab's own chips and search. */
     val callsNarrowing: CallsNarrowing = CallsNarrowing(),
     /** What is in Recently deleted, soonest to go first. See Trash. */
@@ -378,6 +384,25 @@ class MainViewModel @JvmOverloads constructor(
 
     /** The Transcript screen's state and actions (TranscriptsController). */
     val transcripts = TranscriptsController(app, viewModelScope)
+
+    /**
+     * Which recordings have a transcript, as the database changes: for the
+     * Transcribed chip. Started by the first refresh rather than here, so a
+     * view model made in a plain JVM test starts no coroutine.
+     */
+    private var watchingTranscribed: Job? = null
+
+    private fun watchTranscribed() {
+        if (watchingTranscribed != null) return
+        val app = getApplication<Application>()
+        watchingTranscribed = viewModelScope.launch {
+            runCatching {
+                TranscriptRepository.of(app).observeTranscribed().collect { set ->
+                    _state.update { it.copy(text = it.text.copy(transcribed = set)) }
+                }
+            }.onFailure { if (it !is CancellationException) Log.w("JemRec", "could not watch transcripts", it) }
+        }
+    }
 
     /** Failures of something the user just did, for a snackbar where they are:
      *  the log in Diagnostics is no place to learn that a share or a delete
@@ -1128,6 +1153,24 @@ class MainViewModel @JvmOverloads constructor(
         next.copy(selected = stillShown(next))
     }
 
+    /**
+     * The words said in the calls, searched for [query] a moment after typing
+     * stops: a full-text query per keystroke would run for every letter of a
+     * word. Called by the list as the query changes (LaunchedEffect), which
+     * cancels the call before when typing goes on.
+     */
+    suspend fun searchText(query: String) {
+        val hits = if (query.isBlank()) emptyMap() else {
+            delay(TEXT_SEARCH_DELAY_MS)
+            withContext(Dispatchers.IO) { TranscriptRepository.of(getApplication()).search(query) }
+        }
+        _state.update { current ->
+            if (current.recordingsNarrowing.query != query) return@update current
+            val next = current.copy(text = current.text.copy(hits = hits))
+            next.copy(selected = stillShown(next))
+        }
+    }
+
     /** A chip of the Recordings tab tapped. Leaves a selection to the rows
      *  still shown, as a search does: the chips are hidden while selecting,
      *  but whichever way the list narrows, a delete must not take a row it
@@ -1361,6 +1404,7 @@ class MainViewModel @JvmOverloads constructor(
 
     private suspend fun refreshNow() {
         val app = getApplication<Application>()
+        watchTranscribed()
         // Refreshes overlap - a resume, a save announced, a keep toggled - and
         // each reads the list, then waits on the recorder for seconds. One
         // started earlier and finishing later must not put back a list from
@@ -2141,7 +2185,7 @@ class MainViewModel @JvmOverloads constructor(
     fun selectAllVisible() = _state.update { current ->
         // "All visible" means all that pass the search and preset - the same
         // rows the list is showing - not every recording on disk.
-        val visible = filterRecordings(current.recordings, current.recordingsNarrowing).take(current.visibleCount)
+        val visible = filterRecordings(current.recordings, current.recordingsNarrowing, current.text).take(current.visibleCount)
         current.copy(selected = visible.map { it.name }.toSet())
     }
 

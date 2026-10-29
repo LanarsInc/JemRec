@@ -78,6 +78,17 @@ class TranscriptRepository(private val db: TranscriptDatabase) {
     /** The names of every recording with a transcript. */
     fun observeTranscribed(): Flow<Set<String>> = db.transcripts().observeTranscribed().map { it.toSet() }
 
+    /**
+     * Recordings whose transcript or summary has what was [typed], each with
+     * the words around the first match (marked as SearchMarks says). Empty
+     * for nothing searchable, and for a query SQLite still refuses.
+     */
+    suspend fun search(typed: String): Map<String, String> {
+        val query = TranscriptSearch.matchQuery(typed) ?: return emptyMap()
+        return runCatching { TranscriptSearch.merge(db.transcripts().search(query), db.summaries().search(query)) }
+            .getOrDefault(emptyMap())
+    }
+
     suspend fun saveSummary(entry: CallSummaryEntry) = db.summaries().upsert(entry)
 
     suspend fun summary(recording: String): CallSummaryEntry? =
