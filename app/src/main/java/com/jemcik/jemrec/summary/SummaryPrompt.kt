@@ -84,8 +84,35 @@ object SummaryPrompt {
             // The line that was missing. A poor transcript is exactly when the model reaches for
             // English, so the instruction has to name that situation rather than describe the goal.
             "Never switch language because the transcript was hard to read."
-        )
+        ) + listOfNotNull(IN_ITS_OWN_WORDS[code?.lowercase()])
     }
+
+    /**
+     * The same instruction in the language itself, for every language but English.
+     *
+     * Added after the Galaxy A24, 2026-10-29: Qwen3 1.7B summarised a real Norwegian call
+     * - two and a half minutes, partly echoed, partly misheard - in English, every instruction above
+     * notwithstanding, while it had written an invented Norwegian sample in Norwegian. A small model
+     * keeps to a language better when it is asked in it.
+     */
+    private val IN_ITS_OWN_WORDS = mapOf(
+        "ar" to "اكتب كل النصوص باللغة العربية.",
+        "de" to "Schreibe alles auf Deutsch.",
+        "el" to "Γράψε τα πάντα στα ελληνικά.",
+        "es" to "Escribe todo en español.",
+        "fa" to "همه چیز را به فارسی بنویس.",
+        "fr" to "Écris tout en français.",
+        "he" to "כתוב הכול בעברית.",
+        "hu" to "Mindent magyarul írj.",
+        "it" to "Scrivi tutto in italiano.",
+        "no" to "Skriv alt på norsk (bokmål), ikke på engelsk.",
+        "pl" to "Pisz wszystko po polsku.",
+        "pt" to "Escreva tudo em português.",
+        "ru" to "Пиши всё на русском языке.",
+        "uk" to "Пиши все українською мовою.",
+        "vi" to "Viết tất cả bằng tiếng Việt.",
+        "zh" to "所有内容都用中文写。",
+    )
 
     /**
      * Explains the prefix on each line, when there is one.
@@ -123,6 +150,18 @@ object SummaryPrompt {
     // [forChunkJson], which is the one that runs. They are constants used by both rather than
     // literals typed into each, because that drift is the actual defect: a fix landed in a prompt
     // nobody was using and looked, from the diff, exactly like a fix that had shipped.
+
+    /**
+     * A call need not decide anything. Added after the Galaxy A24, 2026-10-29: given a Norwegian call
+     * that was someone reading out a talk on history, Qwen3 1.7B filled the action items with three
+     * tasks nobody gave ("set up a committee") - the lists were there, so it filled them. Worded
+     * first as "many calls decide nothing", it emptied the lists of calls that did decide things
+     * (the English and Norwegian samples, same day): so it says what belongs there, then the rest.
+     */
+    private const val NOTHING_DECIDED =
+        "decisions: what the people on the call agreed. actionItems: what someone on the call said " +
+            "they or another would do. Only those - never ideas of your own; a call where nothing " +
+            "was agreed or promised has [] for both."
 
     /** The transcript is machine-made. Told outright, so a mishearing is not read as speech. */
     private const val IMPERFECT_TRANSCRIPT =
@@ -304,6 +343,7 @@ object SummaryPrompt {
             appendLine("}")
             appendLine("Use [] for anything not present. Do not invent facts that are not in the " +
                 "transcript.")
+            appendLine(NOTHING_DECIDED)
             appendLine(OWN_WORDS)
             appendLine(COVER_EVERYTHING)
             appendLine(IGNORE_MISHEARD)
@@ -338,6 +378,8 @@ object SummaryPrompt {
             appendLine("\"\"\"")
             appendLine(body)
             append("\"\"\"")
+            // Last, after the transcript: the line the model reads just before it answers.
+            IN_ITS_OWN_WORDS[language?.lowercase()]?.let { append("\n\n").append(it) }
         }
     }
 

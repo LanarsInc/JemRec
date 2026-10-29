@@ -35,10 +35,11 @@ enum class SummaryModel(
     /**
      * Qwen3 1.7B: multilingual, its reasoning switched off by the prompt; the
      * one for 6 GB phones. Measured on the Galaxy A24, 2026-10-29: 2.5 GB
-     * resident while summarising, 95-140 s for a two-minute call, load
+     * resident while summarising, 92-243 s for a two-minute call, load
      * included; English, Norwegian and Ukrainian samples in their own
-     * languages with every figure right and nothing invented - but points
-     * copied from the transcript and bare timestamps, which SummaryTidy drops.
+     * languages with the gist right, but a detail wrong now and then (an
+     * extra cost read as included, a time an hour off), and lines copied
+     * where it should sum up, which SummaryTidy drops (research.md R14).
      */
     QWEN3_1_7B_Q4_K_M(
         id = "qwen3-1.7b-q4_k_m",
