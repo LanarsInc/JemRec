@@ -1425,9 +1425,13 @@ as JSON that a grammar keeps well-formed, the parts merged, timestamps the
 transcript does not have dropped, repeats removed, and the language named
 in the prompt. Checked on the A24 against three invented calls whose facts
 were all known, in English, Norwegian and Ukrainian: Qwen3 1.7B wrote each
-in its language with every figure right and nothing invented, in 92 to 139
-s; it left some facts out, and copied lines where it should have summed
-up, which the app now drops. Gemma 3 1B was tried and is not offered: it
+in its language, in 92 to 243 s, and gets the gist right; but it errs in
+details now and then - in one run "assembly is included" where it cost extra,
+in another a time an hour off - and left to itself it wrote a real Norwegian
+call's summary in English and filled its action items with tasks nobody gave.
+Asking in the call's own language, and saying what belongs in decisions and
+action items, fixed those two; the details are why the screen says to check
+what matters against the transcript. Gemma 3 1B was tried and is not offered: it
 invented details and wrote the Norwegian summary in English.
 
 **When.** Only when asked (the default); after each call; or overnight,

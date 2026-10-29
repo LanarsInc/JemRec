@@ -230,6 +230,36 @@ Candidates (Hugging Face API, 2026-10-29):
 
 ## R14. Measurements (filled by the measurement tasks)
 
+**The user's calls, 2026-10-29, Galaxy A24** (five Telegram calls; read by
+hand, copies deleted after):
+
+- *Norwegian* (153 s, a talk on the Norwegianisation of the Sami read out):
+  Whisper small heard "sanene" for "samene", "storkingen" for "Stortinget",
+  "for norskningspolitikken"; NB-Whisper small got all three right, and
+  "sikkerhetstrussel", "Nord-Norge", "et eneste ord på norsk" - 300 s for the
+  call. On speakerphone their sentences came twice, the second time through
+  your microphone: LineCleanup now drops a line of yours that is mostly their
+  words at the time (some still pass, cut differently by NB-Whisper).
+- *English* (167 s): your side was whisper writing "I'm going to the pool."
+  six times over quiet, unclear sound; the repeats now go, but what is left of
+  that side is still not what was said - most likely another language on
+  that side with English pinned (to ask the user). Their side, news read out,
+  came out readable.
+- *Russian* (217 s, a question to a voice assistant): right but for a few
+  words.
+- *English, 46 s*: under a second of sound in it; "no speech", rightly.
+- *Summary of the Norwegian call*: refused at 2.1-2.4 GB free against the
+  2.6 GB peak - now the peak less the weights' file (1.8 GB). Then written in
+  English despite "Norwegian (Bokmål)" in the prompt, with three action items
+  nobody gave. The same instruction in Norwegian, at the start and again after
+  the transcript, and a rule on what decisions and action items are, gave a
+  Norwegian summary with none (155 s).
+- *The samples again with that prompt*: English right and complete; but in
+  Norwegian "assembly is included" (it costs 2 000 extra), and in Ukrainian
+  "15:30" for half past two. The first prompt had both right and failed the
+  real call. Qwen3 1.7B summarises well and errs in details now and then:
+  the screen says to check what matters; an 8 GB phone gets Gemma 4.
+
 **Threads, 2026-10-29, Galaxy A24** (`ThreadsBenchmark`, Whisper small, the
 9.0 s test call transcribed as two sides, run as an instrumented test so at
 a foreground's priority):
