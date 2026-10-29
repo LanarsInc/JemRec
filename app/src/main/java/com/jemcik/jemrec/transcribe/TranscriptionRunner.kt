@@ -116,7 +116,7 @@ class TranscriptionRunner(
             return RunOutcome.Failed(error.message ?: error.javaClass.simpleName)
         }
 
-        val merged = TurnMerge.merge(attempt.getOrThrow())
+        val merged = LineCleanup.apply(TurnMerge.merge(attempt.getOrThrow()))
         // A split call's lines are checked against the levels of the whole call:
         // whisper writes words over a quiet channel (QuietSide).
         val lines = if (sides != Sides.SPLIT) merged else {
