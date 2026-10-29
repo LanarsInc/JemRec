@@ -67,9 +67,9 @@ class SummaryRunner(
 
         // Checked before the load, not discovered by Android killing the app halfway.
         val free = freeMemory()
-        if (free < model.peakMemoryBytes) {
-            Log.w(TAG, "Not enough free memory for ${model.id}: ${free / 1_000_000} MB free, ${model.peakMemoryBytes / 1_000_000} MB needed")
-            return SummaryOutcome.NoRoom(model.peakMemoryBytes, free)
+        if (free < model.minFreeBytes) {
+            Log.w(TAG, "Not enough free memory for ${model.id}: ${free / 1_000_000} MB free, ${model.minFreeBytes / 1_000_000} MB needed")
+            return SummaryOutcome.NoRoom(model.minFreeBytes, free)
         }
 
         val lines = linesOf(transcript, contact)

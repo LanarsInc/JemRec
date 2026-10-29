@@ -77,6 +77,18 @@ enum class SummaryModel(
     fun fits(totalMemBytes: Long): Boolean = totalMemBytes >= 2 * peakMemoryBytes
 
     /**
+     * Free memory a run needs before it starts (ActivityManager's availMem):
+     * the peak less the weights' file, plus a margin. The weights are read from
+     * the model file, so they are page cache Android can drop and read again,
+     * not memory taken; what is taken is llama's repacked copy and its working
+     * space. And availMem leaves out the cached apps Android closes when memory
+     * runs short. Measured on the Galaxy A24, 2026-10-29: the full peak (2.6 GB)
+     * refused Qwen at 2.1 to 2.4 GB free, while the phone had 3.2 GB counting
+     * cached apps, and the same model had run at 2.5 GB resident.
+     */
+    val minFreeBytes: Long get() = peakMemoryBytes - sizeBytes + START_MARGIN_BYTES
+
+    /**
      * The phone it needs, as phones are sold, for "Needs a phone with 8 GB":
      * the smallest of the usual sizes that holds twice the peak. Gemma 4's
      * 7.0 GB is an 8 GB phone, which reports about 7.5 GB to Android.
@@ -85,6 +97,9 @@ enum class SummaryModel(
 
     companion object {
         private val PHONE_SIZES_GB = listOf(4, 6, 8, 12, 16, 24)
+
+        /** Room for the rest of the phone while a summary starts. */
+        private const val START_MARGIN_BYTES = 300_000_000L
 
         /** When nothing else is known: the one expected to fit most phones. */
         val DEFAULT = QWEN3_1_7B_Q4_K_M

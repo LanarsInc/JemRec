@@ -63,4 +63,11 @@ class SummaryModelTest {
         assertEquals(SpeechModel.SMALL_Q5_1, SpeechModel.recommendedFor(2))
         assertEquals(SpeechModel.TURBO_Q8_0, SpeechModel.recommendedFor(4))
     }
+
+    /** The A24's three refusals (2117, 2319 and 2448 MB free, 2026-10-29) would now start; a phone near empty would not. */
+    @Test fun aSummaryStartsWithTheFreeMemoryTheA24Had() {
+        val qwen = SummaryModel.QWEN3_1_7B_Q4_K_M
+        assertTrue(2_117_000_000L >= qwen.minFreeBytes)
+        assertFalse(1_000_000_000L >= qwen.minFreeBytes)
+    }
 }
