@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import java.io.File
 
 /**
  * Transcripts, their lines, summaries and per-recording languages: the one
@@ -33,6 +34,12 @@ abstract class TranscriptDatabase : RoomDatabase() {
         const val FILE = "transcripts.db"
 
         @Volatile private var instance: TranscriptDatabase? = null
+
+        /** The database's files on disk, its write-ahead log included. */
+        fun bytesUsed(context: Context): Long {
+            val db = context.getDatabasePath(FILE)
+            return listOf(db, File(db.path + "-wal"), File(db.path + "-shm")).filter { it.isFile }.sumOf { it.length() }
+        }
 
         fun of(context: Context): TranscriptDatabase =
             instance ?: synchronized(this) {

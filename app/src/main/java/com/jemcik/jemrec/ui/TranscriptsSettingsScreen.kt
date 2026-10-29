@@ -133,6 +133,15 @@ internal fun TranscriptsSettingsContent(ui: TranscriptsSettingsUi, vm: MainViewM
             }
         }
 
+        SettingsGroup("Space used") {
+            row {
+                SettingsRow(
+                    title = "On this phone",
+                    summary = "Models ${sizeMb(ui.modelsBytes)} · Transcripts and summaries ${sizeMb(ui.transcriptsBytes)}",
+                )
+            }
+        }
+
         if (ui.imported.isNotEmpty()) {
             SettingsGroup("Imported models (debug build)") {
                 ui.imported.forEach { name -> row(name) { SettingsRow(title = name, summary = "Put on the phone by hand") } }

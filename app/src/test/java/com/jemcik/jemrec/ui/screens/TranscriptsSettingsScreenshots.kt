@@ -52,6 +52,8 @@ class TranscriptsSettingsScreenshots : ScreenTest() {
             SummaryModelRow(SummaryModel.GEMMA_4_E2B_QAT_Q4_K_XL, fits = false, installed = false, downloading = null, partialBytes = 0),
         ),
         summaryModel = SummaryModel.QWEN3_1_7B_Q4_K_M,
+        modelsBytes = 1_297_494_959,
+        transcriptsBytes = 2_400_000,
     )
 
     @Config(qualifiers = "+h2000dp")

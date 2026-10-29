@@ -324,6 +324,10 @@ object ModelRepository {
 
     const val IMPORTED_PREFIX = "imported:"
 
+    /** What the models take on the phone: every file in their directory, partial downloads included. */
+    fun bytesUsed(context: Context): Long =
+        modelsDir(context).listFiles().orEmpty().filter { it.isFile }.sumOf { it.length() }
+
     /** Deletes [model] and any partial download of it. Safe to call when nothing is installed. */
     fun delete(context: Context, model: DownloadableModel) {
         val dir = modelsDir(context)

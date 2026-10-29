@@ -29,6 +29,7 @@ import com.jemcik.jemrec.transcribe.model.ModelRepository
 import com.jemcik.jemrec.transcribe.model.SpeechModel
 import com.jemcik.jemrec.transcripts.Transcript
 import com.jemcik.jemrec.transcripts.TranscriptRepository
+import com.jemcik.jemrec.transcripts.db.TranscriptDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -132,6 +133,9 @@ data class TranscriptsSettingsUi(
     val mode: TranscribeMode = TranscribeMode.MANUAL,
     val chargingOnly: Boolean = true,
     val summariseAfter: Boolean = false,
+    /** What the models take on the phone, and what the transcripts and summaries do. */
+    val modelsBytes: Long = 0,
+    val transcriptsBytes: Long = 0,
     /** The one summaries use: chosen and fitting, else the best that fits. */
     val summaryModel: SummaryModel? = null,
 )
@@ -416,6 +420,8 @@ class TranscriptsController(
                 mode = settings.mode,
                 chargingOnly = settings.chargingOnly,
                 summariseAfter = settings.summariseAfterTranscript,
+                modelsBytes = ModelRepository.bytesUsed(app),
+                transcriptsBytes = TranscriptDatabase.bytesUsed(app),
             )
         }
     }

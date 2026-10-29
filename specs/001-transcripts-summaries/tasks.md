@@ -228,8 +228,8 @@ and screen tests for new screens (spec SC-006).
 
 **Goal**: sizes, Delete, space used, Wi-Fi only.
 
-- [ ] T094 [US6] In `JR/ui/TranscriptsSettingsScreen.kt`: Download over Wi-Fi only; Space used (models from file sizes, transcripts from the database file); debug-only Imported models
-- [ ] T095 [US6] Screen tests for the finished settings screen; record and look at every PNG
+- [x] T094 [US6] In `JR/ui/TranscriptsSettingsScreen.kt`: Download over Wi-Fi only; Space used (models from file sizes, transcripts from the database file); debug-only Imported models
+- [x] T095 [US6] Screen tests for the finished settings screen; record and look at every PNG
 
 ---
 
