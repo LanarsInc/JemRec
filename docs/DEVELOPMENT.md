@@ -12,10 +12,28 @@ Needs **JDK 21** - that major, not "or newer" - and an Android SDK with:
     platforms;android-37       the app's compileSdk
     platforms;android-36       what the shell daemon links against
     build-tools;36.0.0         d8, for dexing the daemon
+    ndk;28.2.13676358          the speech and language engines
+    cmake;3.22.1               which builds them
+
+and the two engines, pinned submodules:
+
+    git submodule update --init
 
 Then:
 
     ./gradlew assembleDebug
+
+**The engines are native.** whisper.cpp (transcripts) and llama.cpp
+(summaries) are built from `third_party/` by `app/src/main/cpp/CMakeLists.txt`,
+arm64 only, with ggml's per-CPU variants: one library per Android ARM feature
+level, the best one the phone has picked at run time - dotprod on a Galaxy
+A24, i8mm as well on newer phones. The JNI bridges (`whisperjr.cpp`,
+`llamajr.cpp`) are CallVault's, renamed. The first build compiles all of it,
+a few minutes; debug builds them at -O3 too, as at -O0 ggml is about 13x
+slower (CallVault). Only Maven's libraries keep their debug symbols: the
+engines unstripped made a 95 MB debug APK. Release: 11.98 MB (2026-10-29).
+Models are never in the repo (`*.gguf` is ignored; the one `.bin` there is
+the 0.9 MB voice-activity model).
 
 The daemon is not a Gradle module. `shellserver/build.sh` compiles it against the
 platform the *device* runs, with its `@hide` internals intact, and Gradle runs
@@ -37,7 +55,7 @@ server runs, so 21 is what CI installs and what `build.sh` insists on -
 
 ## Tests
 
-895 JVM tests, no device needed - 699 for the app and 196 for the daemon:
+1304 JVM tests, no device needed - 1108 for the app and 196 for the daemon:
 
     ./gradlew test
 
@@ -62,6 +80,24 @@ Settings keeping its place, what a screen reader is told about the choices
 and switches, a disabled row ignoring taps. The people on the screens do not
 exist, the clock is fixed, and so are the language and time zone, so the same
 state draws the same pixels on any machine on any day.
+
+**On a phone**, the parts no JVM test reaches - the native bridges, and what
+the models write - are instrumented tests in `app/src/androidTest`. Run them
+with `am instrument`, never Gradle's connected task, which uninstalls the app
+afterwards (and with it the models, and with the recorder up, debugging):
+
+    ./gradlew assembleDebug assembleDebugAndroidTest
+    adb install -r -t app/build/outputs/apk/debug/app-debug.apk
+    adb install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+    adb shell am instrument -w -e class com.jemcik.jemrec.transcribe.WhisperBridgeTest \
+        com.jemcik.jemrec.test/androidx.test.runner.AndroidJUnitRunner
+
+`WhisperBridgeTest` checks the bridges (5 tests; it needs Whisper small on the
+phone). `SummaryFaithfulnessTest` and `ThreadsBenchmark` are measurements:
+they write a report to the app's external files directory -
+`summary-faithfulness.txt`, every summary model's summary of three invented
+calls beside what is true in them, to be read for anything invented;
+`threads-benchmark.txt`, whisper's time at 2, 4, 6 and 8 threads.
 
 After a change to a screen that was meant, draw the references again, look at
 every PNG that changed before committing it, and commit them with the change:
