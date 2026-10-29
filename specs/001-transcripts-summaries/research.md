@@ -230,6 +230,27 @@ Candidates (Hugging Face API, 2026-10-29):
 
 ## R14. Measurements (filled by the measurement tasks)
 
+**Threads, 2026-10-29, Galaxy A24** (`ThreadsBenchmark`, Whisper small, the
+9.0 s test call transcribed as two sides, run as an instrumented test so at
+a foreground's priority):
+
+| Threads | Wall | Load |
+|---|---|---|
+| 2 | 74.7 s | 1.3 s |
+| 4 | 64.4 s | 0.3 s |
+| 6 | 56.4 s | 0.4 s |
+| 8 | 66.9 s | 0.5 s |
+
+Six - every core but two, CallVault's rule from its 6+2 OnePlus - is the
+fastest here too; with all eight the six A55s hold the two A76s back at
+each of ggml's barriers. The default stays. Settings' thread count is for
+a phone that measures otherwise.
+
+Speech default on the A24: Whisper small, the recommendation for a phone
+with two fast cores. Turbo was not run here; by CallVault's figures it is
+about twice small's work, so a five-minute call would take about ten
+minutes - the edge of SC-001. To measure with the calls at the end.
+
 **Summaries, 2026-10-29, Galaxy A24** (`SummaryFaithfulnessTest`: three
 invented two-minute calls whose every fact is listed - English, Norwegian,
 Ukrainian - through the app's prompt, grammar and checks; read by hand for

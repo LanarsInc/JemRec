@@ -91,6 +91,9 @@ object TranscriptionEngine {
      * degrades sensibly elsewhere: a 4-core phone gets 2, a single-core one still gets 1. Capped at
      * six because past that the gains flatten while contention with the rest of the phone does not.
      *
+     * Measured again on a Galaxy A24 (2 Cortex-A76 + 6 A55), Whisper small, 2026-10-29: 2 threads
+     * 74.7 s, 4 64.4 s, 6 56.4 s, 8 66.9 s - the same answer on a very different phone.
+     *
      * Changing this changes how long a run takes, so it invalidates the speed this device has
      * already calibrated — see [TranscriptionEstimate].
      */

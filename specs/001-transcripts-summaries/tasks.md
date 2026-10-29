@@ -237,8 +237,8 @@ and screen tests for new screens (spec SC-006).
 
 **Purpose**: CLAUDE.md "When a feature lands", measurements, gates.
 
-- [ ] T096 Measure threads on the A24 (2, 4, 8) for the default speech model; set the default in `TranscribeSettings` with the figures in a comment and research.md R14
-- [ ] T097 Set `SpeechModel` and `SummaryModel` defaults per phone class from R14; update estimates (`realTimeFactor`, `peakMemoryBytes`) with A24 figures and dates
+- [x] T096 *6 threads fastest on the A24 (research.md R14); the default stays.* Measure threads on the A24 (2, 4, 8) for the default speech model; set the default in `TranscribeSettings` with the figures in a comment and research.md R14
+- [x] T097 *Small for two fast cores, turbo from four, kept; Qwen's peak set from the A24; turbo on the A24 still to measure with the calls.* Set `SpeechModel` and `SummaryModel` defaults per phone class from R14; update estimates (`realTimeFactor`, `peakMemoryBytes`) with A24 figures and dates
 - [ ] T098 [P] `docs/ARCHITECTURE.md`: a section "Transcripts and summaries" (engines, models and why, channels as speakers with the A24 result, languages, memory gate, where data lives, network use), the contents line, the permission table's `INTERNET` row, and the "no library, no native code" sentence in "Playing a recording" corrected
 - [ ] T099 [P] `README.md`: "What you can do" rows, FAQ (does audio leave the phone, how big are the models, which languages), privacy and permission lines (models are downloaded from Hugging Face), tests badge and developer test count
 - [ ] T100 [P] `tools/build_site.py`: `FEATURES`, `FEATURE_ROWS` (with a picture), FAQ, "Will it work on your phone?" (memory for summaries), `HOW_BODY`, `SETUP` (a manual section, Settings, notifications table), `PRIVACY_DATA` words and chips (model downloads, transcripts kept on the phone); then run `python3 tools/build_site.py`
