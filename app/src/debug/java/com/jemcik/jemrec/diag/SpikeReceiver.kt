@@ -231,6 +231,14 @@ class SpikeReceiver : BroadcastReceiver() {
                         }
                     }
 
+                    // Cancel a recording's transcription, as the screen's Cancel does:
+                    //   --es op cancel --es name <file>
+                    "cancel" -> {
+                        val name = intent.getStringExtra("name").orEmpty()
+                        TranscriptionWorker.cancel(appContext, name)
+                        report(appContext, "cancel", "asked to stop $name")
+                    }
+
                     // Only the language, as a call left to detect is read before it is
                     // transcribed (LanguageGuess), on a model of choice or the one it would use:
                     //   --es op detect --es name <file> [--es id turbo-q8_0]
