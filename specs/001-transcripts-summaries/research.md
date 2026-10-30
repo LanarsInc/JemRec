@@ -228,6 +228,61 @@ Candidates (Hugging Face API, 2026-10-29):
   characters; `full_description.txt` is at 4004 bytes, so a line has to go for
   each line added.
 
+## R15. The language, detected before the run
+
+- **Decision** (2026-10-30, the user asked for detect as the default): when
+  no language is set, each side's first minute is decoded once, its louder
+  seconds (within 25 dB of its loudest, above -50 dBFS) up to 30 s go to
+  whisper's own language detection (`whisper_lang_auto_detect`, one encoder
+  pass) on the model chosen for the call; an answer at 0.5 or more in one of
+  the 17 is pinned, with the model made for it (NB-Whisper for Norwegian).
+  Sides told apart are transcribed each in its language; a side with no
+  speech in that minute takes the other's; one whisper is unsure of is left
+  to whisper's detection pass by pass. The transcript is filed under the
+  language of the side that said more, which the summary is written in.
+- **Rationale**: the model is chosen before whisper runs, so whisper's own
+  detection could never pick NB-Whisper; and whisper left on auto heard a
+  Russian side as English (R14). Pinned after detection, whisper is told.
+- **Measured** on the Galaxy A24 (2026-10-30), the user's calls, side by
+  side (LEFT is the phone's owner); probabilities of the likeliest:
+
+  | Call | Side | Whisper small | large-v3-turbo |
+  |---|---|---|---|
+  | 10:08 Russian, 16 s | left | ru 0.66 | ru 0.995 |
+  | | right, a few words | pt 0.45 (ru 0.05) | ru 0.78 |
+  | 10:13 Russian, phone, 8 s | both (one mix) | ru 0.77 | ru 0.96 |
+  | 14:13 pinned English | left | ru 0.90 | ru 0.99 |
+  | | right, 5 s of speech | en 0.30 | es 0.28, pt 0.26, ru 0.24 |
+  | 14:21 Norwegian | left | no 0.80 | no 0.82 |
+  | 14:46 Russian | left | ru 0.94 | ru 1.0 |
+  | | right | ru 0.66 | ru 0.39 |
+  | 16:29 English | left | en 0.995 | en 1.0 |
+  | 10:05 (30th) Russian | left / right | ru 0.97 / 0.92 | - |
+  | 10:06 (30th) Russian with English words | left | en 0.43, ru 0.29 | ru 0.97 |
+  | 11:17 (30th) Ukrainian, phone, 221 s | one mix | - | uk 0.996 |
+
+  A side with no speech in its first minute (14:21, 16:29 and 10:06 on the
+  right) gave nothing to tell by.
+- **Turbo, not the smallest model**: small was wrong twice where turbo was
+  right (10:08 right, 10:06 left) and unsure where turbo was sure; turbo was
+  less sure once (14:46 right, left to whisper). Cost per side: 23 s on
+  turbo, 11.5 s on small. The 14:13 call explains its nonsense: the user's
+  side is Russian (0.99), transcribed under an English pin. The 11:17 call,
+  made by the user after the change, ran through it end to end: detected
+  (140 s, of which about a minute waiting for the engine), pinned, 88 lines
+  in Ukrainian in 547 s on turbo, and its summary in Ukrainian.
+- **Only with no speech, not "among the guesses"**: taking the other side's
+  language whenever whisper listed it would have written 14:13's English
+  news as Russian (turbo had Russian third, 0.24).
+- **Decoding is the slow part**: Opus decodes at about four times real time
+  on the A24 (113 s of stereo in 27-34 s, with or without draining the codec
+  eagerly - tried, no change), so the first minute is decoded once for every
+  side; a decode per side over two minutes made detection 69-85 s.
+- **Alternatives**: whisper's own detection in the run (cannot choose the
+  model, re-detects per pass); the smallest model (measured above); the
+  phone's language as the default pin (the previous default; one answer for
+  calls in several languages).
+
 ## R14. Measurements (filled by the measurement tasks)
 
 **The user's calls, 2026-10-29, Galaxy A24** (five Telegram calls; read by

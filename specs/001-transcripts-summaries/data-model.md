@@ -20,7 +20,7 @@ or `Failed(reason)`. Short file: resumed. Hash mismatch: deleted.
 
 | Key | Values | Default |
 |---|---|---|
-| `tx_language` | 17 codes or `auto` | the phone's language if offered, else `no` |
+| `tx_language` | 17 codes or `auto` | unset, meaning detect (as `auto`): each side's language found before the run, then pinned (R15) |
 | `tx_model` | SpeechModel id | from R14 per phone class |
 | `tx_language_models` | on/off: use a model made for the language when downloaded | on |
 | `tx_sides` | `auto`, `split`, `mix` | `auto` |

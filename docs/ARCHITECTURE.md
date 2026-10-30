@@ -1403,12 +1403,25 @@ Them, merged in time; where they carry the same mix, as a Galaxy A24's
 phone calls do, the call is transcribed once and no line is named. Messenger
 calls always have their sides apart.
 
-**The language is told, not guessed.** Seventeen: CallVault's sixteen and
-Norwegian, the default in this fork. Settings sets it for every call, and a
-recording can have its own. Detection is offered and works, but on the A24
-it heard a Russian test call's other side as English words nobody said
-(2026-10-29); with Russian set, the same side came out right. For Norwegian,
-NB-Whisper is used when it is downloaded.
+**The language is found first, then told.** Seventeen: CallVault's sixteen
+and Norwegian. Settings can set one for every call, and a recording can have
+its own; by default it is detected - but before the run, not by whisper as it
+goes. Left to itself whisper detects again for every pass, and it heard a
+Russian test call's side as English words nobody said (A24, 2026-10-29); and
+the model is chosen before it runs, so NB-Whisper could never be picked for a
+call it would only later find Norwegian. So each side's first minute is
+decoded, its loudest 30 seconds handed to whisper's language detection, and
+an answer it is at least half sure of is pinned, with the model made for that
+language. Sides in two languages are transcribed each in its own; a side with
+no speech takes the other's; one whisper is unsure of is left to it. On the
+A24 (2026-10-30, large-v3-turbo) every side with half a minute of speech was
+told right - Norwegian 0.82, Russian 0.96 to 1.0, English 1.0 - and a
+call the user had pinned to English turned out Russian on their side (0.99),
+which is why that side had come out as nonsense. Whisper small is not used
+for this: it heard a short Russian side as Portuguese. It costs a decode of
+the first minute (15-23 s: Opus decodes at about four times real time there)
+and 23 to 37 s a side. A Ukrainian phone call made with this in place came
+out Ukrainian (0.996), transcript and summary both.
 
 **What it costs, on a Galaxy A24** (Helio G99: two fast cores, six slow
 ones, 2026-10-29): Whisper small took 33.6 s for a 9 s call and 59.5 s for a

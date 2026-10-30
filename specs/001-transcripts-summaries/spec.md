@@ -45,8 +45,10 @@ recorded call and read it.
 
 ### User Story 2 - The call's language (Priority: P1)
 
-The user picks the language in Settings (default: the phone's own if offered,
-else Norwegian), and can override it for one recording. The transcript is
+The user picks the language in Settings (default: detect automatically -
+each side's language found from its first minute and then pinned, with the
+model made for it; research R15), and can override it for one recording.
+Until 2026-10-30 the default was the phone's own language, else Norwegian. The transcript is
 in that language, never translated. For Norwegian, a model trained on
 Norwegian (NB-Whisper) is offered beside the general one.
 
@@ -56,7 +58,9 @@ Norwegian (NB-Whisper) is offered beside the general one.
    **Then** the text is in that language and script.
 2. **Given** a per-recording override, **Then** only that recording uses it.
 3. **Given** Norwegian and NB-Whisper downloaded, **Then** NB-Whisper is used
-   for Norwegian and the general model for the rest.
+   for Norwegian and the general model for the rest - set, or detected.
+4. **Given** detect, and two sides in two languages, **Then** each side is
+   transcribed in its own.
 
 ### User Story 3 - What the call was about (Priority: P1)
 

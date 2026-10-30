@@ -2039,11 +2039,13 @@ SETUP = [
           "are on the two channels - every messenger call, and phone calls on "
           "phones that keep them apart. A tap on a line plays the recording from "
           "there; a long press copies it."),
-    ("p", "**The language.** Settings → Transcripts says which language calls "
-          "are in - seventeen, Norwegian with a model made for it, NB-Whisper - "
-          "and **Change**, on a transcript, sets one for that call alone. "
-          "Detecting it is offered, but it can mistake one language for another; "
-          "say it when you can."),
+    ("p", "**The language.** JemRec finds it: each side's first minute is "
+          "listened to before the call is transcribed, so a Norwegian call gets "
+          "the model made for Norwegian, NB-Whisper, and two people speaking two "
+          "languages each get theirs. Seventeen are offered. Settings → "
+          "Transcripts can set one for every call instead, and **Change**, on a "
+          "transcript, sets one for that call alone - worth it for a side of a "
+          "few words, which is too little to tell."),
     ("p", "**Summary**, beside Transcript, writes why the call happened, what was "
           "said, and the points, decisions, things to do and facts, each with the "
           "time it was said - a tap goes to that line. It needs a second "
@@ -3144,7 +3146,8 @@ FEATURES = [
      "the-answering-machine"),
     ("Read a call, and its summary",
      "Transcribed on the phone &mdash; the call never leaves it &mdash; in 17 "
-     "languages, Norwegian with a model made for it; each line marked You or "
+     "languages, each side&rsquo;s found by itself, Norwegian with a model made "
+     "for it; each line marked You or "
      "Them where the call&rsquo;s sides are apart, and a tap plays from there. "
      "A summary beside it: why the call happened, what was decided, what to do. "
      "Search the words said, copy, or export as text or subtitles.",
