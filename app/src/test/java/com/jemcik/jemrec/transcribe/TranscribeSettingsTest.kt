@@ -2,7 +2,6 @@ package com.jemcik.jemrec.transcribe
 
 import android.content.Context
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -32,11 +31,11 @@ class TranscribeSettingsTest {
         assertNull(settings.speechModelId)
         assertTrue(settings.languageModels)
         assertEquals(Sides.AUTO, settings.sides)
-        assertEquals(TranscribeMode.MANUAL, settings.mode)
+        assertEquals(TranscribeMode.AFTER_CALL, settings.mode)
         assertTrue(settings.chargingOnly)
         assertEquals(0, settings.threads)
         assertNull(settings.summaryModelId)
-        assertFalse(settings.summariseAfterTranscript)
+        assertTrue(settings.summariseAfterTranscript)
         assertTrue(settings.modelsWifiOnly)
         assertNull(settings.measuredRtf("small-q5_1"))
         assertNull(settings.measuredLoadMs("small-q5_1"))
@@ -66,7 +65,7 @@ class TranscribeSettingsTest {
     /** A value a later version no longer writes reads as the default, never a crash. */
     @Test fun unknownStoredValuesReadAsDefaults() {
         assertEquals(Sides.AUTO, Sides.of("sideways"))
-        assertEquals(TranscribeMode.MANUAL, TranscribeMode.of(null))
+        assertEquals(TranscribeMode.AFTER_CALL, TranscribeMode.of(null))
     }
 
     @Test fun nonsenseMeasurementsAreNotKept() {

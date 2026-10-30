@@ -130,9 +130,9 @@ data class TranscriptsSettingsUi(
     /** Imported model files, debug build only. */
     val imported: List<String> = emptyList(),
     val summaryModels: List<SummaryModelRow> = emptyList(),
-    val mode: TranscribeMode = TranscribeMode.MANUAL,
+    val mode: TranscribeMode = TranscribeMode.AFTER_CALL,
     val chargingOnly: Boolean = true,
-    val summariseAfter: Boolean = false,
+    val summariseAfter: Boolean = true,
     /** What the models take on the phone, and what the transcripts and summaries do. */
     val modelsBytes: Long = 0,
     val transcriptsBytes: Long = 0,

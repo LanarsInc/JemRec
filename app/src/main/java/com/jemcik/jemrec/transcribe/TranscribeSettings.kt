@@ -14,12 +14,16 @@ enum class Sides(val key: String) {
     }
 }
 
-/** When recordings are transcribed without being asked one by one. */
+/**
+ * When recordings are transcribed without being asked one by one. After each
+ * call by default: the user's choice, 2026-10-30. It costs nothing until a
+ * speech model is downloaded, which only a tap does (TranscriptionScheduler).
+ */
 enum class TranscribeMode(val key: String) {
     MANUAL("manual"), AFTER_CALL("after_call"), OVERNIGHT("overnight");
 
     companion object {
-        fun of(key: String?): TranscribeMode = entries.firstOrNull { it.key == key } ?: MANUAL
+        fun of(key: String?): TranscribeMode = entries.firstOrNull { it.key == key } ?: AFTER_CALL
     }
 }
 
@@ -74,8 +78,9 @@ class TranscribeSettings(private val prefs: SharedPreferences) {
         get() = prefs.getString(SUMMARY_MODEL, null)
         set(value) = prefs.edit { putString(SUMMARY_MODEL, value) }
 
+    /** On by default, with the mode; nothing happens until a summary model is downloaded (SummaryAfterTranscript). */
     var summariseAfterTranscript: Boolean
-        get() = prefs.getBoolean(SUMMARY_AUTO, false)
+        get() = prefs.getBoolean(SUMMARY_AUTO, true)
         set(value) = prefs.edit { putBoolean(SUMMARY_AUTO, value) }
 
     /** Downloads are hundreds of megabytes; on mobile data only when asked. */

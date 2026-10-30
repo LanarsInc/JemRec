@@ -18,8 +18,8 @@ import java.util.concurrent.TimeUnit
 /**
  * Transcribing without being asked one call at a time (TranscribeSettings.mode).
  *
- * - **After each call**: queued as the recording is saved, from the call's
- *   own service. Expedited, so it runs at once and at a foreground's
+ * - **After each call** (the default): queued as the recording is saved,
+ *   from the call's own service. Expedited, so it runs at once and at a foreground's
  *   priority: started from the background without that, Android refuses the
  *   foreground service and the A24 ran 13 times slower (research.md R14).
  *   Whether an expedited start from the call's service gets the foreground
@@ -63,9 +63,19 @@ object TranscriptionScheduler {
         Log.i(TAG, "Overnight transcription scheduled (charging only: ${settings.chargingOnly})")
     }
 
-    /** A recording just saved: transcribe it now if the user asked for that. */
+    /**
+     * A recording just saved: transcribe it now if the user asked for that.
+     * After each call is the default, so on a phone with no speech model yet
+     * nothing is queued: the work would only start, find no model and stop,
+     * spending an expedited slot after every call.
+     */
     fun afterCall(context: Context, recording: String, uri: Uri, contact: String?) {
-        if (TranscribeSettings.of(context).mode != TranscribeMode.AFTER_CALL) return
+        val settings = TranscribeSettings.of(context)
+        if (settings.mode != TranscribeMode.AFTER_CALL) return
+        if (ModelChoice.speechModelFor(context, ModelChoice.language(null, settings.language)).second == null) {
+            Log.i(TAG, "No transcription after the call: no speech model on the phone")
+            return
+        }
         TranscriptionWorker.enqueue(context, recording, uri, contact, automatic = true, expedited = true)
         Log.i(TAG, "Queued a transcription after the call")
     }
