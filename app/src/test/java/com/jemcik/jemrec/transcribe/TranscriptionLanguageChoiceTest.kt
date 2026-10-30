@@ -8,7 +8,6 @@
 
 package com.jemcik.jemrec.transcribe
 
-import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -48,18 +47,6 @@ class TranscriptionLanguageChoiceTest {
     }
 
     @Test
-    fun a_supported_device_language_becomes_the_default_pin() {
-        assertEquals("es", TranscriptionLanguageChoice.defaultLanguage(Locale.forLanguageTag("es-MX")))
-        assertEquals("en", TranscriptionLanguageChoice.defaultLanguage(Locale.US))
-    }
-
-    @Test
-    fun a_persian_phone_pins_persian() {
-        // #55: Persian was not on offer, so a Persian phone fell to auto-detect, which heard Arabic.
-        assertEquals("fa", TranscriptionLanguageChoice.defaultLanguage(Locale.forLanguageTag("fa-IR")))
-    }
-
-    @Test
     fun every_language_the_app_is_translated_into_can_be_pinned() {
         // The second request of this kind (#46 Greek, #55 Persian) came from a user whose app was
         // already in their language. If CallVault speaks it, transcription must be able to pin it.
@@ -68,48 +55,8 @@ class TranscriptionLanguageChoiceTest {
     }
 
     @Test
-    fun ukrainian_is_supported_as_a_device_default_and_explicit_choice() {
-        assertEquals("uk", TranscriptionLanguageChoice.defaultLanguage(Locale.forLanguageTag("uk-UA")))
+    fun ukrainian_is_supported_as_an_explicit_choice() {
         assertEquals("uk", TranscriptionLanguageChoice.resolve(chosen = "uk", setting = "en"))
-    }
-
-    @Test
-    fun an_unsupported_device_language_falls_back_to_norwegian() {
-        // This fork's calls are expected in Norwegian; auto-detect is the user's choice, never a default.
-        assertEquals("no", TranscriptionLanguageChoice.defaultLanguage(Locale.forLanguageTag("da-DK")))
-        assertEquals("no", TranscriptionLanguageChoice.defaultLanguage(Locale.ROOT))
-    }
-
-    @Test
-    fun a_norwegian_phone_pins_norwegian_whichever_code_it_reports() {
-        assertEquals("no", TranscriptionLanguageChoice.defaultLanguage(Locale.forLanguageTag("nb-NO")))
-        assertEquals("no", TranscriptionLanguageChoice.defaultLanguage(Locale.forLanguageTag("nn-NO")))
-        assertEquals("no", TranscriptionLanguageChoice.defaultLanguage(Locale.forLanguageTag("no-NO")))
-    }
-
-    @Test
-    fun a_hebrew_phone_pins_hebrew_despite_the_locale_reporting_iw() {
-        // Locale still reports the 1989 code. Left unmapped it would miss SUPPORTED and send exactly
-        // the users this defaulting exists for straight back to auto-detect.
-        assertEquals("he", TranscriptionLanguageChoice.defaultLanguage(Locale.forLanguageTag("he-IL")))
-        assertEquals("he", TranscriptionLanguageChoice.defaultLanguage(Locale.forLanguageTag("iw-IL")))
-    }
-
-    @Test
-    fun the_default_pin_is_never_a_language_the_picker_cannot_show() {
-        // A default outside SUPPORTED would leave the dropdown falling back to its first entry, so
-        // Settings would claim auto-detect while whisper ran on something else entirely.
-        for (locale in Locale.getAvailableLocales()) {
-            val pinned = TranscriptionLanguageChoice.defaultLanguage(locale)
-
-            if (pinned != null) {
-                assertEquals(
-                    "$locale pinned $pinned, which the picker does not offer",
-                    true,
-                    pinned in TranscriptionLanguageChoice.SUPPORTED,
-                )
-            }
-        }
     }
 
     @Test

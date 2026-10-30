@@ -401,6 +401,55 @@ object TranscriptionEngine {
         }
     } }
 
+    /**
+     * Whisper's likeliest languages for each of [channels], read from the
+     * speech in its first two minutes (LanguageGuess); an empty list for a
+     * side with too little speech. One model load for all of them, under the
+     * engine's lock like a transcription.
+     */
+    suspend fun detectLanguages(
+        context: Context,
+        uri: Uri,
+        modelPath: String,
+        channels: List<Channel>,
+        threads: Int = preferredThreadCount(),
+    ): Map<Channel, List<Pair<String, Double>>> = withContext(dispatcher) { EngineLock.mutex.withLock {
+        // As in transcribe: an abort left by the run before must not stop this one.
+        abortRequested.set(false)
+        val loadAt = SystemClock.elapsedRealtime()
+        val ptr = WhisperNative.initContext(modelPath, context.applicationInfo.nativeLibraryDir)
+        if (ptr == 0L) error("Could not load whisper model at $modelPath")
+        try {
+            val loadMs = SystemClock.elapsedRealtime() - loadAt
+            // One decode for every side: Opus decodes at only about 3.5 times real time on the
+            // Galaxy A24 (2026-10-30, 113 s of stereo in 27-34 s), so a decode per side was most
+            // of the wait.
+            val decodeAt = SystemClock.elapsedRealtime()
+            val sides = HashMap<Channel, FloatArray>()
+            AudioDecoder.decodeRange(
+                context, uri, 0L, LanguageGuess.LOOK_MS, Channel.MIX,
+                onInterleaved = { pcm, length, count, rate, _ ->
+                    channels.forEach { sides[it] = AudioDecoder.pcm16ToMono16k(pcm, count, rate, length, it.index) }
+                },
+            ) { abortRequested.get() }
+            val decodeMs = SystemClock.elapsedRealtime() - decodeAt
+            channels.associateWith { channel ->
+                if (abortRequested.get()) return@associateWith emptyList()
+                val speech = sides[channel]?.let(LanguageGuess::speech) ?: return@associateWith emptyList()
+                val detectAt = SystemClock.elapsedRealtime()
+                LanguageGuess.parse(WhisperNative.detectLanguage(ptr, speech, threads)).also {
+                    Log.i(
+                        TAG,
+                        "Language of $channel, from ${speech.size / AudioDecoder.TARGET_SAMPLE_RATE}s of speech: $it " +
+                            "(load $loadMs ms, decode $decodeMs ms, detect ${SystemClock.elapsedRealtime() - detectAt} ms)",
+                    )
+                }
+            }
+        } finally {
+            WhisperNative.freeContext(ptr)
+        }
+    } }
+
     /** Left is the phone's own side and right the other person's, as JemRec records them. */
     fun speakerOf(channel: Channel): Speaker = when (channel) {
         Channel.LEFT -> Speaker.YOU

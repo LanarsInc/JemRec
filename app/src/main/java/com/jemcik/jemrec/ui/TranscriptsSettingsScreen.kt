@@ -160,7 +160,7 @@ internal fun TranscriptsSettingsContent(ui: TranscriptsSettingsUi, vm: MainViewM
             choices = listOf(TranscriptionLanguageChoice.AUTO) + LanguageNames.offered,
             selected = ui.language,
             label = LanguageNames::own,
-            detail = { LanguageNames.english(it) ?: "Slower, and sometimes wrong: say it when you can" },
+            detail = { LanguageNames.english(it) ?: "Each side's from its first minute; about a minute more per call" },
             onChoose = c::setSettingsLanguage,
             onDismiss = { choosingLanguage = false },
         )

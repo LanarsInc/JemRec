@@ -15,6 +15,8 @@
 #include <atomic>
 #include <mutex>
 #include <string>
+#include <vector>
+#include <cstdio>
 #include "whisper.h"
 #include "ggml-backend.h"
 
@@ -221,6 +223,41 @@ Java_com_jemcik_jemrec_transcribe_WhisperNative_progressPercent(JNIEnv *, jobjec
 JNIEXPORT void JNICALL
 Java_com_jemcik_jemrec_transcribe_WhisperNative_requestAbort(JNIEnv *, jobject) {
     g_abort.store(true, std::memory_order_relaxed);
+}
+
+// Which language [audio] is spoken in: whisper's three likeliest, as "no:0.812 da:0.101 sv:0.050",
+// or "" when it could not tell. Audio is 16 kHz mono float, at most 30 s (one encoder window).
+//
+// Exists so the language is known BEFORE the model is chosen: a model made for one language
+// (NB-Whisper for Norwegian) can only be picked once the call is known to be in it, and whisper's
+// own detection runs inside the transcription, after the model is loaded. One encoder pass and one
+// decoder step on the general model -- the same work whisper_full does when told "auto".
+JNIEXPORT jstring JNICALL
+Java_com_jemcik_jemrec_transcribe_WhisperNative_detectLanguage(JNIEnv *env, jobject, jlong ptr,
+                                                                  jfloatArray audio, jint threads) {
+    whisper_context *ctx = ctx_of(ptr);
+    const jsize n = env->GetArrayLength(audio);
+    jfloat *samples = env->GetFloatArrayElements(audio, nullptr);
+    const int mel = whisper_pcm_to_mel(ctx, samples, n, threads);
+    env->ReleaseFloatArrayElements(audio, samples, JNI_ABORT);
+    if (mel != 0) return env->NewStringUTF("");
+
+    std::vector<float> probs(whisper_lang_max_id() + 1, 0.0f);
+    if (whisper_lang_auto_detect(ctx, 0, threads, probs.data()) < 0) return env->NewStringUTF("");
+
+    std::string out;
+    for (int k = 0; k < 3; k++) {
+        int best = -1;
+        for (int i = 0; i < (int) probs.size(); i++) {
+            if (probs[i] >= 0.0f && (best < 0 || probs[i] > probs[best])) best = i;
+        }
+        if (best < 0) break;
+        char item[32];
+        snprintf(item, sizeof item, "%s%s:%.3f", out.empty() ? "" : " ", whisper_lang_str(best), probs[best]);
+        out += item;
+        probs[best] = -1.0f;
+    }
+    return env->NewStringUTF(out.c_str());
 }
 
 JNIEXPORT void JNICALL

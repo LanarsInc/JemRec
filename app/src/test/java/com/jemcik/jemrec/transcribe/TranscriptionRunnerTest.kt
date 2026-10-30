@@ -28,6 +28,8 @@ class TranscriptionRunnerTest {
     private lateinit var repo: TranscriptRepository
     private lateinit var settings: TranscribeSettings
     private val asked = mutableListOf<List<Channel>>()
+    /** Each pass: the model's path, the language pinned, the sides. */
+    private val passes = mutableListOf<Triple<String, String?, List<Channel>>>()
     private var aborted = false
     private var clockMs = 0L
 
@@ -45,15 +47,22 @@ class TranscriptionRunnerTest {
 
     @After fun close() = db.close()
 
-    private fun runner(levels: Pair<DoubleArray, DoubleArray>?, output: (List<Channel>) -> List<TranscriptSegment>) =
+    private fun runner(
+        levels: Pair<DoubleArray, DoubleArray>?,
+        detected: Map<Channel, List<Pair<String, Double>>> = emptyMap(),
+        output: (List<Channel>) -> List<TranscriptSegment>,
+    ) =
         TranscriptionRunner(
             repository = repo,
             settings = settings,
-            transcriber = { _, _, _, _, channels, _ ->
+            transcriber = { _, modelPath, language, _, channels, _ ->
                 asked += channels
+                passes += Triple(modelPath, language, channels)
                 clockMs += 30_000
                 output(channels)
             },
+            detector = { _, _, _ -> detected },
+            modelFor = { language -> if (language == "no") ReadyModel("nb-small-q5_0", "NB-Whisper small", java.io.File("/nb")) else null },
             sideLevels = { levels },
             durationMs = { 60_000 },
             wasAborted = { aborted },
@@ -71,7 +80,7 @@ class TranscriptionRunnerTest {
     }
 
     @Test fun sidesApartAreTranscribedApartAndNamed() = runBlocking {
-        val outcome = runner(apart, ::sideLines).run(request())
+        val outcome = runner(apart, output = ::sideLines).run(request())
         assertEquals(RunOutcome.Done(2), outcome)
         assertEquals(listOf(listOf(Channel.LEFT, Channel.RIGHT)), asked)
         val t = repo.load("a.ogg")!!
@@ -84,24 +93,24 @@ class TranscriptionRunnerTest {
 
     @Test fun oneMixIsTranscribedOnceAndNamedNothing() = runBlocking {
         val same = apart.first to apart.first.copyOf()
-        runner(same, ::sideLines).run(request())
+        runner(same, output = ::sideLines).run(request())
         assertEquals(listOf(listOf(Channel.MIX)), asked)
         assertEquals(listOf(Speaker.NONE), repo.load("a.ogg")!!.lines.map { it.speaker })
     }
 
     @Test fun unreadableLevelsMeanTheMix() = runBlocking {
-        runner(null, ::sideLines).run(request())
+        runner(null, output = ::sideLines).run(request())
         assertEquals(listOf(listOf(Channel.MIX)), asked)
     }
 
     @Test fun theUsersSplitSettingSkipsTheCheck() = runBlocking {
-        runner(null, ::sideLines).run(request(Sides.SPLIT))
+        runner(null, output = ::sideLines).run(request(Sides.SPLIT))
         assertEquals(listOf(listOf(Channel.LEFT, Channel.RIGHT)), asked)
     }
 
     @Test fun aStoppedRunSavesNothing() = runBlocking {
         aborted = true
-        assertEquals(RunOutcome.Stopped, runner(apart, ::sideLines).run(request()))
+        assertEquals(RunOutcome.Stopped, runner(apart, output = ::sideLines).run(request()))
         assertNull(repo.load("a.ogg"))
     }
 
@@ -116,13 +125,64 @@ class TranscriptionRunnerTest {
         assertEquals(0, repo.load("a.ogg")!!.lines.size)
     }
 
-    @Test fun detectingTheLanguageIsStoredAsAuto() = runBlocking {
-        runner(apart, ::sideLines).run(request(language = null))
+    @Test fun aLanguageWhisperCannotTellIsStoredAsAuto() = runBlocking {
+        runner(apart, output = ::sideLines).run(request(language = null))
         assertEquals("auto", repo.load("a.ogg")!!.facts.language)
+        assertEquals(listOf(Triple("/m", null, listOf(Channel.LEFT, Channel.RIGHT))), passes)
+    }
+
+    /** The point of detecting first: a Norwegian call gets the model made for Norwegian, and the language pinned. */
+    @Test fun aDetectedLanguageIsPinnedWithItsOwnModel() = runBlocking {
+        val same = apart.first to apart.first.copyOf()
+        runner(same, detected = mapOf(Channel.MIX to listOf("no" to 0.9, "da" to 0.05)), output = ::sideLines).run(request(language = null))
+        assertEquals(listOf(Triple("/nb", "no", listOf(Channel.MIX))), passes)
+        val facts = repo.load("a.ogg")!!.facts
+        assertEquals("no", facts.language)
+        assertEquals("nb-small-q5_0", facts.modelId)
+    }
+
+    @Test fun twoSidesInTwoLanguagesAreEachPinnedAndFiledUnderTheLongerOne() = runBlocking {
+        val detected = mapOf(Channel.LEFT to listOf("ru" to 0.95), Channel.RIGHT to listOf("no" to 0.8))
+        runner(apart, detected) { channels ->
+            channels.map { ch -> TranscriptSegment(0, 2000, if (ch == Channel.RIGHT) "en lang norsk setning" else "да", TranscriptionEngine.speakerOf(ch)) }
+        }.run(request(language = null))
+        assertEquals(listOf(Triple("/m", "ru", listOf(Channel.LEFT)), Triple("/nb", "no", listOf(Channel.RIGHT))), passes)
+        assertEquals(listOf(Speaker.YOU, Speaker.THEM), repo.load("a.ogg")!!.lines.map { it.speaker })
+        assertEquals("no", repo.load("a.ogg")!!.facts.language)
+        // Two models' speed together is neither's.
+        assertNull(settings.measuredRtf("small-q5_1"))
+    }
+
+    /** A side with too little speech to tell takes the other's language: one pass, not a second on a few words. */
+    @Test fun aSideTooQuietToTellFollowsTheOther() = runBlocking {
+        runner(apart, detected = mapOf(Channel.LEFT to listOf("ru" to 0.97), Channel.RIGHT to emptyList()), output = ::sideLines)
+            .run(request(language = null))
+        // The stand-in's Latin lines are retried as the wrong script for Russian; every try is the one pass.
+        assertEquals(setOf(Triple("/m", "ru", listOf(Channel.LEFT, Channel.RIGHT))), passes.toSet())
+    }
+
+    /** A side heard in another language than the other's, if unsure, is left to whisper - not pinned to the wrong one. */
+    @Test fun anUnsureSideInAnotherLanguageIsLeftToWhisper() = runBlocking {
+        val detected = mapOf(Channel.LEFT to listOf("ru" to 0.9), Channel.RIGHT to listOf("en" to 0.3, "de" to 0.1))
+        runner(apart, detected) { channels ->
+            channels.map { ch -> TranscriptSegment(0, 2000, if (ch == Channel.LEFT) "да" else "news", TranscriptionEngine.speakerOf(ch)) }
+        }.run(request(language = null))
+        assertEquals(listOf(Triple("/m", "ru", listOf(Channel.LEFT)), Triple("/m", null, listOf(Channel.RIGHT))), passes)
+    }
+
+    @Test fun aGuessWhisperIsUnsureOfIsNotPinned() = runBlocking {
+        val same = apart.first to apart.first.copyOf()
+        runner(same, detected = mapOf(Channel.MIX to listOf("no" to 0.3, "da" to 0.3)), output = ::sideLines).run(request(language = null))
+        assertEquals(listOf(Triple("/m", null, listOf(Channel.MIX))), passes)
+    }
+
+    @Test fun aPinnedLanguageIsNotDetected() = runBlocking {
+        runner(apart, detected = mapOf(Channel.LEFT to listOf("ru" to 0.99)), output = ::sideLines).run(request(language = "en"))
+        assertEquals(listOf(Triple("/m", "en", listOf(Channel.LEFT, Channel.RIGHT))), passes)
     }
 
     @Test fun thePhonesSpeedIsRemembered() = runBlocking {
-        runner(apart, ::sideLines).run(request())
+        runner(apart, output = ::sideLines).run(request())
         // 28 s of work over 60 s of audio, blended with nothing before it.
         assertTrue(settings.measuredRtf("small-q5_1")!! > 0)
         assertEquals(2_000L, settings.measuredLoadMs("small-q5_1"))

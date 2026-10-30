@@ -52,14 +52,14 @@ object ModelChoice {
         return model to file?.let { ReadyModel(model.id, model.label, it) }
     }
 
-    /** The language whisper is given for [perRecording] or the Settings choice: an ISO code, or null to detect. */
+    /**
+     * The language pinned for [perRecording] or by the Settings choice: an ISO
+     * code, or null to detect it (LanguageGuess) - which is also what an unset
+     * Settings language means.
+     */
     fun language(perRecording: String?, setting: String?): String? {
         // Settings keeps "detect" as "auto"; resolve() wants it as null, as CallVault's preferences hand it over.
-        val pinned = when (setting) {
-            null -> TranscriptionLanguageChoice.defaultLanguage()
-            TranscriptionLanguageChoice.AUTO -> null
-            else -> setting
-        }
+        val pinned = setting.takeUnless { it == TranscriptionLanguageChoice.AUTO }
         return TranscriptionLanguageChoice.resolve(perRecording, pinned)
     }
 

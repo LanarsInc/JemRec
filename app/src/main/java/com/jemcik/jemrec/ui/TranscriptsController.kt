@@ -119,8 +119,8 @@ data class SummaryModelRow(
 
 /** Settings > Transcripts and summaries. */
 data class TranscriptsSettingsUi(
-    /** The Settings language: an ISO code or "auto"; the phone's default when not chosen yet. */
-    val language: String = TranscriptionLanguageChoice.FORK_DEFAULT,
+    /** The Settings language: an ISO code or "auto", which is also what not having chosen means. */
+    val language: String = TranscriptionLanguageChoice.AUTO,
     val models: List<ModelRow> = emptyList(),
     /** The model chosen as the general one, or the recommendation. */
     val chosenModel: SpeechModel? = null,
@@ -404,7 +404,7 @@ class TranscriptsController(
             val recommended = ModelChoice.recommended()
             val total = SummaryWorker.totalMemory(app)
             _settings.value = TranscriptsSettingsUi(
-                language = settings.language ?: TranscriptionLanguageChoice.defaultLanguage(),
+                language = settings.language ?: TranscriptionLanguageChoice.AUTO,
                 models = SpeechModel.entries.map { m ->
                     ModelRow(m, m in installed, downloads[m], ModelRepository.partialBytes(app, m), m == recommended)
                 },

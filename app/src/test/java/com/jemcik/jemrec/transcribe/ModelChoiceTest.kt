@@ -42,10 +42,11 @@ class ModelChoiceTest {
         assertEquals(turbo, ModelChoice.pick("en", "retired-model", true, emptySet(), turbo))
     }
 
-    @Test fun theLanguageIsTheRecordingsThenSettingsThenTheDefault() {
+    @Test fun theLanguageIsTheRecordingsThenSettingsThenDetected() {
         assertEquals("uk", ModelChoice.language("uk", "no"))
         assertEquals("no", ModelChoice.language(null, "no"))
         assertNull(ModelChoice.language("auto", "no"))
         assertNull(ModelChoice.language(null, "auto"))
+        assertNull(ModelChoice.language(null, null))
     }
 }

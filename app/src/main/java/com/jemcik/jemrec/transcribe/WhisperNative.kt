@@ -44,6 +44,12 @@ object WhisperNative {
     external fun freeContext(ptr: Long)
 
     /**
+     * Whisper's three likeliest languages for [audio] (16 kHz mono float, at most 30 s), as
+     * "no:0.812 da:0.101 sv:0.050"; empty when it could not tell. Read by [LanguageGuess].
+     */
+    external fun detectLanguage(ptr: Long, audio: FloatArray, threads: Int): String
+
+    /**
      * Runs recognition over [audio] — 16 kHz mono float in [-1, 1]. Results are read afterwards with
      * [segmentCount] and the segment accessors.
      *

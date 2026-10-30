@@ -25,6 +25,14 @@ fun interface Transcriber {
     ): List<TranscriptSegment>
 }
 
+/**
+ * Each side's likeliest languages, as whisper ranks them, for a call left to
+ * detect; an empty list where it could not tell. The engine in the app.
+ */
+fun interface LanguageDetector {
+    suspend fun detect(uri: Uri, modelPath: String, channels: List<Channel>): Map<Channel, List<Pair<String, Double>>>
+}
+
 /** How one recording's transcription ended. */
 sealed interface RunOutcome {
     /** Saved; [lines] may be 0 when no speech was found, which is said as such. */
@@ -38,9 +46,10 @@ sealed interface RunOutcome {
 data class RunRequest(
     val recording: String,
     val uri: Uri,
+    /** The general model: used as is when the language is pinned, and to detect it when not. */
     val modelId: String,
     val modelPath: String,
-    /** An ISO code, or null to detect it. */
+    /** An ISO code, or null to detect it (LanguageGuess). */
     val language: String?,
     /** The contact's name, so whisper spells it right (TranscriptionPrompt); null for none. */
     val contact: String?,
@@ -53,7 +62,9 @@ data class RunRequest(
  *
  * In order: how long the call is; whether its two channels are its two sides
  * (ChannelSides) - then each side is transcribed alone and its lines named, or
- * the mix once and named nothing; one retry when the text comes back in the
+ * the mix once and named nothing; for a call left to detect, each side's
+ * language found first and pinned, with the model made for it if there is one
+ * (LanguageGuess); one retry when the text comes back in the
  * wrong script for the pinned language (CallVault's WrongScriptRetry); the
  * sides merged in time; saved whole; and this phone's speed for the model
  * remembered, so the next estimate is this phone's and not someone else's.
@@ -65,6 +76,10 @@ class TranscriptionRunner(
     private val repository: TranscriptRepository,
     private val settings: TranscribeSettings,
     private val transcriber: Transcriber,
+    /** Nothing detected unless given: the tests that are not about it see the old behaviour. */
+    private val detector: LanguageDetector = LanguageDetector { _, _, _ -> emptyMap() },
+    /** The model for a detected language, or null to keep the request's. */
+    private val modelFor: (String) -> ReadyModel? = { null },
     /** 20 ms levels of each channel over the first minute; null when they cannot be read. */
     private val sideLevels: suspend (Uri) -> Pair<DoubleArray, DoubleArray>?,
     /** The same over the whole call, for QuietSide; null when they cannot be read. */
@@ -85,20 +100,25 @@ class TranscriptionRunner(
             ChannelSides.decide(levels.first, levels.second, request.sides)
         }
         val channels = if (sides == Sides.SPLIT) listOf(Channel.LEFT, Channel.RIGHT) else listOf(Channel.MIX)
-        val prompt = runCatching { TranscriptionPrompt.build(request.contact, request.language) }.getOrNull()
         Log.i(TAG, "Transcribing ${request.recording.length}-char name, ${audioMs / 1000}s, ${request.language ?: "auto"}, sides $sides")
 
         val startedAt = clock()
         TranscriptionInFlight.claim(request.recording)
+        var passes = emptyList<Pass>()
         val attempt = try {
             runCatching {
-                val first = transcriber.transcribe(request.uri, request.modelPath, request.language, prompt, channels, DecodeSettings.DEFAULT)
-                if (!WrongScriptRetry.shouldRetry(first, request.language, audioMs)) first
-                else {
-                    Log.w(TAG, "Not in the pinned language's script (${request.language}); decoding again")
-                    WrongScriptRetry.recover(first, request.language) { decode ->
-                        transcriber.transcribe(request.uri, request.modelPath, request.language, prompt, channels, decode)
-                    }
+                passes = passes(request, channels)
+                if (shouldStop() || wasAborted()) return@runCatching emptyList()
+                passes.flatMap { pass ->
+                    val prompt = runCatching { TranscriptionPrompt.build(request.contact, pass.language) }.getOrNull()
+                    val first = transcriber.transcribe(request.uri, pass.modelPath, pass.language, prompt, pass.channels, DecodeSettings.DEFAULT)
+                    if (!WrongScriptRetry.shouldRetry(first, pass.language, audioMs)) first
+                    else {
+                        Log.w(TAG, "Not in the pinned language's script (${pass.language}); decoding again")
+                        WrongScriptRetry.recover(first, pass.language) { decode ->
+                            transcriber.transcribe(request.uri, pass.modelPath, pass.language, prompt, pass.channels, decode)
+                        }
+                    }.also { pass.chars = it.sumOf { line -> line.text.length } }
                 }
             }
         } finally {
@@ -130,12 +150,15 @@ class TranscriptionRunner(
         }
         val wallMs = clock() - startedAt
         val loadMs = setupMs().coerceIn(0L, wallMs)
+        // Two sides in two languages are one transcript: it is filed under the
+        // side that said more, which is also the language its summary is written in.
+        val main = passes.maxByOrNull { it.chars } ?: Pass(channels, request.language, request.modelId, request.modelPath)
         withContext(NonCancellable) {
             repository.save(
                 request.recording,
                 TranscriptFacts(
-                    modelId = request.modelId,
-                    language = request.language ?: TranscriptionLanguageChoice.AUTO,
+                    modelId = main.modelId,
+                    language = main.language ?: TranscriptionLanguageChoice.AUTO,
                     split = sides == Sides.SPLIT,
                     audioMs = audioMs,
                     wallMs = wallMs,
@@ -146,9 +169,41 @@ class TranscriptionRunner(
                 lines,
             )
         }
-        rememberSpeed(request.modelId, audioMs, wallMs, loadMs)
+        // A speed is one model's over the whole call; two models' mixed would be neither's.
+        if (passes.size == 1) rememberSpeed(main.modelId, audioMs, wallMs, loadMs)
         Log.i(TAG, "Saved ${lines.size} line(s) in ${wallMs / 1000}s (load ${loadMs}ms)")
         return RunOutcome.Done(lines.size)
+    }
+
+    /** One transcription pass: the sides that share a language, and the model for it. */
+    private class Pass(val channels: List<Channel>, val language: String?, val modelId: String, val modelPath: String) {
+        var chars = 0
+    }
+
+    /**
+     * How the call is transcribed: in one pass when its language is pinned;
+     * otherwise each side's language detected, and the sides that share one
+     * transcribed together, with the model made for it when there is one.
+     * A side whisper could not tell takes the other side's language where
+     * that is likely (LanguageGuess.follow); otherwise whisper detects as it goes.
+     */
+    private suspend fun passes(request: RunRequest, channels: List<Channel>): List<Pass> {
+        val general = Pass(channels, request.language, request.modelId, request.modelPath)
+        if (request.language != null) return listOf(general)
+        val startedAt = clock()
+        val guesses = runCatching { detector.detect(request.uri, request.modelPath, channels) }
+            .onFailure { if (it is CancellationException) throw it; Log.w(TAG, "Could not detect the language: ${it.message}") }
+            .getOrDefault(emptyMap())
+        val told = channels.associateWith { LanguageGuess.decide(guesses[it].orEmpty()) }
+        // A side with no speech to tell by would cost a pass of its own for a word or two:
+        // measured on the Galaxy A24, 2026-10-30, a side with one line took 88 s on its own.
+        val other = told.values.filterNotNull().distinct().singleOrNull()
+        val languages = told.mapValues { (side, language) -> language ?: LanguageGuess.follow(guesses[side].orEmpty(), other) }
+        Log.i(TAG, "Detected in ${clock() - startedAt} ms: ${channels.joinToString { "$it ${told[it] ?: "unsure"} ${guesses[it].orEmpty()}" }}")
+        return channels.groupBy { languages[it] }.map { (language, sides) ->
+            val model = language?.let(modelFor)
+            Pass(sides, language, model?.id ?: request.modelId, model?.file?.absolutePath ?: request.modelPath)
+        }
     }
 
     /**
@@ -177,6 +232,14 @@ class TranscriptionRunner(
                 transcriber = Transcriber { uri, modelPath, language, prompt, channels, decode ->
                     TranscriptionEngine.transcribe(app, uri, modelPath, language, prompt, decode, channels, threadsFor(app))
                 },
+                // On the model chosen for the call, not the smallest: measured on the Galaxy A24,
+                // 2026-10-30, Whisper small heard a short Russian side as Portuguese (0.45) and a
+                // Russian speaker mixing in English words as English (0.43), where large-v3-turbo
+                // said Russian at 0.78 and 0.97. It costs 23 s a side against small's 11.5.
+                detector = LanguageDetector { uri, modelPath, channels ->
+                    TranscriptionEngine.detectLanguages(app, uri, modelPath, channels, threadsFor(app))
+                },
+                modelFor = { language -> ModelChoice.speechModelFor(app, language).second },
                 sideLevels = { uri -> readSideLevels(app, uri, ChannelSides.LOOK_MS) },
                 callLevels = { uri -> readSideLevels(app, uri, Long.MAX_VALUE / 1000) },
                 durationMs = { uri -> AudioDecoder.durationMs(app, uri) },

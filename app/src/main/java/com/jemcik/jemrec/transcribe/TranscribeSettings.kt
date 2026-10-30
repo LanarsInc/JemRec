@@ -36,10 +36,9 @@ enum class TranscribeMode(val key: String) {
  * longer offers must read as "not chosen", not crash, and the catalogues
  * decide that (SpeechModel.fromId, SummaryModel.fromId).
  *
- * Language: null means the user has not chosen, and TranscriptionLanguage
- * gives the default (the phone's own if offered, else Norwegian); "auto" is a
- * choice of its own, detect automatically. The two must not collapse into one
- * null - CallVault's TranscriptionLanguageChoice explains why.
+ * Language: null means the user has not chosen, which is detect automatically
+ * (LanguageGuess, since 2026-10-30); "auto" is that same answer chosen. Kept
+ * apart all the same, as CallVault's TranscriptionLanguageChoice explains.
  */
 class TranscribeSettings(private val prefs: SharedPreferences) {
 
