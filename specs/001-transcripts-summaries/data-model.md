@@ -24,11 +24,11 @@ or `Failed(reason)`. Short file: resumed. Hash mismatch: deleted.
 | `tx_model` | SpeechModel id | from R14 per phone class |
 | `tx_language_models` | on/off: use a model made for the language when downloaded | on |
 | `tx_sides` | `auto`, `split`, `mix` | `auto` |
-| `tx_mode` | `manual`, `after_call`, `overnight` | `manual` |
+| `tx_mode` | `manual`, `after_call`, `overnight` | `after_call` |
 | `tx_charging_only` | Boolean (overnight) | true |
 | `tx_threads` | Int or 0 = measured default | 0 |
 | `sum_model` | SummaryModel id | largest that fits |
-| `sum_auto` | Boolean: summarise after each transcript | false |
+| `sum_auto` | Boolean: summarise after each transcript | true |
 | `models_wifi_only` | Boolean | true |
 | `tx_rtf.<model>`, `tx_load_ms.<model>` | measured on this phone | - |
 

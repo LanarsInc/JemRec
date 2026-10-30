@@ -79,9 +79,11 @@ memory need, and only models the phone can hold are offered.
 
 ### User Story 4 - Without asking each time (Priority: P2)
 
-Settings → Transcripts → **When**: Only when I ask (default) / After each
-call / Overnight, while charging (works through the backlog). **Summarise
-too** follows a transcript automatically when on.
+Settings → Transcripts → **When**: Only when I ask / After each call
+(default) / Overnight, while charging (works through the backlog). **Summarise
+too** (on by default) follows a transcript automatically. Defaults changed
+from Only when I ask and off on 2026-10-30, at the user's request; nothing
+runs until a model is downloaded.
 
 **Acceptance Scenarios**:
 

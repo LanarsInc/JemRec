@@ -490,11 +490,13 @@ said - a tap goes to that line. It needs a second download, a language model,
 and a phone with 6 GB of memory or more; a phone with 8 GB gets a larger one.
 It is made from the transcript, so it can leave things out: check what matters.
 
-**Without asking** - Settings → Transcripts → When: **After each call**, or
-**Overnight**, while charging, for the last 30 days' calls without one; a
-summary can follow each transcript. **Copy all** and **Export** (text, Markdown
-with the summary, SRT or VTT subtitles, JSON) are under a transcript, and the
-Recordings search finds words said in a call.
+**Without asking** - Settings → Transcripts → When: **After each call**, the
+default once a model is downloaded, or **Overnight**, while charging, for the
+last 30 days' calls without one; a summary follows each transcript unless
+turned off. **Only when I ask** leaves it to the Transcript button. **Copy
+all** and **Export** (text, Markdown with the summary, SRT or VTT subtitles,
+JSON) are under a transcript, and the Recordings search finds words said in a
+call.
 
 ## Three looks
 

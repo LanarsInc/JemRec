@@ -1434,9 +1434,11 @@ action items, fixed those two; the details are why the screen says to check
 what matters against the transcript. Gemma 3 1B was tried and is not offered: it
 invented details and wrote the Norwegian summary in English.
 
-**When.** Only when asked (the default); after each call; or overnight,
-while charging, for the last 30 days not yet transcribed. A summary can
-follow each transcript. One heavy job runs at a time, so a speech model and
+**When.** After each call (the default); only when asked; or overnight,
+while charging, for the last 30 days not yet transcribed. A summary follows
+each transcript unless turned off. Neither costs anything until its model is
+downloaded, and only a tap downloads one: without a speech model nothing is
+queued after a call, without a summary model no summary. One heavy job runs at a time, so a speech model and
 a language model are never in memory together.
 
 **Where it is kept.** Transcripts and summaries in a database of their own,
