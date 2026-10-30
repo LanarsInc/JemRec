@@ -35,11 +35,16 @@ import kotlinx.coroutines.coroutineScope
 class TranscriptionWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = coroutineScope {
-        val recording = inputData.getString(KEY_RECORDING) ?: return@coroutineScope Result.failure()
-        val uri = inputData.getString(KEY_URI)?.let(Uri::parse) ?: return@coroutineScope Result.failure()
+        val recording = inputData.getString(KEY_RECORDING) ?: return@coroutineScope HeavyQueue.finished()
+        val uri = inputData.getString(KEY_URI)?.let(Uri::parse) ?: return@coroutineScope HeavyQueue.finished()
         val contact = inputData.getString(KEY_CONTACT)
         val automatic = inputData.getBoolean(KEY_AUTOMATIC, false)
         val app = applicationContext
+        // Cancelled while it waited: it ends here, as stopped, and the chain goes on (HeavyQueue).
+        if (HeavyQueue.isStopped(app, id)) {
+            HeavyQueue.forget(app, id)
+            return@coroutineScope HeavyQueue.finished(KEY_ERROR to ERROR_STOPPED)
+        }
         val settings = TranscribeSettings.of(app)
         val repository = TranscriptRepository.of(app)
 
@@ -47,11 +52,11 @@ class TranscriptionWorker(context: Context, params: WorkerParameters) : Coroutin
         val (_, ready) = ModelChoice.speechModelFor(app, language)
         if (ready == null) {
             Log.w(TAG, "No speech model on the phone; nothing transcribed")
-            return@coroutineScope Result.failure(workDataOf(KEY_ERROR to ERROR_NO_MODEL))
+            return@coroutineScope HeavyQueue.finished(KEY_ERROR to ERROR_NO_MODEL)
         }
 
         val title = "Transcribing ${contact ?: "a call"}"
-        val cancel = WorkManager.getInstance(app).createCancelPendingIntent(id)
+        val cancel = HeavyQueue.cancelIntent(app, tagFor(recording), summary = false)
         runCatching { setForeground(HeavyWorkNotification.forWork(app, title, null, cancel)) }
             .onFailure { Log.w(TAG, "Could not run in the foreground: ${it.message}") }
 
@@ -61,7 +66,7 @@ class TranscriptionWorker(context: Context, params: WorkerParameters) : Coroutin
             try {
                 while (isActive) {
                     delay(1000)
-                    if (isStopped) TranscriptionEngine.requestAbort()
+                    if (isStopped || HeavyQueue.isStopped(app, id)) TranscriptionEngine.requestAbort()
                     val percent = TranscriptionEngine.progressPercent()
                     if (percent != last && TranscriptionEngine.isRunning) {
                         last = percent
@@ -89,7 +94,7 @@ class TranscriptionWorker(context: Context, params: WorkerParameters) : Coroutin
                     sides = settings.sides,
                     threads = TranscriptionRunner.threadsFor(app),
                 ),
-                shouldStop = { isStopped },
+                shouldStop = { isStopped || HeavyQueue.isStopped(app, id) },
             )
         } finally {
             ticker.cancel()
@@ -101,23 +106,25 @@ class TranscriptionWorker(context: Context, params: WorkerParameters) : Coroutin
         // the recording's name renamed the next recording. Measured on the A24,
         // 2026-10-29: a Telegram call's transcript was saved under the phone
         // call transcribed before it.
+        val cancelled = HeavyQueue.isStopped(app, id).also { if (it) HeavyQueue.forget(app, id) }
         when (outcome) {
             is RunOutcome.Done -> {
                 if (automatic) TranscriptNotices.ready(app, recording, contact, outcome.lines)
                 // A summary follows when asked for and a model is here; it joins the same chain.
                 if (settings.summariseAfterTranscript && outcome.lines > 0) SummaryAfterTranscript.queue(app, recording, contact)
-                Result.success(workDataOf(KEY_LINES to outcome.lines))
+                HeavyQueue.finished(KEY_LINES to outcome.lines)
             }
-            // Stopped by Android (time's up for an expedited job, a constraint
-            // lost) is tried again later; stopped by the user is not.
-            RunOutcome.Stopped -> if (isStopped && stopReason != WorkInfo.STOP_REASON_CANCELLED_BY_APP) {
-                Result.retry()
-            } else {
-                Result.failure(workDataOf(KEY_ERROR to ERROR_STOPPED))
+            // Stopped by the user ends it; stopped by Android (time's up for an
+            // expedited job, a constraint lost) is tried again later. Neither
+            // fails it, which would break the chain (HeavyQueue).
+            RunOutcome.Stopped -> when {
+                cancelled -> HeavyQueue.finished(KEY_ERROR to ERROR_STOPPED)
+                isStopped && stopReason != WorkInfo.STOP_REASON_CANCELLED_BY_APP -> Result.retry()
+                else -> HeavyQueue.finished(KEY_ERROR to ERROR_STOPPED)
             }
             is RunOutcome.Failed -> {
                 if (automatic) TranscriptNotices.failed(app, recording, contact, outcome.reason)
-                Result.failure(workDataOf(KEY_ERROR to outcome.reason))
+                HeavyQueue.finished(KEY_ERROR to outcome.reason)
             }
         }
     }
@@ -148,7 +155,7 @@ class TranscriptionWorker(context: Context, params: WorkerParameters) : Coroutin
 
         /** What goes in, and what comes out: kept apart, which a test holds to. */
         internal val INPUT_KEYS = setOf(KEY_RECORDING, KEY_URI, KEY_CONTACT, KEY_AUTOMATIC)
-        internal val OUTPUT_KEYS = setOf(KEY_LINES, KEY_ERROR)
+        internal val OUTPUT_KEYS = setOf(KEY_LINES, KEY_ERROR, "out_finished_at")
         const val ERROR_STOPPED = "stopped"
 
         /** Queues [recording] behind any transcription already running. */
@@ -161,10 +168,14 @@ class TranscriptionWorker(context: Context, params: WorkerParameters) : Coroutin
             WorkManager.getInstance(context).enqueueUniqueWork(CHAIN, ExistingWorkPolicy.APPEND_OR_REPLACE, request)
         }
 
-        /** Stops [recording]'s transcription, running or waiting. */
+        /**
+         * Stops [recording]'s transcription, running or waiting - without
+         * WorkManager's cancel, which would break the chain (HeavyQueue).
+         */
         fun cancel(context: Context, recording: String) {
-            WorkManager.getInstance(context).cancelAllWorkByTag(tagFor(recording))
-            if (TranscriptionInFlight.isAmong(listOf(recording))) TranscriptionEngine.requestAbort()
+            HeavyQueue.stop(context, tagFor(recording)) {
+                if (TranscriptionInFlight.isAmong(listOf(recording))) TranscriptionEngine.requestAbort()
+            }
         }
 
         fun percentOf(progress: Data): Int? = progress.getInt(KEY_PERCENT, -1).takeIf { it >= 0 }

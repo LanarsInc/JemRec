@@ -22,6 +22,7 @@ import com.jemcik.jemrec.transcribe.TranscriptionScheduler
 import com.jemcik.jemrec.transcribe.TranscriptionLanguageChoice
 import com.jemcik.jemrec.transcribe.TranscribeSettings
 import com.jemcik.jemrec.transcribe.TranscriptionEstimate
+import com.jemcik.jemrec.transcribe.HeavyQueue
 import com.jemcik.jemrec.transcribe.TranscriptionWorker
 import com.jemcik.jemrec.transcribe.model.DownloadableModel
 import com.jemcik.jemrec.transcribe.model.ModelDownloadWorker
@@ -478,8 +479,8 @@ class TranscriptsController(
                 return JobState.Running(TranscriptionWorker.percentOf(running.progress)?.takeIf { it > 0 })
             }
             if (infos.any { it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED }) return JobState.Queued
-            val failed = infos.lastOrNull { it.state == WorkInfo.State.FAILED } ?: return JobState.Idle
-            return when (val error = failed.outputData.getString(TranscriptionWorker.KEY_ERROR)) {
+            val ended = HeavyQueue.newest(infos) ?: return JobState.Idle
+            return when (val error = ended.outputData.getString(TranscriptionWorker.KEY_ERROR)) {
                 TranscriptionWorker.ERROR_STOPPED, null -> JobState.Idle
                 TranscriptionWorker.ERROR_NO_MODEL -> JobState.Failed("The speech model is not on the phone.")
                 else -> JobState.Failed(error)
@@ -490,8 +491,8 @@ class TranscriptsController(
             val running = infos.firstOrNull { it.state == WorkInfo.State.RUNNING }
             if (running != null) return JobState.Running(running.progress.getInt(SummaryWorker.KEY_PERCENT, -1).takeIf { it > 0 })
             if (infos.any { it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED }) return JobState.Queued
-            val failed = infos.lastOrNull { it.state == WorkInfo.State.FAILED } ?: return JobState.Idle
-            return when (val error = failed.outputData.getString(SummaryWorker.KEY_ERROR)) {
+            val ended = HeavyQueue.newest(infos) ?: return JobState.Idle
+            return when (val error = ended.outputData.getString(SummaryWorker.KEY_ERROR)) {
                 SummaryWorker.ERROR_STOPPED, null -> JobState.Idle
                 SummaryWorker.ERROR_NO_MODEL -> JobState.Failed("The summary model is not on the phone.")
                 SummaryWorker.ERROR_NO_ROOM -> JobState.Failed("Not enough free memory right now. Close other apps and try again.")

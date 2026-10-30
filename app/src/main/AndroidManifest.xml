@@ -307,6 +307,11 @@
             android:name=".capture.AfterCallReceiver"
             android:exported="false" />
 
+        <!-- The Cancel on a transcription's or summary's notification (HeavyQueue). -->
+        <receiver
+            android:name=".transcribe.HeavyQueue$CancelReceiver"
+            android:exported="false" />
+
         <receiver
             android:name=".capture.BootReceiver"
             android:exported="false">
