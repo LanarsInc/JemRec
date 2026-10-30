@@ -58,15 +58,23 @@ class TranscriptionWorker(context: Context, params: WorkerParameters) : Coroutin
         // Progress, once a second: polled from whisper, never pushed from its thread.
         val ticker = launch {
             var last = -1
-            while (isActive) {
-                delay(1000)
-                if (isStopped) TranscriptionEngine.requestAbort()
-                val percent = TranscriptionEngine.progressPercent()
-                if (percent != last && TranscriptionEngine.isRunning) {
-                    last = percent
-                    setProgress(workDataOf(KEY_RECORDING to recording, KEY_PERCENT to percent))
-                    runCatching { setForeground(HeavyWorkNotification.forWork(app, title, percent, cancel)) }
+            try {
+                while (isActive) {
+                    delay(1000)
+                    if (isStopped) TranscriptionEngine.requestAbort()
+                    val percent = TranscriptionEngine.progressPercent()
+                    if (percent != last && TranscriptionEngine.isRunning) {
+                        last = percent
+                        setProgress(workDataOf(KEY_RECORDING to recording, KEY_PERCENT to percent))
+                        runCatching { setForeground(HeavyWorkNotification.forWork(app, title, percent, cancel)) }
+                    }
                 }
+            } finally {
+                // A stopped worker's coroutine is cancelled, and this ticker with it, before
+                // the check above sees isStopped: whisper, which ignores cancellation, ran on.
+                // Measured on the Galaxy A24, 2026-10-30: a cancelled run went on for 97 s
+                // while the next transcription waited for the engine.
+                if (isStopped) TranscriptionEngine.requestAbort()
             }
         }
         val outcome = try {

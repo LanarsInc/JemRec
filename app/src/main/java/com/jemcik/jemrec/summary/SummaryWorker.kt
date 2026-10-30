@@ -47,8 +47,13 @@ class SummaryWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         var done = 0
         var total = 0
         val ticker = launch {
-            while (isActive) {
-                delay(1000)
+            try {
+                while (isActive) {
+                    delay(1000)
+                    if (isStopped) SummaryEngine.requestAbort()
+                }
+            } finally {
+                // Cancelled with the worker before the check above sees it: as TranscriptionWorker's.
                 if (isStopped) SummaryEngine.requestAbort()
             }
         }
