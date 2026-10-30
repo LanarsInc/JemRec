@@ -313,10 +313,11 @@ give them; nothing of it is in the app.
 - **The user's phone calls, by content** (no truth to score against):
   11:17, Kyivstar's voice menu - every line of the user's ("Тест... раз,
   два, три", "Зірочка", twice) in one voice, all of the menu in the other,
-  bar a few lines split 50/50 where the two overlap. 11:44, Norwegian with
-  a tutor - the lines read out and the tutor's split by content as expected,
-  but lines whisper merged across a turn come out 45/55: they would need
-  cutting at the turn by word times (CallVault's SpeakerSeamSplit).
+  bar a few lines split 50/50 where the two overlap. 11:44, Norwegian, two
+  synthetic voices talking to each other (the user, 2026-10-30) - the lines
+  read out and the tutor's split by content as expected, but lines whisper
+  merged across a turn come out 45/55: they would need cutting at the turn
+  by word times (CallVault's SpeakerSeamSplit).
 - **Embedding models** (TitaNet-small, CAM++, ERes2Net x2, ResNet34): the
   same on the 14:46 call. NeMo TitaNet-small (40 MB) is the fastest; it
   takes at most about 120 s at once, so longer speech is embedded in windows.
@@ -327,7 +328,7 @@ give them; nothing of it is in the app.
 - **Which voice is the owner's**: a print from the left channel of the
   user's own calls (10:05 and 10:06 on the 30th) against each voice, cosine:
   11:17 - the user 0.64, the menu 0.17; 10:13 - the user 0.53; 11:44 -
-  both 0.27, no answer. And the left channel is not always the owner's own
+  both 0.27, rightly no answer: neither voice was the user's. And the left channel is not always the owner's own
   voice: in the test calls it carried played audio (prints 0.2-0.46 from
   call to call, one at 0.85 with the other side, an echo). So a print would
   need a clean source - a short recording the user makes once, or only
