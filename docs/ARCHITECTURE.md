@@ -1451,8 +1451,13 @@ invented details and wrote the Norwegian summary in English.
 while charging, for the last 30 days not yet transcribed. A summary follows
 each transcript unless turned off. Neither costs anything until its model is
 downloaded, and only a tap downloads one: without a speech model nothing is
-queued after a call, without a summary model no summary. One heavy job runs at a time, so a speech model and
-a language model are never in memory together.
+queued after a call, without a summary model no summary. One heavy job runs
+at a time, so a speech model and a language model are never in memory
+together, in one WorkManager chain that nothing may break: a work in it that
+failed or was cancelled would take the works queued behind it, or, when the
+next is queued, the one running (A24, 2026-10-30). So none fails - an error
+is in a finished work's output - and Cancel marks the work rather than
+cancelling it, and it ends itself.
 
 **Where it is kept.** Transcripts and summaries in a database of their own,
 indexed so the Recordings search finds words said in a call; models in the

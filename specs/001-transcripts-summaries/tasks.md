@@ -257,7 +257,7 @@ and screen tests for new screens (spec SC-006).
 - [x] T108 Defaults: When - After each call, Summarise after each transcript on; nothing queued after a call without a speech model (`TranscribeSettings`, `TranscriptionScheduler`)
 - [x] T109 Language detected by default, before the run, per side, then pinned with its model (`LanguageGuess`, `TranscriptionEngine.detectLanguages`, `whisperjr.cpp` `detectLanguage`, `TranscriptionRunner`); measured on the A24 in research.md R15
 - [x] T111 A stopped transcription or summary stops its engine: the worker's ticker asks for the abort as it is cancelled (it was cancelled before it could, and a cancelled run went on 97 s on the A24)
-- [ ] T112 *To decide with the user.* Cancelling a waiting transcription leaves a cancelled work in the `jr_tx_now` chain, and the next one queued then replaces the chain (`APPEND_OR_REPLACE`), stopping the one running (A24, 2026-10-30)
+- [x] T112 Kept whole by `HeavyQueue` (no work fails; Cancel marks instead of cancelling). Cancelling a waiting transcription leaves a cancelled work in the `jr_tx_now` chain, and the next one queued then replaces the chain (`APPEND_OR_REPLACE`), stopping the one running (A24, 2026-10-30)
 - [ ] T110 *Not in this feature: its own spec, if wanted (R4).* Speaker diarisation for phone calls whose two channels carry one mix, as the A24's do
 
 ## Dependencies and execution order

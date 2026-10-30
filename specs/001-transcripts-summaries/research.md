@@ -181,6 +181,14 @@ Candidates (Hugging Face API, 2026-10-29):
   Android stops it (an expedited job's time is limited), the work is tried
   again later rather than failed; a Cancel by the user is not retried.
   Not yet measured with a real call: tasks T086.
+- **The chain is kept whole** (2026-10-30, `HeavyQueue`): WorkManager fails
+  everything queued behind a failed work, cancels everything behind a
+  cancelled one, and APPEND_OR_REPLACE onto a chain holding either starts it
+  anew, cancelling the work running. On the A24 a Cancel on a waiting call
+  and a tap on Transcript stopped another call's transcription. So no work in
+  the chain fails (an error is a success's output, the newest ended run is
+  what a screen shows) and Cancel never goes through WorkManager: it marks
+  the work, which ends itself as stopped, running or when it starts.
 - **Threads**: measured on the A24 with 2, 4 and 8 (two fast cores and six
   slow ones; more threads may be slower). Default from the measurement.
 
