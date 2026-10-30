@@ -25,6 +25,11 @@ import com.jemcik.jemrec.transcribe.model.ModelRepository
 import com.jemcik.jemrec.transcribe.model.ModelDownloadWorker
 import com.jemcik.jemrec.transcribe.model.SpeechModel
 import com.jemcik.jemrec.transcribe.TranscriptionWorker
+import com.jemcik.jemrec.transcribe.TranscriptionEngine
+import com.jemcik.jemrec.transcribe.LanguageGuess
+import com.jemcik.jemrec.transcribe.ModelChoice
+import com.jemcik.jemrec.transcribe.ReadyModel
+import com.jemcik.jemrec.transcribe.Channel
 import com.jemcik.jemrec.summary.SummaryModel
 import com.jemcik.jemrec.transcripts.TranscriptRepository
 import io.github.muntashirakon.adb.android.AdbMdns
@@ -223,6 +228,26 @@ class SpikeReceiver : BroadcastReceiver() {
                         else {
                             TranscriptionWorker.enqueue(appContext, recording.name, recording.uri, recording.caller)
                             report(appContext, "transcribe", "queued ${recording.name}, ${recording.durationMillis} ms")
+                        }
+                    }
+
+                    // Only the language, as a call left to detect is read before it is
+                    // transcribed (LanguageGuess), on a model of choice or the one it would use:
+                    //   --es op detect --es name <file> [--es id turbo-q8_0]
+                    // Reported when done, after the broadcast has returned: it takes a minute.
+                    "detect" -> {
+                        val recording = Recordings.list(appContext).firstOrNull { it.name == intent.getStringExtra("name") }
+                        val id = intent.getStringExtra("id")
+                        val model = if (id == null) ModelChoice.speechModelFor(appContext, null).second
+                            else SpeechModel.fromId(id)?.let { m -> ModelRepository.pathFor(appContext, m)?.let { ReadyModel(m.id, m.label, it) } }
+                        if (recording == null || model == null) report(appContext, "detect", "no such recording or model")
+                        else CoroutineScope(Dispatchers.IO).launch {
+                            val sides = listOf(Channel.LEFT, Channel.RIGHT, Channel.MIX)
+                            val text = runCatching {
+                                TranscriptionEngine.detectLanguages(appContext, recording.uri, model.file.absolutePath, sides)
+                                    .entries.joinToString("\n") { (side, guesses) -> "$side ${LanguageGuess.decide(guesses) ?: "unsure"} $guesses" }
+                            }.getOrElse { "failed: ${it.message}" }
+                            report(appContext, "detect", "${recording.name} with ${model.id}\n$text")
                         }
                     }
 
