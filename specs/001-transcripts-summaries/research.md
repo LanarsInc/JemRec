@@ -291,6 +291,51 @@ Candidates (Hugging Face API, 2026-10-29):
   phone's language as the default pin (the previous default; one answer for
   calls in several languages).
 
+## R16. Voices in a one-mix call (a spike for a later spec)
+
+A phone call on the A24 carries one mix on both channels (R4), so its lines
+have no You or Them. Measured 2026-10-30 whether on-device diarisation can
+give them; nothing of it is in the app.
+
+- **Engine**: sherpa-onnx 2.0.1 (Apache-2.0): pyannote segmentation-3.0
+  int8 (1.5 MB, MIT) + a speaker-embedding model + clustering fixed at two
+  speakers. Run from Python on the Mac for accuracy, and its arm64 binary on
+  the A24 for speed (with Termux's libc++ 30: the release's binaries need a
+  newer libc++ than NDK 28's).
+- **Accuracy against the channels** (Telegram calls, left and right mixed to
+  one, frames where one side leads by 10 dB as the truth; "of" is the share
+  of those frames diarisation labelled at all). Only one call is a real
+  two-sided conversation: 14:46, 217 s, 83 s against 22 s of speech -
+  97-99% right with every embedding model, wideband and cut to the phone
+  band alike. The rest are test calls (speakerphone echo, news or a talk
+  played into the phone, or one speaker), where the channel truth itself is
+  unsure; they said little.
+- **The user's phone calls, by content** (no truth to score against):
+  11:17, Kyivstar's voice menu - every line of the user's ("Тест... раз,
+  два, три", "Зірочка", twice) in one voice, all of the menu in the other,
+  bar a few lines split 50/50 where the two overlap. 11:44, Norwegian with
+  a tutor - the lines read out and the tutor's split by content as expected,
+  but lines whisper merged across a turn come out 45/55: they would need
+  cutting at the turn by word times (CallVault's SpeakerSeamSplit).
+- **Embedding models** (TitaNet-small, CAM++, ERes2Net x2, ResNet34): the
+  same on the 14:46 call. NeMo TitaNet-small (40 MB) is the fastest; it
+  takes at most about 120 s at once, so longer speech is embedded in windows.
+- **Speed and memory on the A24**: the 252 s call 11:44 in 76-101 s with
+  TitaNet (RTF 0.30-0.40, 4 or 6 threads alike), 349 MB peak RSS; ERes2Net
+  base RTF 0.82. On top of the transcription, which is 2-3 s per second of
+  call there.
+- **Which voice is the owner's**: a print from the left channel of the
+  user's own calls (10:05 and 10:06 on the 30th) against each voice, cosine:
+  11:17 - the user 0.64, the menu 0.17; 10:13 - the user 0.53; 11:44 -
+  both 0.27, no answer. And the left channel is not always the owner's own
+  voice: in the test calls it carried played audio (prints 0.2-0.46 from
+  call to call, one at 0.85 with the other side, an echo). So a print would
+  need a clean source - a short recording the user makes once, or only
+  calls whose left side is plainly a person - and a margin, with "Voice 1 /
+  Voice 2" where it is not met.
+- **Size**: libonnxruntime.so is 15 MB for arm64 in sherpa-onnx's own build;
+  the models (about 42 MB) download on a tap like the others.
+
 ## R14. Measurements (filled by the measurement tasks)
 
 **The user's calls, 2026-10-29, Galaxy A24** (five Telegram calls; read by
