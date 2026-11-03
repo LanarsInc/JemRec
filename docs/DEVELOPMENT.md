@@ -347,6 +347,14 @@ a different certificate cannot install over an earlier one, whatever its version
 number. It lives outside this repository and always has — see `.gitignore`,
 which has refused signing material since before any existed.
 
+The debug key is the one exception: `app/debug.keystore`, shared by everyone
+and checked in (2026-11-03). Google Sign-In for the Sales Engine works only for
+a package and certificate SHA-1 LANARS registered, and every machine's own
+debug key would be another one to register. It is a debug key, with the
+well-known `android` passwords, and signs nothing that is released. A debug
+build signed with it cannot install over one signed with a machine's old key:
+uninstall that first (stop the recorder before you do).
+
 **The build is reproducible**, and that is what lets F-Droid carry the same
 key: F-Droid builds each tag on its own machine, checks the result against the
 APK on the release page byte for byte, and publishes the release APK, signed

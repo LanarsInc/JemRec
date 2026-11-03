@@ -82,6 +82,17 @@ android {
     val signingReady = !keystorePath.isNullOrBlank() && file(keystorePath).exists()
 
     signingConfigs {
+        // One debug key for everyone, kept in the repo: Google Sign-In for the
+        // Sales Engine accepts the app only under a package and SHA-1 LANARS
+        // registered, and each machine's own ~/.android/debug.keystore would
+        // be another SHA-1 to register. It signs nothing that is released,
+        // and its passwords are the debug key's well-known ones.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         if (signingReady) create("release") {
             storeFile = file(keystorePath!!)
             storePassword = System.getenv("JEMREC_KEYSTORE_PASSWORD")
