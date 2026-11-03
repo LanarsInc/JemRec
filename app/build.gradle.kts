@@ -46,7 +46,14 @@ android {
     ndkVersion = "28.2.13676358"
 
     defaultConfig {
-        applicationId = "com.jemcik.jemrec"
+        // LANARS's fork. Only the id Android and Google Sign-In know the app
+        // by changed (2026-11-03); the code keeps the com.jemcik.jemrec
+        // packages it came with, so `namespace` above stays. That makes the
+        // two differ: a component named from outside the app needs its full
+        // class name, `com.lanars.jemrec/com.jemcik.jemrec.capture...`, not
+        // the short `com.lanars.jemrec/.capture...`, which would resolve to
+        // a class that does not exist.
+        applicationId = "com.lanars.jemrec"
         minSdk = 31
         targetSdk = 36
 

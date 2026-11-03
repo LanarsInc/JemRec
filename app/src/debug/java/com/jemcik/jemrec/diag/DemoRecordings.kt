@@ -47,7 +47,7 @@ import java.util.Locale
  *
  * Turn it on from a USB shell, the same way as every other diagnostic:
  *
- *   adb shell am broadcast -n com.jemcik.jemrec/.diag.SpikeReceiver \
+ *   adb shell am broadcast -n com.lanars.jemrec/com.jemcik.jemrec.diag.SpikeReceiver \
  *       --es token <t> --es op demo --ez on true
  *
  * That delivery is unreliable on this phone (see SpikeReceiver), so the

@@ -108,7 +108,10 @@ import subprocess
 import sys
 import time
 
-PKG = "com.jemcik.jemrec"
+# The applicationId. The classes kept their own package (NS) when LANARS's
+# fork changed it, so a component is PKG/NS.Class, never PKG/.Class.
+PKG = "com.lanars.jemrec"
+NS = "com.jemcik.jemrec"
 PREFS = "shared_prefs/jemrec.xml"
 CONTACT = "5557777"      # made a contact here, as "TestKept"
 STRANGER_IN = "5554321"  # rings in; no contact
@@ -181,7 +184,7 @@ def set_prefs(**values):
 def diag(op, *extra, wait=60):
     token = diag.token
     sh("logcat -c")
-    adb("shell", "am", "broadcast", "-n", f"{PKG}/.diag.SpikeReceiver", "--es", "token", token, "--es", "op", op, *extra)
+    adb("shell", "am", "broadcast", "-n", f"{PKG}/{NS}.diag.SpikeReceiver", "--es", "token", token, "--es", "op", op, *extra)
     wait_log(rf"diag\[{op}\] <<<", wait, f"diag {op}")
     return "\n".join(l for l in log().splitlines() if f"diag[{op}]" in l)
 
@@ -194,7 +197,7 @@ def diag_cut_off(op, *extra):
     an adb going with adbd: `adb logcat` hung its full 120 s (the Android 16
     AVD, 2026-10-28). What follows such an op waits for adb itself."""
     try:
-        adb("shell", "am", "broadcast", "-n", f"{PKG}/.diag.SpikeReceiver", "--es", "token", diag.token,
+        adb("shell", "am", "broadcast", "-n", f"{PKG}/{NS}.diag.SpikeReceiver", "--es", "token", diag.token,
             "--es", "op", op, *extra, timeout=15)
     except subprocess.TimeoutExpired:
         pass  # adbd going away under the command is the point
@@ -222,7 +225,7 @@ def adb_ready():
 def start_recorder():
     """Open the app (a never-opened app may not reach 127.0.0.1:5555), connect it
     to the emulator's adbd, and start a fresh daemon from this build."""
-    sh(f"am start -n {PKG}/.MainActivity")
+    sh(f"am start -n {PKG}/{NS}.MainActivity")
     time.sleep(3)
     if "connected" not in diag("connect", "--ei", "port", "5555"):
         raise RuntimeError("the app could not connect to adbd on 5555")
@@ -284,10 +287,10 @@ def set_up(apk):
         sh(f"content insert --uri content://com.android.contacts/data --bind raw_contact_id:i:{raw} "
            f"--bind mimetype:s:vnd.android.cursor.item/phone_v2 --bind data1:s:{CONTACT} --bind data2:i:2")
     # The diag receiver's token: refused once, it says what it wants.
-    sh(f"am start -n {PKG}/.MainActivity")
+    sh(f"am start -n {PKG}/{NS}.MainActivity")
     time.sleep(3)
     sh("logcat -c")
-    sh(f"am broadcast -n {PKG}/.diag.SpikeReceiver --es op selftest")
+    sh(f"am broadcast -n {PKG}/{NS}.diag.SpikeReceiver --es op selftest")
     diag.token = wait_log(r"diag token: (\S+)", 20, "the diag token").group(1)
     set_prefs(setup_complete=True, hide_debug_notification=False, file_names="DATE_AND_CALLER",
               rules_other_numbers=True, call_tracking=True, recorder_enabled=True, recording_mode="AUTOMATIC")
@@ -541,7 +544,7 @@ def caller_id():
     # The emulator has no caller ID; the name is written into the call log
     # the way Google Phone writes it. For that to come first, the save at
     # hang-up is turned off - the backup collector saves 5 s later.
-    as_root(f"pm disable {PKG}/.capture.CallMonitorService")
+    as_root(f"pm disable {PKG}/{NS}.capture.CallMonitorService")
     try:
         start = sh("date +%s").strip()
         sh("logcat -c")
@@ -554,7 +557,7 @@ def caller_id():
         # Before the finally: putting the service back restarts the daemon.
         raise RuntimeError(f"{e}\n{what_happened()}") from e
     finally:
-        as_root(f"pm enable {PKG}/.capture.CallMonitorService")
+        as_root(f"pm enable {PKG}/{NS}.capture.CallMonitorService")
 
 
 GREETING = "/data/local/tmp/jemrec-test-greeting.pcm"
@@ -744,7 +747,7 @@ def end_app_call():
     except Exception:  # a diag that never answers too: the app may be gone
         sh(f"am force-stop {PKG}")
         wait_for(stand_in_down, 10, "the stand-in call to end with the app stopped")
-        sh(f"am start -n {PKG}/.MainActivity")
+        sh(f"am start -n {PKG}/{NS}.MainActivity")
 
 
 def app_call():
@@ -789,7 +792,7 @@ def app_call():
         # the row is written here the way Telecom writes one.
         sh(f"content insert --uri content://call_log/calls --bind number:s:5550100 --bind type:i:2 "
            f"--bind date:l:{since + 60_000} --bind duration:i:20 "
-           f"--bind subscription_component_name:s:{PKG}/{PKG}.diag.FakeAppCallService")
+           f"--bind subscription_component_name:s:{PKG}/{NS}.diag.FakeAppCallService")
         wait_for(logged, 10, "the app's call written into the call log")
         row = "written into the call log by the check"
     answered = diag("answered", "--el", "since", str(since))
@@ -1019,7 +1022,7 @@ def background_playback():
     dial(STRANGER_OUT, ring_s=2, talk_s=30)
     saved()
     try:
-        sh(f"am start -n {PKG}/.MainActivity")
+        sh(f"am start -n {PKG}/{NS}.MainActivity")
         wait_for(lambda: tap_text(STRANGER_OUT), 30, "the recording's row to tap")
         wait_for(lambda: session_is("PLAYING"), 10, "the recording to play")
         sh("input keyevent KEYCODE_SLEEP")
@@ -1124,7 +1127,7 @@ def open_settings_row(row, shown, what):
     sh("input keyevent KEYCODE_WAKEUP")
     sh("wm dismiss-keyguard")
     sh(f"am force-stop {PKG}")
-    sh(f"am start -n {PKG}/.MainActivity")
+    sh(f"am start -n {PKG}/{NS}.MainActivity")
     tap_until("Settings", "Back", 30, "the Settings gear")
     scroll_to(row)
     return tap_until(row, shown, 15, what)
@@ -1302,7 +1305,7 @@ def looks():
         for look, sign in LOOK_SIGNS.items():
             set_prefs(look=look, light_dark="DARK" if look == "DECK" else "PHONE")
             sh(f"am force-stop {PKG}")
-            sh(f"am start -n {PKG}/.MainActivity")
+            sh(f"am start -n {PKG}/{NS}.MainActivity")
             wait_for(lambda: sign(ui()), 30, f"the app to open in {look}")
             assert sh(f"pidof {PKG}").strip(), f"the app stopped in {look}"
     finally:
@@ -1339,7 +1342,7 @@ def reinstall():
     assert b"JEMREC_MESSAGE=1" in head(name), f"{name} was saved without its message tag"
     before = wait_for(lambda: media_row(name), 10, "the message in Android's media index")
     try:
-        sh(f"am start -n {PKG}/.MainActivity")
+        sh(f"am start -n {PKG}/{NS}.MainActivity")
         # The newest row is the message's: its keep button is the first.
         wait_for(lambda: tap("Keep: never auto-delete"), 30, "the message's keep button")
         wait_for(lambda: b"JEMREC_KEEP=1" in head(name), 10, "the keep mark to be written into the file")
@@ -1356,7 +1359,7 @@ def reinstall():
         # question - READ_MEDIA_AUDIO, or READ_EXTERNAL_STORAGE before 13 -
         # whose words are kept for the report.
         sh(f"am force-stop {PKG}")
-        sh(f"am start -n {PKG}/.MainActivity")
+        sh(f"am start -n {PKG}/{NS}.MainActivity")
         wait_for(lambda: tap("Allow"), 30, "the card asking to show the older recordings")
         question = wait_for(lambda: re.search(
             r'<node [^>]*text="([^"]*)"[^>]*resource-id="com.android.permissioncontroller:id/permission_message"', ui()),
@@ -1767,7 +1770,7 @@ def allow_this_wifi():
         set_prefs(look="MEMO")
         sh("pkill -f '[c]om.jemcik.jemrec.shell.Main'")
         sh(f"am force-stop {PKG}")  # the screen opened afresh, and its revive with it
-        sh(f"am start -n {PKG}/.MainActivity")
+        sh(f"am start -n {PKG}/{NS}.MainActivity")
 
         def asking():
             _answer_questions(allow=False)
@@ -1775,7 +1778,7 @@ def allow_this_wifi():
                 return True
             # A keep-alive's question from before JemRec opened sat behind
             # it, and answering it closed JemRec with Back (_answer_questions).
-            sh(f"am start -n {PKG}/.MainActivity")
+            sh(f"am start -n {PKG}/{NS}.MainActivity")
             return False
 
         wait_for(asking, 90, "the header asking to allow this Wi-Fi")
@@ -1983,7 +1986,7 @@ def background():
     opens = lambda: [l for l in sh(revive).splitlines() if "backgroundkill: on open" in l]
     before = len(opens())
     sh(f"am force-stop {PKG}")
-    sh(f"am start -n {PKG}/.MainActivity")
+    sh(f"am start -n {PKG}/{NS}.MainActivity")
     wait_for(lambda: len(opens()) > before, 20, "the open check to run")
     seen = opens()[-1]
     assert "started stopped true" in seen and "newest exit reason 10 " in seen and "nothing new" in seen, seen

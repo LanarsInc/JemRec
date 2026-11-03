@@ -19,7 +19,7 @@ import java.io.File
  * what was invented is made by reading it (research.md R14).
  *
  * Writes `summary-faithfulness.txt` to the app's external files directory
- * (`adb shell cat /sdcard/Android/data/com.jemcik.jemrec/files/...`).
+ * (`adb shell cat /sdcard/Android/data/com.lanars.jemrec/files/...`).
  * Run with `adb shell am instrument`, never Gradle's connected task, which
  * uninstalls the app and the models with it.
  */

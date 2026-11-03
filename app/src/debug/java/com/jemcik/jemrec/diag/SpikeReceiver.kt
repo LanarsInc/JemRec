@@ -58,9 +58,9 @@ import java.security.SecureRandom
  * refuses; that bootstraps the caller without ever exposing the token to
  * another app.
  *
- *   adb shell am broadcast -n com.jemcik.jemrec/.diag.SpikeReceiver --es op selftest
+ *   adb shell am broadcast -n com.lanars.jemrec/com.jemcik.jemrec.diag.SpikeReceiver --es op selftest
  *   adb logcat -d -s JemRec | grep 'diag token'
- *   adb shell am broadcast -n com.jemcik.jemrec/.diag.SpikeReceiver \
+ *   adb shell am broadcast -n com.lanars.jemrec/com.jemcik.jemrec.diag.SpikeReceiver \
  *       --es token <t> --es op selftest
  *
  * BY COMPONENT, not by action: this receiver declares no intent-filter, so
