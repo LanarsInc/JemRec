@@ -15,7 +15,7 @@ Needs **JDK 21** - that major, not "or newer" - and an Android SDK with:
     ndk;28.2.13676358          the speech and language engines
     cmake;3.22.1               which builds them
 
-and the two engines, pinned submodules:
+and the three engines, pinned submodules:
 
     git submodule update --init
 
@@ -34,6 +34,16 @@ slower (CallVault). Only Maven's libraries keep their debug symbols: the
 engines unstripped made a 95 MB debug APK. Release: 11.98 MB (2026-10-29).
 Models are never in the repo (`*.gguf` is ignored; the one `.bin` there is
 the 0.9 MB voice-activity model).
+
+sherpa-onnx (v2.0.1, telling the two voices of a one-mix call apart) is the
+third, built by the same CMake into `libvoicejr.so` with its C API only. It
+runs on onnxruntime, the one prebuilt native library: the build sherpa-onnx
+itself uses, downloaded on the first build with its hash checked, as are
+sherpa-onnx's own small dependencies - so that first build needs the
+network. The library links its own libc++ and is reached only through its C
+API, so it does not clash with NDK 28's (checked 2026-11-03,
+`specs/003-voice-labels/research.md` V1). An F-Droid build would have to
+build onnxruntime from source; this fork ships as an APK.
 
 The daemon is not a Gradle module. `shellserver/build.sh` compiles it against the
 platform the *device* runs, with its `@hide` internals intact, and Gradle runs

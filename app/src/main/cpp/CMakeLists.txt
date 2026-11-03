@@ -59,3 +59,48 @@ target_link_libraries(whisperjr whisper ${log-lib})
 
 add_library(llamajr SHARED llamajr.cpp)
 target_link_libraries(llamajr llama ${log-lib})
+
+# Telling the two voices of a one-mix call apart: sherpa-onnx, pinned in
+# third_party/ like the others, over onnxruntime (specs/003-voice-labels, V1).
+#
+# onnxruntime is the one prebuilt library: the build sherpa-onnx v2.0.1 itself
+# downloads, fetched here with the same URL and hash. Checked 2026-11-03 with
+# llvm-readelf: it NEEDS only libc, libm, libdl and liblog - its libc++ is
+# linked in - and sherpa-onnx reaches it through onnxruntime's C API alone, so
+# its NDK r27 libc++ and our NDK 28 one never meet. Handing sherpa-onnx the
+# unpacked library through its pre-installed variables stops it downloading
+# one of its own: with BUILD_SHARED_LIBS off it would fetch the static
+# onnxruntime, a 1.5 GB archive.
+set(SHERPA_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/sherpa-onnx)
+include(FetchContent)
+FetchContent_Declare(onnxruntime_android
+    URL      https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.28.2/onnxruntime-android-1.28.2.zip
+    URL_HASH SHA256=01518867f78241138b6aa25925802e843a4fa9085af8d303d49e35bbb52aff4d)
+FetchContent_MakeAvailable(onnxruntime_android)
+set(ENV{SHERPA_ONNXRUNTIME_LIB_DIR}     ${onnxruntime_android_SOURCE_DIR}/jni/arm64-v8a)
+set(ENV{SHERPA_ONNXRUNTIME_INCLUDE_DIR} ${onnxruntime_android_SOURCE_DIR}/headers)
+
+# The C API and the speaker code only. Static, so sherpa-onnx and its own
+# dependencies (kaldi-native-fbank, hclust-cpp, ...) end up inside
+# libvoicejr.so, and what it does not call is dropped at link time; whisper
+# turned BUILD_SHARED_LIBS on for ggml, so it is shadowed for this one
+# directory. Its other dependencies are fetched by its CMake, each with a hash.
+set(SHERPA_ONNX_ENABLE_C_API               ON  CACHE BOOL "" FORCE)
+set(SHERPA_ONNX_ENABLE_SPEAKER_DIARIZATION ON  CACHE BOOL "" FORCE)
+set(SHERPA_ONNX_ENABLE_JNI                 OFF CACHE BOOL "" FORCE)
+set(SHERPA_ONNX_ENABLE_TTS                 OFF CACHE BOOL "" FORCE)
+set(SHERPA_ONNX_ENABLE_BINARY              OFF CACHE BOOL "" FORCE)
+set(SHERPA_ONNX_ENABLE_WEBSOCKET           OFF CACHE BOOL "" FORCE)
+set(SHERPA_ONNX_ENABLE_PORTAUDIO           OFF CACHE BOOL "" FORCE)
+set(SHERPA_ONNX_ENABLE_PYTHON              OFF CACHE BOOL "" FORCE)
+set(SHERPA_ONNX_ENABLE_TESTS               OFF CACHE BOOL "" FORCE)
+set(SHERPA_ONNX_ENABLE_CHECK               OFF CACHE BOOL "" FORCE)
+set(SHERPA_ONNX_BUILD_C_API_EXAMPLES       OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF)
+add_subdirectory(${SHERPA_ROOT} ${CMAKE_CURRENT_BINARY_DIR}/sherpa-onnx)
+unset(BUILD_SHARED_LIBS)
+
+add_library(voicejr SHARED voicejr.cpp)
+target_include_directories(voicejr PRIVATE ${SHERPA_ROOT})
+target_link_libraries(voicejr sherpa-onnx-c-api ${log-lib})
+target_link_options(voicejr PRIVATE -Wl,--gc-sections)
