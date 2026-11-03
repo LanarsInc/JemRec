@@ -30,7 +30,8 @@ this one is - or to check that it does what it says.
   [marks inside the recording](#marks-inside-the-recording) ·
   [notifications](#after-the-call-and-when-something-is-wrong) ·
   [the last call's report](#the-last-calls-report) ·
-  [transcripts and summaries](#transcripts-and-summaries)
+  [transcripts and summaries](#transcripts-and-summaries) ·
+  [the Sales Engine](#the-sales-engine)
 - The phone: [permissions](#what-it-does-not-ask-for) ·
   [what stays switched on](#what-stays-switched-on) ·
   [off, and debugging with it](#off-and-debugging-with-it)
@@ -1436,9 +1437,11 @@ the call's own service, as expedited work, for the same reason.
 **Summaries** follow CallVault's method: the lines in chunks, each summed up
 as JSON that a grammar keeps well-formed, the parts merged, timestamps the
 transcript does not have dropped, repeats removed, and the language named
-in the prompt. Checked on the A24 against three invented calls whose facts
-were all known, in English, Norwegian and Ukrainian: Qwen3 1.7B wrote each
-in its language, in 92 to 243 s, and gets the gist right; but it errs in
+in the prompt. Since 1.0 every summary is written in English, whatever the call's
+language: the Sales Engine takes English, and the phone shows the same one
+([the Sales Engine](#the-sales-engine)). Before that, checked on the A24
+against three invented calls whose facts were all known, in English,
+Norwegian and Ukrainian: Qwen3 1.7B wrote each in its language, in 92 to 243 s, and gets the gist right; but it errs in
 details now and then - in one run "assembly is included" where it cost extra,
 in another a time an hour off - and left to itself it wrote a real Norwegian
 call's summary in English and filled its action items with tasks nobody gave.
@@ -1466,6 +1469,63 @@ it, however it went. A transcript can be copied, or exported as text,
 Markdown (with the summary), SRT or VTT subtitles, or JSON, through
 Android's share sheet.
 
+## The Sales Engine
+
+LANARS's sellers log their work calls in the Sales Engine, LANARS's CRM, and
+this fork does it for them (specs/002-sales-engine-call-logging, with the API
+document it follows). Nothing of it happens until a seller signs in.
+
+**Signing in.** Sign in with Google, with a lanars.com or lanars.no account,
+through Android's Credential Manager; the ID token Google gives is exchanged at
+once for the Sales Engine's own token and never kept. Google issues that token
+only to an app whose package (`com.lanars.jemrec`) and certificate LANARS
+registered, which is why debug builds share one key kept in the repository.
+The token is kept under a key in the Android Keystore. It lasts 90 days; one
+with less than a week left is renewed when the app's screen opens, without a
+chooser, and a session that ends anyway asks for a sign-in by notification.
+Then the seller agrees to LANARS's notice - shown as the server gives it, and
+again whenever LANARS changes it - and chooses the work SIM.
+
+**Which calls.** Every phone call on the work SIM from the moment setup was
+complete: the call log is the source, not the recordings, so missed and
+unanswered calls are logged too, and a call the rules left unrecorded is
+still a call. Only Telephony's own rows on that SIM: never another SIM's,
+never a messenger's or Google Meet's (they log through accounts of their
+own), never the answering machine's test calls, and never a call made while
+the seller was signed out on purpose. A call answered by the answering
+machine goes as answered, with the outcome *no answer*, and the message's
+transcript.
+
+**After the call.** Android writes the call's row a moment after it ends; the
+app looks for it for half a minute after every call's end, when it opens, and
+from the keep-alive job. It checks the number against the CRM (never a hidden
+one), and a notification says what it found - the deal, *choose a deal*, or
+nothing - with **Private** for two minutes. Then the call goes: to the single
+open deal by itself, otherwise for the server to decide, which keeps a call
+with several open deals waiting until the seller chooses. A colleague's
+number sends nothing after the check. The call's sheet - from the
+notification or its line in the Calls tab - takes the deal, *Don't log*, the
+outcome and a next call (in Oslo's dates, whatever the phone's zone), and
+*Make private* for a call not on a deal.
+
+**The transcript and summary.** Made on the phone as before, by the seller's
+own setting; once the summary is stored, both go: the transcript in the
+call's language, one `Seller:` / `Customer:` line per turn (`Call:` where the
+two sides are one mix), and the summary - written in English for every call
+since 1.0, on the phone too - as plain text with bullets. A transcript with no
+summary to follow, a failed one, a recording put in the trash, or nothing
+within 72 hours of the call sends *failed*. Never the recording.
+
+**When the network is not there.** Taking calls needs none, so Private shows
+in a dead zone too; sending waits for it, one request at a time, in a queue of
+its own (`crm.db`) outside the transcription chain, which must never fail. A
+call keeps one id across retries, restarts and sign-ins, and its first body is
+resent unchanged, so the server never logs it twice. Each refusal the API
+document names is acted on as it says: a dead session, a changed notice or a
+required update holds the whole queue and asks the seller; a rate limit waits
+as long as it is told; an answer that is not the API's - a gateway's HTML, a
+captive portal - is a network error, never a reason to sign in again.
+
 ## What it does not ask for
 
 No `RECORD_AUDIO`. This app never records — the shell-side process
@@ -1478,7 +1538,7 @@ permission a call recorder does not explain is one its user has to guess at:
 
 | Permission | Why |
 | --- | --- |
-| `INTERNET` | Android requires it for any TCP socket, including one to `127.0.0.1`, which is what it was for until 0.26. Since then it also downloads a speech or summary model from Hugging Face when you tap Download - over Wi-Fi only unless you say otherwise - and nothing else: no call, transcript or summary is ever sent. |
+| `INTERNET` | Android requires it for any TCP socket, including one to `127.0.0.1`, which is what it was for until 0.26. Since then it also downloads a speech or summary model from Hugging Face when you tap Download - over Wi-Fi only unless you say otherwise - and, since 1.0, sends work calls and their transcripts and summaries to LANARS's Sales Engine once the seller signs in ([the Sales Engine](#the-sales-engine)). Never a recording. |
 | `ACCESS_NETWORK_STATE` | To tell whether there is Wi-Fi to rebuild the recorder over, instead of trying and failing. |
 | `WRITE_SECURE_SETTINGS` | Granted by the app to itself over its own ADB session. Nothing but a shell can grant it, so no user can be talked into it. It lets JemRec switch debugging back on when the phone turns it off, and off with JemRec when you ask it to. |
 | `POST_NOTIFICATIONS` | The recording notice, the ask-first prompt, the pairing code box. |
@@ -1487,13 +1547,14 @@ permission a call recorder does not explain is one its user has to guess at:
 | `RECEIVE_BOOT_COMPLETED` | A reboot kills the recorder; this is what arms the job that rebuilds it. |
 | `READ_MEDIA_AUDIO` | To list recordings made before a reinstall. Refusing it only hides those. |
 | `READ_EXTERNAL_STORAGE` | Android 12 only, which has no `READ_MEDIA_AUDIO`: the same, to list recordings made before a reinstall. It covers photos and videos too; JemRec reads only its own folder. Refusing it only hides those. |
-| `READ_CALL_LOG`, `READ_CONTACTS` | Optional. The only way to know who a call was with: to label a recording, to name a file after the caller, to keep or leave out a call by who it was with, and, for the call log, to notice a call that went unrecorded. |
+| `READ_CALL_LOG`, `READ_CONTACTS` | Optional, except for the Sales Engine, whose calls come from the call log. Otherwise the only way to know who a call was with: to label a recording, to name a file after the caller, to keep or leave out a call by who it was with, and, for the call log, to notice a call that went unrecorded. |
+| `READ_PHONE_STATE` | Since 1.0, for the Sales Engine alone: choosing the work SIM means listing the phone's SIMs, which Android shows only with it. Asked when the line is chosen. |
 | `MANAGE_ONGOING_CALLS` | For exact call tracking. Not one an app can ask for: the daemon allows it, as the shell, while the switch is on. Android then tells JemRec when each call is answered and ends. Tracking never acts on a call; the answering machine's answering is the recorder's, as the shell. |
 | `USE_FULL_SCREEN_INTENT` | Lets the ask-first prompt last a minute instead of five seconds. Not auto-granted, and nothing is gated on it. |
 | `WAKE_LOCK` | So the keep-alive job can finish its few seconds of work, and so a phone with its screen off stays awake while it brings the recorder back after a USB cable, a minute and a half at most. WorkManager declares it too. |
 
-Two more (`READ_PHONE_STATE` and `WRITE_EXTERNAL_STORAGE`) are actively
-**removed** from the manifest, because the ADB library's own manifest would
+`WRITE_EXTERNAL_STORAGE` is actively **removed** from the manifest, as
+`READ_PHONE_STATE` was until 1.0, because the ADB library's own manifest would
 otherwise pull them in; the third it pulls in, `READ_EXTERNAL_STORAGE`, is
 declared instead, capped at Android 12, for the row above. One more that cannot be removed and means nothing:
 `com.jemcik.jemrec.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`, which AndroidX

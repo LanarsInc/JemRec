@@ -486,11 +486,12 @@ Seventeen are offered. Settings → Transcripts can set one for every call
 instead, and **Change**, on a transcript, sets one for that call alone - worth
 it for a side of a few words, which is too little to tell.
 
-**Summary**, beside Transcript, writes why the call happened, what was said,
-and the points, decisions, things to do and facts, each with the time it was
-said - a tap goes to that line. It needs a second download, a language model,
-and a phone with 6 GB of memory or more; a phone with 8 GB gets a larger one.
-It is made from the transcript, so it can leave things out: check what matters.
+**Summary**, beside Transcript, writes in English, whatever the call's
+language, why the call happened, what was said, and the points, decisions,
+things to do and facts, each with the time it was said - a tap goes to that
+line. It needs a second download, a language model, and a phone with 6 GB of
+memory or more; a phone with 8 GB gets a larger one. It is made from the
+transcript, so it can leave things out: check what matters.
 
 **Without asking** - Settings → Transcripts → When: **After each call**, the
 default once a model is downloaded, or **Overnight**, while charging, for the
@@ -499,6 +500,33 @@ turned off. **Only when I ask** leaves it to the Transcript button. **Copy
 all** and **Export** (text, Markdown with the summary, SRT or VTT subtitles,
 JSON) are under a transcript, and the Recordings search finds words said in a
 call.
+
+## The Sales Engine
+
+For LANARS's sellers: **Settings → Sales Engine** logs work calls in LANARS's
+CRM. **Sign in with Google** with your lanars.com or lanars.no account, read
+LANARS's notice and tap **I agree**, and choose the work SIM (a phone with one
+has it chosen). It needs the call log; listing the SIMs needs the phone's own
+permission, asked there.
+
+After each call on the work SIM a notification says where it is going: the
+deal, **Choose a deal** when the number has several, or that the Sales Engine
+decides. **Private** within two minutes keeps the call out altogether;
+otherwise it goes. **Change** or **Choose** opens the call's sheet: its deal or
+**Don't log**, how it went, and a next call on the deal, in Norwegian time.
+Missed calls are logged too, with a call-back the Sales Engine plans.
+
+In the **Calls** tab each work call says where it went - on a deal, not in the
+CRM, private - and a card says when calls wait for you to choose their deal; a
+tap opens the sheet, where a call not on a deal can still be made private. Once
+the phone has transcribed and summarised a call, by your setting under
+Transcripts, both go to it: the summary into the call's note on the deal. Never
+the recording.
+
+Offline, calls wait and go once when the network is back. If the session ends,
+LANARS's notice changes, or the Sales Engine needs a newer app, a notification
+says so and calls wait until it is done. **Sign out** stops it: calls made
+while signed out are never sent.
 
 ## Three looks
 
@@ -695,16 +723,18 @@ And when the app is closed, in notifications:
 | The caller, with pause and a seek bar | A recording you played, going on with the screen off. On the lock screen it says only **Call recording**. It goes when the recording is stopped. |
 | **JemRec was stopped in the background** | This phone stopped JemRec in the background, so a call could go unrecorded. Its button opens the phone's own screen for it, and the notification says what to do there (on an Honor: **App launch**, **Manage manually**). Only on phones that stop apps that way — see *Stopped in the background*. |
 | **JemRec was held back in the background** | The phone froze JemRec while it was restarting the recorder after a cable, for the minutes it says. The same button and the same fix. |
+| A deal's name, or **Choose a deal**, with **Private** | A work call about to go to the Sales Engine; Private within two minutes keeps it out. Then **Logged on** the deal, briefly, or **Choose a deal** while it waits for you. Only once you sign in to the Sales Engine. |
+| **Sign in to the Sales Engine again**, **Read the Sales Engine's new notice**, **Update JemRec to keep logging calls** | Work calls wait until you do; the notification opens Settings → Sales Engine. |
 
 ## Settings
 
-One screen, in five groups, each row showing what it is set to now, and the
-settings the header marks wearing the same mark. Until you allow it, a **Show
-who called** card sits at the top: it labels each recording with the contact's
-name and photo, or the number when they are not in your contacts, and lets
-JemRec tell you if a call went by unrecorded. It needs your call log and
-contacts, and is asked for in the app rather than at install. Say no and
-everything still works, with the time as each recording's headline.
+One screen, in groups, each row showing what it is set to now, and the settings
+the header marks wearing the same mark. Until you allow it, a **Show who
+called** card sits at the top: it labels each recording with the contact's name
+and photo, or the number when they are not in your contacts, and lets JemRec
+tell you if a call went by unrecorded. It needs your call log and contacts, and
+is asked for in the app rather than at install. Say no and everything still
+works, with the time as each recording's headline.
 
 **Recording**
 
@@ -735,6 +765,16 @@ everything still works, with the time as each recording's headline.
 - **Recently deleted** — what has been deleted in the last 30 days, with
   **Restore** for each, **Restore all**, and **Delete all for good**, which
   asks first: it cannot be undone.
+
+**Sales Engine**
+
+- **Sales Engine** — for LANARS's sellers: sign in, LANARS's notice, the work
+  SIM, and whether summaries will reach the CRM; see The Sales Engine.
+
+**Transcripts**
+
+- **Transcripts** — the calls' language, the speech and summary models, when
+  transcripts are made, and who spoke; see Transcripts and summaries.
 
 **Notifications and shortcuts**
 

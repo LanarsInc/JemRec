@@ -135,18 +135,18 @@ and screen tests for new screens.
 
 ## Phase 9: Every place that describes it
 
-- [ ] T064 [P] `README.md`: the feature in "What you can do", FAQ (what is sent, never audio, Private), privacy and permission lines (internet now sends calls to the Sales Engine; phone state for the work line), tests badge and count
-- [ ] T065 [P] `tools/build_site.py` (features, FAQ, manual's own section and Settings, notifications table, `PRIVACY_DATA` and its chips for the data now sent), then run it
-- [ ] T066 [P] `docs/ARCHITECTURE.md`: a section "The Sales Engine", the contents line, the permission table (`INTERNET` row, `READ_PHONE_STATE` no longer removed, `READ_CALL_LOG`), "Summaries" now English
-- [ ] T067 [P] `docs/DEVELOPMENT.md` and `tools/README.md`: test counts, the mock, the stand properties, the debug token op
-- [ ] T068 [P] `tools/sales_engine_mock.py` (answers from `app/src/test/resources/crm/`, records requests) and an emulator check in `tools/emulator_checks.py` (debug token, simulated calls of each case, requests compared)
+- [X] T064 [P] `README.md`: the feature in "What you can do", FAQ (what is sent, never audio, Private), privacy and permission lines (internet now sends calls to the Sales Engine; phone state for the work line), tests badge and count
+- [X] T065 [P] `tools/build_site.py` (features, FAQ, manual's own section and Settings, notifications table, `PRIVACY_DATA` and its chips for the data now sent), then run it
+- [X] T066 [P] `docs/ARCHITECTURE.md`: a section "The Sales Engine", the contents line, the permission table (`INTERNET` row, `READ_PHONE_STATE` no longer removed, `READ_CALL_LOG`), "Summaries" now English
+- [X] T067 [P] `docs/DEVELOPMENT.md` and `tools/README.md`: test counts, the mock, the stand properties, the debug token op
+- [ ] T068 [P] `tools/sales_engine_mock.py` (answers from `app/src/test/resources/crm/`, records requests) - the mock is written (2026-11-03); the emulator check is not yet and an emulator check in `tools/emulator_checks.py` (debug token, simulated calls of each case, requests compared)
 - [ ] T069 [P] Demo data in `app/src/debug/.../DemoRecordings.kt` so the Calls tab marks show; screenshots of the new screens (`SCREENS` in `build_site.py`, `LISTING_ORDER` in `tools/shoot.py`, new names sort last), then `tools/shoot.py`
-- [ ] T070 Version 1.0.0 (`jemrecVersionName=1.0.0`, `jemrecVersionCode=10000`) in `gradle.properties` and the changelog `fastlane/metadata/android/en-US/changelogs/10000.txt` (at most 500 characters) (FR-047)
-- [ ] T071 Commit "Sales Engine: every place that describes it, and 1.0.0"
+- [X] T070 Version 1.0.0 (`jemrecVersionName=1.0.0`, `jemrecVersionCode=10000`) in `gradle.properties` and the changelog `fastlane/metadata/android/en-US/changelogs/10000.txt` (at most 500 characters) (FR-047)
+- [X] T071 Commit "Sales Engine: every place that describes it, and 1.0.0"
 
 ## Phase 10: Gates
 
-- [ ] T072 `./gradlew testDebugUnitTest lint :daemon-tests:errorProne` clean
+- [X] T072 `./gradlew testDebugUnitTest lint :daemon-tests:errorProne` clean
 - [ ] T073 Emulator checks on the Android 12, 13, 16 and 17 AVDs, two at a time (ask before creating an AVD)
 - [ ] T074 The A24 against the stand, [quickstart.md](quickstart.md) section 3, once LANARS sent the host, client id and users; results with date in research.md
 

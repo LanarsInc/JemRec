@@ -55,7 +55,7 @@ server runs, so 21 is what CI installs and what `build.sh` insists on -
 
 ## Tests
 
-1304 JVM tests, no device needed - 1108 for the app and 196 for the daemon:
+1433 JVM tests, no device needed - 1237 for the app and 196 for the daemon:
 
     ./gradlew test
 
@@ -66,6 +66,26 @@ header, the call-log match, the home screen's selection logic, the lists' day
 headings (just after midnight, "an hour ago" is yesterday), what each Settings
 row says a setting is set to, and every file name read back in every format (a
 misread name is a recording dated wrong).
+
+**The Sales Engine** (specs/002-sales-engine-call-logging) is tested against
+the API document itself: every JSON body in it is a fixture in
+`app/src/test/resources/crm`, written by a script from the document, and the
+client runs against a real local server (MockWebServer) answering with them -
+each endpoint, each failure §11 names, a connection cut after the server
+stored the call. `./gradlew testDebugUnitTest --tests 'com.jemcik.jemrec.crm.*'`
+runs those alone.
+
+Which server a build talks to is in `gradle.properties`: release always
+`salesEngineUrl` (production); debug `salesEngineStandUrl` once it is set,
+so debugging never writes on real deals. `salesEngineWebClientId` is the Web
+client id LANARS sends for Sign in with Google; empty, the Sales Engine
+settings say the build is not set up. Google gives a token only to the
+package and certificate LANARS registered: `com.lanars.jemrec` with the
+shared debug key `app/debug.keystore` or the release key. Before sign-in
+works, a token LANARS issues by hand on the stand can be set with the debug
+receiver's `crm-token` op (`--es value <token> --ei int <user id>`);
+`crm-state` prints the session, the setup and the queue (never the token),
+and `crm-lines` what the call log's rows say of the SIM beside the phone's SIMs.
 
 **The screens are tested too**, on the JVM, under Robolectric: the real
 composables drawn from a state the test sets up - recording, switched off,

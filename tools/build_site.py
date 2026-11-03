@@ -2046,7 +2046,7 @@ SETUP = [
           "Transcripts can set one for every call instead, and **Change**, on a "
           "transcript, sets one for that call alone - worth it for a side of a "
           "few words, which is too little to tell."),
-    ("p", "**Summary**, beside Transcript, writes why the call happened, what was "
+    ("p", "**Summary**, beside Transcript, writes in English, whatever the call's language, why the call happened, what was "
           "said, and the points, decisions, things to do and facts, each with the "
           "time it was said - a tap goes to that line. It needs a second "
           "download, a language model, and a phone with 6 GB of memory or more; "
@@ -2060,6 +2060,29 @@ SETUP = [
           "**Export** (text, Markdown with the summary, SRT or VTT subtitles, "
           "JSON) are under a transcript, and the Recordings search finds words "
           "said in a call."),
+    ("h2", "The Sales Engine"),
+    ("p", "For LANARS's sellers: **Settings → Sales Engine** logs work calls in "
+          "LANARS's CRM. **Sign in with Google** with your lanars.com or lanars.no "
+          "account, read LANARS's notice and tap **I agree**, and choose the work "
+          "SIM (a phone with one has it chosen). It needs the call log; listing the "
+          "SIMs needs the phone's own permission, asked there."),
+    ("p", "After each call on the work SIM a notification says where it is going: "
+          "the deal, **Choose a deal** when the number has several, or that the "
+          "Sales Engine decides. **Private** within two minutes keeps the call out "
+          "altogether; otherwise it goes. **Change** or **Choose** opens the "
+          "call's sheet: its deal or **Don't log**, how it went, and a next call "
+          "on the deal, in Norwegian time. Missed calls are logged too, with a "
+          "call-back the Sales Engine plans."),
+    ("p", "In the **Calls** tab each work call says where it went - on a deal, "
+          "not in the CRM, private - and a card says when calls wait for you to "
+          "choose their deal; a tap opens the sheet, where a call not on a deal "
+          "can still be made private. Once the phone has transcribed and "
+          "summarised a call, by your setting under Transcripts, both go to it: "
+          "the summary into the call's note on the deal. Never the recording."),
+    ("p", "Offline, calls wait and go once when the network is back. If the "
+          "session ends, LANARS's notice changes, or the Sales Engine needs a "
+          "newer app, a notification says so and calls wait until it is done. "
+          "**Sign out** stops it: calls made while signed out are never sent."),
     ("h2", "Three looks"),
     ("p", "**Settings → Theme** changes how JemRec looks, never what it does. "
           "**Memo**, the default, is calm and simple, with one big record button; "
@@ -2284,10 +2307,17 @@ SETUP = [
         ["**JemRec was held back in the background**", "The phone froze JemRec "
          "while it was restarting the recorder after a cable, for the minutes it "
          "says. The same button and the same fix."],
+        ["A deal's name, or **Choose a deal**, with **Private**", "A work call "
+         "about to go to the Sales Engine; Private within two minutes keeps it out. "
+         "Then **Logged on** the deal, briefly, or **Choose a deal** while it "
+         "waits for you. Only once you sign in to the Sales Engine."],
+        ["**Sign in to the Sales Engine again**, **Read the Sales Engine's new "
+         "notice**, **Update JemRec to keep logging calls**", "Work calls wait until "
+         "you do; the notification opens Settings → Sales Engine."],
     ])),
 
     ("h2", "Settings"),
-    ("p", "One screen, in five groups, each row showing what it is set to now, "
+    ("p", "One screen, in groups, each row showing what it is set to now, "
           "and the settings the header marks wearing the same mark. "
           "Until you allow it, a **Show who called** card sits at the top: it "
           "labels each recording with the contact's name and photo, or the number "
@@ -2326,6 +2356,16 @@ SETUP = [
         "**Recently deleted** — what has been deleted in the last 30 days, with "
         "**Restore** for each, **Restore all**, and **Delete all for good**, which "
         "asks first: it cannot be undone.",
+    ]),
+    ("p", "**Sales Engine**"),
+    ("ul", [
+        "**Sales Engine** — for LANARS's sellers: sign in, LANARS's notice, the "
+        "work SIM, and whether summaries will reach the CRM; see The Sales Engine.",
+    ]),
+    ("p", "**Transcripts**"),
+    ("ul", [
+        "**Transcripts** — the calls' language, the speech and summary models, "
+        "when transcripts are made, and who spoke; see Transcripts and summaries.",
     ]),
     ("p", "**Notifications and shortcuts**"),
     ("ul", [
@@ -3149,9 +3189,17 @@ FEATURES = [
      "languages, each side&rsquo;s found by itself, Norwegian with a model made "
      "for it; each line marked You or "
      "Them where the call&rsquo;s sides are apart, and a tap plays from there. "
-     "A summary beside it: why the call happened, what was decided, what to do. "
+     "A summary in English beside it: why the call happened, what was decided, what to do. "
      "Search the words said, copy, or export as text or subtitles.",
      "transcripts-and-summaries"),
+    ("Log work calls in the Sales Engine",
+     "For LANARS&rsquo;s sellers: sign in with your lanars.com or lanars.no "
+     "account, agree to LANARS&rsquo;s notice, choose the work SIM. After each "
+     "call on it the call goes to its deal in the Sales Engine by itself &mdash; "
+     "or you choose the deal, or tap Private within two minutes and nothing about "
+     "it is sent. Missed calls too. The transcript and an English summary follow; "
+     "the recording never leaves the phone.",
+     "the-sales-engine"),
     ("Three looks",
      "Memo, calm and simple; Deck, a pocket recorder with an LCD and a REC key; "
      "Multitrack, a sound editor with a colour for each caller. Each light, dark "
@@ -3170,8 +3218,11 @@ PRIVACY_POINTS = [
     ("mic", "No microphone permission",
      "The app never records; the recorder does the capturing &mdash; calls, "
      "and your answering-machine greeting."),
-    ("cloud", "Nothing leaves the phone",
-     "No account, no server, no analytics, and nothing is collected about you. "
+    ("cloud", "Nothing leaves the phone but work calls",
+     "No analytics, and nothing is collected about you. Once you sign in to "
+     "LANARS&rsquo;s Sales Engine, calls on the work SIM go to it, with their "
+     "transcript and an English summary &mdash; never the recording; Private "
+     "keeps one out. "
      "<em>Copy a report</em> in Diagnostics puts how the last call was recorded "
      "on the clipboard, with no number, name or sound in it, only when you tap "
      "it. Transcripts and summaries are made on the phone; the one thing fetched "
@@ -3192,8 +3243,15 @@ PRIVACY_POINTS = [
 ]
 
 FAQ = [
+    ("What does the Sales Engine get?",
+     "After a call on the work SIM: the number, which way it went, whether it was "
+     "answered, when and how long, the deal and how it went; then the transcript, "
+     "in the call&rsquo;s language, and a summary in English. Never the recording. "
+     "Nothing from another SIM, a messenger, a call you made Private, or a call "
+     "made before you signed in or while you were signed out."),
     ("Do transcripts send my calls anywhere?",
-     "No. The speech and summary models run on the phone; the only thing fetched "
+     "Not by themselves: they are made on the phone, and reach LANARS&rsquo;s Sales "
+     "Engine only for work calls, once you sign in to it. The speech and summary models run on the phone; the only thing fetched "
      "is the model itself, once, from Hugging Face, when you tap Download "
      "&mdash; 175 MB to 2.6 GB. On a Galaxy A24 a short call took about as long "
      "again to transcribe, and a summary a minute and a half to two. Set the "
@@ -3342,6 +3400,7 @@ FEATURE_ROWS = [
      ["See every call", "Messenger calls"]),
     (lambda: crop("home", "A recording playing, as its waveform"),
      ["Play, keep, clean up", "Name files your way", "Read a call, and its summary"]),
+    (lambda: crop("calls", "The Calls tab, where each work call says where it went"), ["Log work calls in the Sales Engine"]),
     (shade, ["Hear about problems"]),
     (lambda: crop("answering", "The answering machine&rsquo;s settings"), ["Answering machine"]),
     (trio, ["Three looks"]),
@@ -3756,6 +3815,18 @@ HOW_BODY = f"""
 # never add to them; where they differ, the words are the policy.
 # (data, where, how long, when, the words)
 PRIVACY_DATA = [
+    ("Work calls, to LANARS&rsquo;s Sales Engine", "LANARS&rsquo;s Sales Engine, and a queue in the app&rsquo;s private storage", "as LANARS keeps its CRM", "only once you sign in to it",
+     "Only once you sign in to the Sales Engine with your LANARS account, and "
+     "only calls on the work SIM you chose, from then on: each one&rsquo;s "
+     "number, direction, whether it was answered, start and length, the deal "
+     "and how it went, and, once the phone has made them, its transcript and an "
+     "English summary. Before that, the number is checked against the CRM to "
+     "find its deal. Never the recording. Not a call you tap Private on, not a "
+     "colleague&rsquo;s after the check, not one made while signed out. Waiting "
+     "calls are kept in the app&rsquo;s private storage, in no backup, until "
+     "sent; a token for your session is kept there under a key in the "
+     "phone&rsquo;s keystore. Signing out ends it; LANARS keeps what reached its "
+     "CRM as it keeps its CRM."),
     ("Transcripts and summaries", "the app&rsquo;s private storage", "until the recording is deleted", "only if you transcribe a call",
      "Only for the calls you transcribe, or that a setting does: each line with "
      "its time and side, a summary if you ask for one, and a language you set for "
@@ -3896,14 +3967,16 @@ def privacy_table() -> str:
 
 PRIVACY_BODY = f"""
   <h1>Privacy policy</h1>
-  <p class="lead">JemRec has no servers, no accounts, and no analytics. Nothing it
-     records or reads ever leaves your phone.</p>
-  <p class="muted">Last updated: October 2026.</p>
+  <p class="lead">JemRec has no analytics. Its recordings never leave your phone;
+     once you sign in to LANARS&rsquo;s Sales Engine, your work calls and their
+     transcripts and summaries go to it, and nothing else does.</p>
+  <p class="muted">Last updated: November 2026.</p>
 
   <h2>What it collects</h2>
-  <p><strong>Nothing is sent anywhere.</strong> There is no backend to send it to.
-     The developer cannot see your recordings, your contacts, your call history,
-     your transcripts, or that you use the app at all.</p>
+  <p><strong>Nothing but work calls, to LANARS&rsquo;s Sales Engine</strong>, and
+     only once you sign in to it: the first row below says what. The developer
+     cannot see your recordings, your contacts, your other calls, or your
+     transcripts of them.</p>
 
   <h2>What stays on the phone</h2>
   <p class="muted">Each row in short, then in full: open a row for the
@@ -3930,8 +4003,11 @@ PRIVACY_BODY = f"""
      and checked against its published digest. What is sent is the request for a
      file that is the same for everyone; Hugging Face sees that this address
      asked for it, as any site does. No recording, transcript, summary, contact
-     or anything else about you is sent, then or ever: the models run on the
-     phone.</p>
+     or anything else about you is sent then: the models run on the phone.</p>
+  <p>The Sales Engine, once you sign in to it: the app talks to LANARS&rsquo;s
+     CRM at <code>crm.lanars.no</code> over HTTPS, and nowhere else for it, to
+     sign you in (Google&rsquo;s Sign in with Google, on the phone, gives the
+     proof of your account) and to send work calls as the first row above says.</p>
   <p><em>Start without Wi-Fi</em>, off until you switch it on, has the
      phone&rsquo;s own debugging service listen on port 5555 as well, so that the
      app can reach it at <code>127.0.0.1</code> with no Wi-Fi. The app still
