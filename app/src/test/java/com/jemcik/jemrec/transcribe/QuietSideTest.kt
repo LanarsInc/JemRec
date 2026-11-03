@@ -27,4 +27,10 @@ class QuietSideTest {
     @Test fun aMixedLineIsNeverDropped() {
         assertFalse(QuietSide.isPhantom(line(Speaker.NONE), left = levels(-12.0), right = levels(-90.0)))
     }
+
+    /** A voice of a one-mix call has no channel of its own: as a mixed line. */
+    @Test fun aVoiceLineIsNeverDropped() {
+        assertFalse(QuietSide.isPhantom(line(Speaker.VOICE1), left = levels(-12.0), right = levels(-90.0)))
+        assertFalse(QuietSide.isPhantom(line(Speaker.VOICE2), left = levels(-90.0), right = levels(-12.0)))
+    }
 }

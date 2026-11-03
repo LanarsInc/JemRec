@@ -35,6 +35,14 @@ class ContentTextTest {
     }
 
     @Test
+    fun `one mix with voices told apart but not named - Speaker 1 and Speaker 2`() {
+        assertEquals(
+            "Speaker 1: Hello there.\nSpeaker 2: Hi. How are you?",
+            ContentText.transcript(listOf(line("Hello there.", Speaker.VOICE1), line("Hi.", Speaker.VOICE2), line("How are you?", Speaker.VOICE2))),
+        )
+    }
+
+    @Test
     fun `the summary in plain text with bullets, empty lists left out`() {
         val s = CallSummary(
             intent = "Customer wants a quote for a new website.",

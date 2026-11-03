@@ -18,8 +18,10 @@ object ContentText {
      * One `label: text` line per turn, without times (§8: the label is free
      * text, never parsed). The seller is the phone's side (You), the customer
      * the other (Them). Where both sides are one mix, as on a Galaxy A24's
-     * phone calls (ARCHITECTURE "Transcripts"), no line says who: each is
-     * "Call", until telling the voices apart is a feature of its own.
+     * phone calls (ARCHITECTURE "Transcripts"), the voices are told apart
+     * (specs/003-voice-labels): Seller and Customer when the owner's voice is
+     * known, Speaker 1 and Speaker 2 when it is not, and "Call" when they
+     * could not be told apart.
      * Consecutive lines of one side are one turn.
      */
     fun transcript(lines: List<TranscriptSegment>): String {
@@ -37,6 +39,8 @@ object ContentText {
     private fun label(s: Speaker) = when (s) {
         Speaker.YOU -> "Seller"
         Speaker.THEM -> "Customer"
+        Speaker.VOICE1 -> "Speaker 1"
+        Speaker.VOICE2 -> "Speaker 2"
         Speaker.NONE -> "Call"
     }
 

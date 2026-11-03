@@ -1,5 +1,6 @@
 package com.jemcik.jemrec.transcripts.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -26,4 +27,8 @@ data class TranscriptEntry(
     val loadMs: Long,
     val threads: Int,
     val createdAt: Long,
+    /** Where the lines' speaker labels came from: VoiceSource.key. Version 2. */
+    @ColumnInfo(defaultValue = "none") val voiceSource: String = "none",
+    /** The voice model that told the voices apart (VoiceModel.ID), or null when none ran. Version 2. */
+    val voiceModel: String? = null,
 )

@@ -63,11 +63,11 @@ be measured before it is relied on marked **Measure**.
 - **Rationale**: R16 found every embedding model the same on the one real
   call (97-99%), and TitaNet-small the fastest (RTF 0.30-0.40 on the A24
   with the segmentation, against 0.82 for ERes2Net base).
-- **Check before release**: TitaNet-small's licence (NVIDIA publishes NeMo
-  checkpoints under CC-BY-4.0, which needs attribution in NOTICE.md and the
-  About screen). If it is not one the app can ship to users, CAM++
-  (3D-Speaker, Apache-2.0, about 28 MB) replaces it: R16 found it as
-  accurate; its speed on the A24 is measured before the switch.
+- **Licence (T008, read 2026-11-03)**: NVIDIA's NGC catalog entry for
+  TitaNet-S (`api.ngc.nvidia.com/v2/models/nvidia/nemo/titanet_small`, version
+  1.19.0) says its use is covered by the NeMo Toolkit's licence, which is
+  Apache License 2.0. It ships; NOTICE.md names it, and the Apache text is in
+  the app's licence assets. CAM++ is not needed.
 - **Long calls**: TitaNet takes at most about 120 s at once (R16), so a
   voice's speech is embedded in windows of up to 60 s and averaged.
 

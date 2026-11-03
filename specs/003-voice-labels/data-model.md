@@ -6,8 +6,8 @@
 |---|---|---|---|---|
 | `you` | the owner: left channel, or the voice matching the print, or marked | You | You | Seller |
 | `them` | the other person | Them | the contact's name or Them | Customer |
-| `voice1` | the voice heard first in a one-mix call, owner unknown | Voice 1 | Speaker 1 | Speaker 1 |
-| `voice2` | the other voice | Voice 2 | Speaker 2 | Speaker 2 |
+| `voice1` | the voice heard first in a one-mix call, owner unknown | Voice 1 | Voice 1 | Speaker 1 |
+| `voice2` | the other voice | Voice 2 | Voice 2 | Speaker 2 |
 | `none` | not told apart | nothing | nothing | Call |
 
 `Speaker.of` keeps reading unknown keys as `none`. `QuietSide` and

@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.jemcik.jemrec.transcribe.Speaker
 import com.jemcik.jemrec.transcribe.TranscribeSettings
 import com.jemcik.jemrec.transcribe.TranscriptSegment
+import com.jemcik.jemrec.transcripts.Transcript
 import com.jemcik.jemrec.transcripts.TranscriptFacts
 import com.jemcik.jemrec.transcripts.TranscriptRepository
 import com.jemcik.jemrec.transcripts.db.TranscriptDatabase
@@ -94,6 +95,20 @@ class SummaryRunnerTest {
         transcript()
         runner().run("a.ogg", "+44 7700 900461", SummaryModel.QWEN3_1_7B_Q4_K_M, "/m")
         assertTrue(prompts.single().contains("Them: Ja"))
+    }
+
+    /** A one-mix call's voices, not yet named, are Voice 1 and Voice 2 in its lines - never the contact. */
+    @Test fun unnamedVoicesAreVoice1AndVoice2() {
+        val facts = TranscriptFacts("m", "en", split = false, audioMs = 1, wallMs = 1, loadMs = 0, threads = 1, createdAt = 0)
+        val lines = SummaryRunner.linesOf(
+            Transcript("a.ogg", facts, listOf(
+                TranscriptSegment(0, 1_000, "Hi.", Speaker.VOICE1),
+                TranscriptSegment(1_000, 2_000, "Hello.", Speaker.VOICE2),
+                TranscriptSegment(2_000, 3_000, "Hm.", Speaker.NONE),
+            )),
+            contact = "Ola",
+        )
+        assertEquals(listOf("Voice 1", "Voice 2", null), lines.map { it.speaker })
     }
 
     @Test fun tooLittleFreeMemoryStartsNothing() = runBlocking {

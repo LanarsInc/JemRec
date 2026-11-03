@@ -431,7 +431,7 @@ private fun Line(line: TranscriptSegment, named: Boolean, modifier: Modifier = M
         Column(Modifier.weight(1f)) {
             if (named && line.speaker != Speaker.NONE) {
                 Text(
-                    if (line.speaker == Speaker.YOU) "You" else "Them",
+                    speakerLabel(line.speaker),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = speakerColour(line.speaker),
@@ -442,10 +442,19 @@ private fun Line(line: TranscriptSegment, named: Boolean, modifier: Modifier = M
     }
 }
 
-/** The look's own two accents: its primary for the phone's owner, its tertiary for the other side. */
+/** The look's own two accents: its primary for the phone's owner (or Voice 1), its tertiary for the other side (or Voice 2). */
 @Composable
 private fun speakerColour(speaker: Speaker): Color =
-    if (speaker == Speaker.YOU) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
+    if (speaker == Speaker.YOU || speaker == Speaker.VOICE1) MaterialTheme.colorScheme.primary
+    else MaterialTheme.colorScheme.tertiary
+
+private fun speakerLabel(speaker: Speaker): String = when (speaker) {
+    Speaker.YOU -> "You"
+    Speaker.THEM -> "Them"
+    Speaker.VOICE1 -> "Voice 1"
+    Speaker.VOICE2 -> "Voice 2"
+    Speaker.NONE -> ""
+}
 
 /** How it was made: the model, the language, and what it cost. */
 @Composable

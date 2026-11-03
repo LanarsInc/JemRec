@@ -148,8 +148,9 @@ class SummaryRunner(
 
         /**
          * The transcript as the prompt shows it: "You" for the phone's owner,
-         * the contact's name (or "Them") for the other side, nothing when the
-         * sides were not told apart.
+         * the contact's name (or "Them") for the other side, "Voice 1" and
+         * "Voice 2" for a one-mix call's voices not yet named, nothing when
+         * the sides were not told apart.
          */
         fun linesOf(transcript: Transcript, contact: String?): List<SummaryLine> {
             val them = contact?.takeIf { it.isNotBlank() && it.none(Char::isDigit) } ?: "Them"
@@ -161,6 +162,8 @@ class SummaryRunner(
                     speaker = when (line.speaker) {
                         Speaker.YOU -> "You"
                         Speaker.THEM -> them
+                        Speaker.VOICE1 -> "Voice 1"
+                        Speaker.VOICE2 -> "Voice 2"
                         Speaker.NONE -> null
                     },
                 )
