@@ -38,18 +38,18 @@ and screen tests for new screens.
 
 ## Phase 2: Foundation (blocks every story)
 
-- [ ] T006 [P] `JR/crm/api/ApiModels.kt`: `SessionData`, `UserInfo`, `NoticeInfo`, `Notice` (sections with heading, paragraphs, items, ordered), `Lookup` (match with unknown -> NONE, candidates, total, auto, suggested), `Candidate`, `CallState` (status with unknown -> final `OTHER`, pendingReason unknown -> SEVERAL_OPEN_DEALS, content status), parsed with `org.json`, unknown fields ignored (§1)
-- [ ] T007 [P] `JR/crm/api/ApiErrors.kt`: `classify(endpoint, status, error, detail, retryAfter, bodyWasJson)` -> the outcomes of [contracts/api-client.md](contracts/api-client.md) "Failures", one sealed class
-- [ ] T008 [P] `JR/crm/OsloTime.kt`: instant formatting `YYYY-MM-DDTHH:MM:SS.sssZ`, parsing the server's, the Oslo date of an instant, the earliest allowed next-call date, `HH:MM` validation (research R10)
-- [ ] T009 [P] `JR/crm/AppVersion.kt`: dotted comparison ignoring a suffix like `-debug` (§12), `isBelow(min)`
-- [ ] T010 `JR/crm/api/SalesEngineClient.kt`: `HttpURLConnection`, no redirects, timeouts 15/30 s, headers of §1, one function per call of the contract, returning `ApiResult<T>` (success or an `ApiErrors` outcome); a non-JSON or bodiless answer is a network error
-- [ ] T011 [P] `JR/crm/api/Bodies.kt`: step-1 body, pick body, content bodies, notice ack, exchange body with `device`, as `org.json` text (§2.2, §6, §7, §8)
-- [ ] T012 [P] `JR/crm/db/`: `CrmDatabase` (`crm.db`, schema exported to `app/schemas/`), `WorkCallEntry` (fields of [data-model.md](data-model.md)), `WorkCallDao` (by id, by callLogId, by clientCallId, due now, pending a deal, by recording, delete all)
-- [ ] T013 [P] `JR/crm/TokenCipher.kt` (AES-GCM, Keystore alias `jemrec_crm_token`) and `JR/crm/SessionStore.kt` (session and setup fields of the data model in prefs file `crm`, device id made once)
-- [ ] T014 `JR/crm/CrmSync.kt` and `JR/crm/CrmSyncWorker.kt`: unique work `crm-sync` (KEEP, network constraint) that runs due actions one at a time, and `crm-sync-later` (REPLACE) for the next due time; empty action list for now (research R6)
-- [ ] T015 [P] Tests `JRT/crm/api/ApiModelsTest.kt` (every fixture of T003 parses; unknown fields and values follow §1), `JRT/crm/api/ApiErrorsTest.kt` (every row of the contract's table), `JRT/crm/OsloTimeTest.kt` (DST days, a phone in another zone), `JRT/crm/AppVersionTest.kt`, `JRT/crm/api/BodiesTest.kt` (bodies equal the document's requests)
-- [ ] T016 Test `JRT/crm/api/SalesEngineClientTest.kt` with MockWebServer: headers, no `Authorization`, 3xx and HTML 502 as network errors, `retry-after` read, each endpoint against its fixture
-- [ ] T017 Commit "Sales Engine: client, storage and queue skeleton"
+- [X] T006 [P] `JR/crm/api/ApiModels.kt`: `SessionData`, `UserInfo`, `NoticeInfo`, `Notice` (sections with heading, paragraphs, items, ordered), `Lookup` (match with unknown -> NONE, candidates, total, auto, suggested), `Candidate`, `CallState` (status with unknown -> final `OTHER`, pendingReason unknown -> SEVERAL_OPEN_DEALS, content status), parsed with `org.json`, unknown fields ignored (§1)
+- [X] T007 [P] `JR/crm/api/ApiErrors.kt`: `classify(endpoint, status, error, detail, retryAfter, bodyWasJson)` -> the outcomes of [contracts/api-client.md](contracts/api-client.md) "Failures", one sealed class
+- [X] T008 [P] `JR/crm/OsloTime.kt`: instant formatting `YYYY-MM-DDTHH:MM:SS.sssZ`, parsing the server's, the Oslo date of an instant, the earliest allowed next-call date, `HH:MM` validation (research R10)
+- [X] T009 [P] `JR/crm/AppVersion.kt`: dotted comparison ignoring a suffix like `-debug` (§12), `isBelow(min)`
+- [X] T010 `JR/crm/api/SalesEngineClient.kt`: `HttpURLConnection`, no redirects, timeouts 15/30 s, headers of §1, one function per call of the contract, returning `ApiResult<T>` (success or an `ApiErrors` outcome); a non-JSON or bodiless answer is a network error
+- [X] T011 [P] `JR/crm/api/Bodies.kt`: step-1 body, pick body, content bodies, notice ack, exchange body with `device`, as `org.json` text (§2.2, §6, §7, §8)
+- [X] T012 [P] `JR/crm/db/`: `CrmDatabase` (`crm.db`, schema exported to `app/schemas/`), `WorkCallEntry` (fields of [data-model.md](data-model.md)), `WorkCallDao` (by id, by callLogId, by clientCallId, due now, pending a deal, by recording, delete all)
+- [X] T013 [P] `JR/crm/TokenCipher.kt` (AES-GCM, Keystore alias `jemrec_crm_token`) and `JR/crm/SessionStore.kt` (session and setup fields of the data model in prefs file `crm`, device id made once)
+- [X] T014 `JR/crm/CrmSync.kt` and `JR/crm/CrmSyncWorker.kt`: unique work `crm-sync` (KEEP, network constraint) that runs due actions one at a time, and `crm-sync-later` (REPLACE) for the next due time; empty action list for now (research R6)
+- [X] T015 [P] Tests `JRT/crm/api/ApiModelsTest.kt` (every fixture of T003 parses; unknown fields and values follow §1), `JRT/crm/api/ApiErrorsTest.kt` (every row of the contract's table), `JRT/crm/OsloTimeTest.kt` (DST days, a phone in another zone), `JRT/crm/AppVersionTest.kt`, `JRT/crm/api/BodiesTest.kt` (bodies equal the document's requests)
+- [X] T016 Test `JRT/crm/api/SalesEngineClientTest.kt` with MockWebServer: headers, no `Authorization`, 3xx and HTML 502 as network errors, `retry-after` read, each endpoint against its fixture
+- [X] T017 Commit "Sales Engine: client, storage and queue skeleton"
 
 ## Phase 3: US1 - Get connected (P1) 🎯 MVP part 1
 

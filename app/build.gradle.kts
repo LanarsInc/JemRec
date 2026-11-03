@@ -355,10 +355,11 @@ dependencies {
     // service: a periodic job revives it when it is down and Wi-Fi is around.
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 
-    // Transcripts and summaries, with full-text search over both. The only
-    // database in the app: everything else is kept in files, and these are
-    // the one thing searched word by word. The schema is CallVault's,
-    // trimmed (specs/001-transcripts-summaries/data-model.md).
+    // Two databases: transcripts and summaries, with full-text search over
+    // both - the one thing searched word by word; its schema is CallVault's,
+    // trimmed (specs/001-transcripts-summaries/data-model.md) - and the Sales
+    // Engine's queue of work calls (specs/002, crm.db). Everything else is
+    // kept in files and preferences.
     implementation("androidx.room:room-runtime:2.8.4")
     implementation("androidx.room:room-ktx:2.8.4")
     ksp("androidx.room:room-compiler:2.8.4")
