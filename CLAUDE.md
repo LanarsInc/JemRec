@@ -99,5 +99,5 @@ They must all say the same thing; a feature is not done until they do.
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-[specs/001-transcripts-summaries/plan.md](specs/001-transcripts-summaries/plan.md)
+[specs/002-sales-engine-call-logging/plan.md](specs/002-sales-engine-call-logging/plan.md)
 <!-- SPECKIT END -->
