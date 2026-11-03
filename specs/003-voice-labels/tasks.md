@@ -162,8 +162,8 @@ and screen tests for new screens.
 - [X] T054 [P] NOTICE.md and the About screen: sherpa-onnx, onnxruntime, pyannote segmentation-3.0, and the embedding model's attribution (T008)
 - [X] T055 Bump versionCode/versionName in gradle.properties; write fastlane/metadata/android/en-US/changelogs/<versionCode>.txt (at most 500 characters) and update full_description.txt (at most 4000)
 - [ ] T056 Demo data: a one-mix recording with Voice 1 / Voice 2 and one with You/Them by print in app/src/debug/java/com/jemcik/jemrec/diag/DemoRecordings.kt; a new screen in `SCREENS` of tools/build_site.py and `LISTING_ORDER` of tools/shoot.py with a name that sorts last; then run tools/shoot.py on the phone (demo data done: Priya's call shows Voice 1 and Voice 2; no new listing screen - the voices live in the Transcript screen and Settings, neither in SCREENS; shoot.py not run yet)
-- [ ] T057 Emulator check in tools/emulator_checks.py: a one-mix fixture of two synthetic voices made by the script gets Voice 1 / Voice 2 lines; run on the four AVDs two at a time, cold boot
-- [ ] T058 `./gradlew lint`, `./gradlew :daemon-tests:errorProne`, and every unit and screen test pass
+- [ ] T057 Emulator check in tools/emulator_checks.py: a one-mix fixture of two synthetic voices made by the script gets Voice 1 / Voice 2 lines; run on the four AVDs two at a time, cold boot (not done: the user decided 2026-11-03 not to run the AVDs for this feature)
+- [X] T058 `./gradlew lint`, `./gradlew :daemon-tests:errorProne`, and every unit and screen test pass
 
 ---
 
