@@ -186,9 +186,16 @@ be measured before it is relied on marked **Measure**.
   misheard, all under Voice 1.
 - **Not met: SC-003** counts the whole step, and 147 s is 0.58 of the call,
   over the 0.5 allowed - because the call is decoded a second time, 57 s on
-  its own on the A24 in a debug build. Handing the voice step the mix
-  whisper already decoded, chunk by chunk, would take that away; left for
-  a follow-up, measured here.
+  its own on the A24 in a debug build.
+- **Fixed (MixCache, 2026-11-03)**: the mix whisper decodes is kept chunk by
+  chunk in the app's cache, 16-bit, and the voice step reads it. 11:44 again,
+  same phone and build, app on screen: the voice step 119 s, nothing decoded
+  again - 0.47 of the call, under SC-003's 0.5 with little to spare. Telling
+  the voices apart itself took 119 s this time against about 89 s before,
+  and the transcript 542 s against 431 s: the phone was slower on this run,
+  so the saving shows as 28 s, not 57. Two voices again, 97 s and 74 s
+  (before 108 s and 60 s; the 16-bit samples are not the float ones), cosine
+  0.22 both times; 43 lines from 41.
 - **Peak memory** was not measurable here: VmHWM is the process's lifetime
   peak (1406 MB), which included an earlier whisper run; the engine alone
   measured about 360 MB (V4).
