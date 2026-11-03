@@ -43,14 +43,14 @@ channels: never changed by this feature
 A print made or deleted later does not touch `marked` transcripts (spec Key
 Entities) and does not redo old ones (FR-012).
 
-## OwnerPrint (file `noBackupFilesDir/voice/print.bin`)
+## OwnerPrint (file `noBackupFilesDir/voice/print.txt`, `key=value` lines)
 
 | Field | Type | Rule |
 |---|---|---|
 | version | int | file format, 1 |
 | modelId | string | the embedding model; another model voids it |
 | source | `sample` or `calls` | a sample replaces calls |
-| calls | int | 1-5 when `calls` |
+| call | float[n], one line each | the calls' own vectors, newest 5, when `calls`; the print is their mean |
 | madeAt | epoch ms | |
 | vector | float[n] | L2-normalised; n from the model (192 for TitaNet-small) |
 

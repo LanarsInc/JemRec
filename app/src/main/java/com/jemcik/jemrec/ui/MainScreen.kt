@@ -370,6 +370,7 @@ internal fun AppScaffold(state: UiState, vm: MainViewModel) {
                             Screen.ANSWERING_MACHINE -> AnsweringMachineScreen(state, vm)
                             Screen.WHEN_OFF -> WhenOffScreen(state, vm)
                             Screen.TRANSCRIPTS -> TranscriptsSettingsScreen(vm)
+                            Screen.RECORD_VOICE -> RecordVoiceScreen(vm)
                             Screen.SALES_ENGINE -> SalesEngineSettingsScreen(vm)
                             else -> SettingsScreen(state, vm)
                         }
@@ -436,6 +437,7 @@ internal fun AppHeader(state: UiState, vm: MainViewModel, panel: (@Composable ()
             Screen.TRASH -> "Recently deleted"
             Screen.TRANSCRIPT -> "Transcript"
             Screen.TRANSCRIPTS -> "Transcripts"
+            Screen.RECORD_VOICE -> "Your voice"
             Screen.SALES_ENGINE -> "Sales Engine"
             Screen.THEME -> "Theme"
             Screen.WHEN_OFF -> "When JemRec is off"

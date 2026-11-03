@@ -88,6 +88,15 @@ class TranscribeSettings(private val prefs: SharedPreferences) {
         set(value) = prefs.edit { putBoolean(WIFI_ONLY, value) }
 
     /**
+     * Whether the owner's voice print may be learnt from the left side of their messenger calls,
+     * until they record a sample (OwnerPrintFromCalls). On by default: decided 2026-11-03, a
+     * sample first, calls until then; the manual says what it does, and here it can be turned off.
+     */
+    var voiceFromCalls: Boolean
+        get() = prefs.getBoolean(VOICE_FROM_CALLS, true)
+        set(value) = prefs.edit { putBoolean(VOICE_FROM_CALLS, value) }
+
+    /**
      * Seconds of work per second of audio for [modelId], as this phone last
      * measured it; null until it has run once. Replaces the catalogue's
      * opening guess, which was measured on someone else's phone.
@@ -120,6 +129,7 @@ class TranscribeSettings(private val prefs: SharedPreferences) {
         const val SUMMARY_MODEL = "sum_model"
         const val SUMMARY_AUTO = "sum_auto"
         const val WIFI_ONLY = "models_wifi_only"
+        const val VOICE_FROM_CALLS = "voice_from_calls"
         private const val RTF = "tx_rtf."
         private const val LOAD_MS = "tx_load_ms."
     }

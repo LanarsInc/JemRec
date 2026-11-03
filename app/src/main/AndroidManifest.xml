@@ -108,6 +108,16 @@
         tools:node="replace" />
 
     <!--
+      The app's own microphone, for one thing only: the owner reading a short
+      text once, so their voice is known in phone calls that come out as one
+      mix (VoiceSample, specs/003-voice-labels). Asked when they tap Record,
+      never before; the sound stays in memory and only numbers describing the
+      voice are kept. Calls are recorded by the shell-side recorder, which
+      needs nothing of this.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!--
       NOT here, deliberately: RECORD_AUDIO, and the microphone
       foreground-service type that would require it.
 

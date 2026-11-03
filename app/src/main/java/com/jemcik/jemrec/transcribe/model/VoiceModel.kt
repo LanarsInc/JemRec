@@ -1,6 +1,7 @@
 package com.jemcik.jemrec.transcribe.model
 
 import android.content.Context
+import com.jemcik.jemrec.transcribe.OwnerPrint
 import java.io.File
 
 /**
@@ -78,9 +79,11 @@ object VoiceModel {
 
     fun cancel(context: Context) = files.forEach { ModelDownloadWorker.cancel(context, it) }
 
+    /** The files, and the owner's voice print with them: its numbers mean nothing without this model. */
     fun delete(context: Context) {
         cancel(context)
         files.forEach { ModelRepository.delete(context, it) }
+        OwnerPrint.store(context).delete()
     }
 
     /** One of the two files. */

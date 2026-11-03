@@ -3,7 +3,9 @@ package com.jemcik.jemrec.ui.screens
 import com.jemcik.jemrec.transcribe.Sides
 import com.jemcik.jemrec.transcribe.model.SpeechModel
 import com.jemcik.jemrec.ui.AppScaffold
+import com.jemcik.jemrec.transcribe.PrintSource
 import com.jemcik.jemrec.ui.ModelRow
+import com.jemcik.jemrec.ui.PrintRow
 import com.jemcik.jemrec.ui.SummaryModelRow
 import com.jemcik.jemrec.summary.SummaryModel
 import com.jemcik.jemrec.ui.Screen
@@ -54,6 +56,8 @@ class TranscriptsSettingsScreenshots : ScreenTest() {
         ),
         summaryModel = SummaryModel.QWEN3_1_7B_Q4_K_M,
         voiceModel = VoiceModelRow(installed = true),
+        // 3 Nov 2026, 12:00 UTC.
+        print = PrintRow(PrintSource.SAMPLE, madeAt = 1_793_707_200_000, calls = 0),
         modelsBytes = 1_297_494_959,
         transcriptsBytes = 2_400_000,
     )
@@ -74,6 +78,19 @@ class TranscriptsSettingsScreenshots : ScreenTest() {
     @Test fun voiceModelDownloading() {
         draw(inUse.copy(voiceModel = VoiceModelRow(downloading = 37)))
         snap("transcripts-settings-voices-downloading")
+    }
+
+    /** No print yet: phone calls show Voice 1 and Voice 2. */
+    @Config(qualifiers = "+h2600dp")
+    @Test fun voiceNotKnown() {
+        draw(inUse.copy(print = null))
+        snap("transcripts-settings-voice-unknown")
+    }
+
+    @Config(qualifiers = "+h2600dp")
+    @Test fun voiceFromCalls() {
+        draw(inUse.copy(print = PrintRow(PrintSource.CALLS, madeAt = 0, calls = 3)))
+        snap("transcripts-settings-voice-from-calls")
     }
 
     @Config(qualifiers = "+h2600dp-night")

@@ -107,6 +107,9 @@ internal fun TranscriptContent(ui: TranscriptUi, playingName: String?, vm: MainV
             return@LazyColumn
         }
         item { Column { LanguageLine(ui, vm); Status(ui, vm) } }
+        if (transcript != null && transcript.lines.isNotEmpty()) {
+            item { VoicesPart(transcript.facts.voiceSource, ui.printKnown, vm) }
+        }
         if (transcript != null) {
             if (transcript.lines.isEmpty()) {
                 item {
@@ -133,6 +136,46 @@ internal fun TranscriptContent(ui: TranscriptUi, playingName: String?, vm: MainV
             item { Facts(transcript, playingName == recording.name) }
             item { TranscriptActions(ui, vm, transcript.lines.isNotEmpty()) }
         }
+    }
+}
+
+/**
+ * A one-mix call's voices (specs/003-voice-labels, US2): asks which one is the
+ * owner's while they are Voice 1 and Voice 2, and lets a name by the print or
+ * by the owner be turned round or undone. Nothing for a call named by its
+ * channels, or not told apart.
+ */
+@Composable
+private fun VoicesPart(source: VoiceSource, printKnown: Boolean, vm: MainViewModel) {
+    val haptics = LocalHapticFeedback.current
+    val c = vm.transcripts
+    val body = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+    when (source) {
+        VoiceSource.VOICES -> Column(body, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Which one is you?", style = MaterialTheme.typography.titleSmall)
+            if (!printKnown) {
+                Text(
+                    "Record your voice in Settings, under Transcripts, so the app knows next time.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { haptics.tap(); c.markVoice(Speaker.VOICE1) }) { Text("Voice 1") }
+                OutlinedButton(onClick = { haptics.tap(); c.markVoice(Speaker.VOICE2) }) { Text("Voice 2") }
+            }
+        }
+        VoiceSource.PRINT, VoiceSource.MARKED -> Row(body, verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                if (source == VoiceSource.PRINT) "You were found by your voice." else "You marked your voice.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = { haptics.tap(); c.swapVoices() }) { Text("Swap") }
+            TextButton(onClick = { haptics.tap(); c.unmarkVoices() }) { Text("Not marked") }
+        }
+        VoiceSource.NONE, VoiceSource.CHANNELS -> Unit
     }
 }
 

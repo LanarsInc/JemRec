@@ -89,6 +89,11 @@ class TranscriptionRunner(
     private val durationMs: (Uri) -> Long,
     /** Tells a one-mix call's voices apart; none unless given, so the tests not about it see the old behaviour. */
     private val voices: VoiceTeller? = null,
+    /**
+     * Offers a call with its sides apart to the owner's voice print (OwnerPrintFromCalls): its lines and
+     * the two sides' level correlation. None unless given.
+     */
+    private val learnVoice: (suspend (Uri, List<TranscriptSegment>, Double) -> Unit)? = null,
     private val wasAborted: () -> Boolean = { TranscriptionEngine.wasAborted() },
     private val setupMs: () -> Long = { TranscriptionEngine.lastSetupMs },
     private val clock: () -> Long = { SystemClock.elapsedRealtime() },
@@ -180,11 +185,29 @@ class TranscriptionRunner(
             tellVoices(request, createdAt, lines, shouldStop)
         } else if (sides == Sides.SPLIT) {
             Log.i(TAG, "Sides SPLIT, voices skipped")
+            if (learnVoice != null && lines.any { it.speaker == Speaker.YOU }) {
+                val correlation = levels?.let { (l, r) -> sideCorrelation(l, r) } ?: 1.0
+                try {
+                    learnVoice.invoke(request.uri, lines, correlation)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not offer the call to the voice print: ${e.message}")
+                }
+            }
         }
         // A speed is one model's over the whole call; two models' mixed would be neither's.
         if (passes.size == 1) rememberSpeed(main.modelId, audioMs, wallMs, loadMs)
         Log.i(TAG, "Saved ${lines.size} line(s) in ${wallMs / 1000}s (load ${loadMs}ms)")
         return RunOutcome.Done(lines.size)
+    }
+
+    /** The sides' level correlation over frames with sound; 1 (alike, so no print) when there is too little. */
+    private fun sideCorrelation(left: DoubleArray, right: DoubleArray): Double {
+        val n = minOf(left.size, right.size)
+        val sound = (0 until n).filter { maxOf(left[it], right[it]) > ChannelSides.SOUND_DB }
+        if (sound.size < 50) return 1.0
+        return ChannelSides.correlation(DoubleArray(sound.size) { left[sound[it]] }, DoubleArray(sound.size) { right[sound[it]] })
     }
 
     /**
@@ -274,6 +297,9 @@ class TranscriptionRunner(
                 callLevels = { uri -> readSideLevels(app, uri, Long.MAX_VALUE / 1000) },
                 durationMs = { uri -> AudioDecoder.durationMs(app, uri) },
                 voices = VoiceStep.teller(app),
+                learnVoice = { uri, lines, correlation ->
+                    if (TranscribeSettings.of(app).voiceFromCalls) VoiceStep.learnFromCall(app, uri, lines, correlation)
+                },
             )
         }
 

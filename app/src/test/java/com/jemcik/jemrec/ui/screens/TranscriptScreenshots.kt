@@ -116,6 +116,12 @@ class TranscriptScreenshots : ScreenTest() {
         snap("transcript-done-voices")
     }
 
+    /** The owner's voice found by their print: You and Them, which can be turned round or undone. */
+    @Test fun doneByPrint() {
+        draw(TranscriptUi(model = ModelState.Ready("Whisper small"), transcript = Transcript(recording.name, facts.copy(split = false, modelId = "small-q5_1", voiceSource = VoiceSource.PRINT), lines), printKnown = true))
+        snap("transcript-done-by-print")
+    }
+
     /** The lines are there, unnamed, while their voices are told apart. */
     @Test fun tellingVoices() {
         val mixed = lines.map { it.copy(speaker = Speaker.NONE) }

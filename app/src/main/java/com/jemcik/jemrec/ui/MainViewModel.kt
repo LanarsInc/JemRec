@@ -126,12 +126,15 @@ enum class Screen {
     // Reached from a recording, and back home.
     TRANSCRIPT,
     // Reached from Settings, and back to it.
-    WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME, WHEN_OFF, TRANSCRIPTS, SALES_ENGINE;
+    WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME, WHEN_OFF, TRANSCRIPTS, SALES_ENGINE,
+    // Reached from Transcripts, and back to it.
+    RECORD_VOICE;
 
     /** Where Back goes from here. */
     val up: Screen get() = when (this) {
         HOME, SETTINGS, TRANSCRIPT -> HOME
         WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME, WHEN_OFF, TRANSCRIPTS, SALES_ENGINE -> SETTINGS
+        RECORD_VOICE -> TRANSCRIPTS
     }
 }
 

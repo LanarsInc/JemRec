@@ -16,6 +16,7 @@ import com.jemcik.jemrec.transcribe.LanguageNames
 import com.jemcik.jemrec.transcribe.Sides
 import com.jemcik.jemrec.transcribe.TranscribeMode
 import com.jemcik.jemrec.transcribe.TranscriptionScheduler
+import com.jemcik.jemrec.transcribe.PrintSource
 import com.jemcik.jemrec.transcribe.model.VoiceModel
 import com.jemcik.jemrec.transcribe.TranscriptionLanguageChoice
 
@@ -140,6 +141,16 @@ internal fun TranscriptsSettingsContent(ui: TranscriptsSettingsUi, vm: MainViewM
                 "voices told apart on the phone, and each line marked Voice 1 or Voice 2.",
         ) {
             row { VoiceModelRowView(ui.voiceModel, vm) }
+            row { YourVoiceRow(ui, vm) }
+            row {
+                SwitchRow(
+                    title = "Learn my voice from my calls",
+                    summary = "Uses your side of messenger calls when it is plainly only you speaking, " +
+                        "until you record your voice. Nothing leaves the phone.",
+                    checked = ui.voiceFromCalls,
+                    onCheckedChange = vm.transcripts::setVoiceFromCalls,
+                )
+            }
         }
 
         SettingsGroup("Space used") {
@@ -263,6 +274,31 @@ private fun VoiceModelRowView(row: VoiceModelRow, vm: MainViewModel) {
         },
     )
 }
+
+/** The owner's voice print: whether it is known and from what, and Record or Delete. */
+@Composable
+private fun YourVoiceRow(ui: TranscriptsSettingsUi, vm: MainViewModel) {
+    val ready = ui.voiceModel.installed
+    val print = ui.print
+    val summary = when {
+        !ready -> "Needs the voice model"
+        print == null -> "Not known. Phone calls show Voice 1 and Voice 2."
+        print.source == PrintSource.SAMPLE -> "Recorded on ${dayOf(print.madeAt)}. Your lines say You."
+        else -> "Learned from ${print.calls} of your messenger calls. Recording it is better."
+    }
+    SettingsRow(
+        title = "Your voice",
+        summary = summary,
+        enabled = ready,
+        onClick = if (ready) ({ vm.transcripts.resetSample(); vm.showScreen(Screen.RECORD_VOICE) }) else null,
+        trailing = {
+            if (ready && print != null) TextButton(onClick = vm.transcripts::deletePrint) { Text("Delete") }
+        },
+    )
+}
+
+private fun dayOf(ms: Long): String =
+    java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.UK).format(java.util.Date(ms))
 
 private fun modeTitle(mode: TranscribeMode) = when (mode) {
     TranscribeMode.MANUAL -> "Only when I ask"

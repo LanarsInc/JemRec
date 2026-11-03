@@ -111,9 +111,62 @@ object VoiceStep {
             Log.i(TAG, "Not two voices to name; the lines stay unnamed")
             return null
         }
-        val named = VoiceSeam.apply(lines, call.turns, Speaker.VOICE1, Speaker.VOICE2)
+        // The owner's voice, when their print picks it out clearly (VoiceNames); Voice 1 and 2 otherwise.
+        val print = OwnerPrint.store(context).read()
+        val (first, second) = VoiceNames.decide(call.embeddings, print?.vector)
+        val byPrint = first == Speaker.YOU || second == Speaker.YOU
+        Log.i(TAG, "Print ${print?.source ?: "none"}: ${if (byPrint) "the owner found" else "the voices stay unnamed"}" +
+            (print?.let { p -> call.embeddings.joinToString(prefix = " (", postfix = ")") { "%.2f".format(VoiceLink.cosine(it, p.vector)) } } ?: ""))
+        val named = VoiceSeam.apply(lines, call.turns, first, second)
         Log.i(TAG, "${lines.size} line(s) became ${named.size}")
-        return VoiceResult(named, VoiceSource.VOICES, VoiceModel.ID, call.embeddings)
+        return VoiceResult(named, if (byPrint) VoiceSource.PRINT else VoiceSource.VOICES, VoiceModel.ID, call.embeddings)
+    }
+
+    /**
+     * A messenger call's left side offered to the owner's print (OwnerPrintFromCalls), after the
+     * call is transcribed apart: [lines] named You and Them by the channels, [sideCorrelation] the
+     * two sides' 20 ms level correlation over the first minute. Only the first chunk is listened to:
+     * a few windows of the owner's speech say who they are, and a long call costs no more.
+     */
+    suspend fun learnFromCall(context: Context, uri: Uri, lines: List<TranscriptSegment>, sideCorrelation: Double) {
+        val store = OwnerPrint.store(context)
+        if (store.read()?.source == PrintSource.SAMPLE) return
+        val (segmentation, embedding) = VoiceModel.paths(context) ?: return
+        val toMs = ChunkPlan.TARGET_CHUNK_MS
+        val yours = lines.filter { it.speaker == Speaker.YOU && it.startMs < toMs }
+        val theirs = lines.filter { it.speaker == Speaker.THEM && it.startMs < toMs }
+        val leftMs = yours.sumOf { minOf(it.endMs, toMs) - it.startMs }
+        if (leftMs < OwnerPrintFromCalls.MIN_SPEECH_MS) return
+        withContext(Dispatchers.Default) {
+            EngineLock.mutex.withLock {
+                if (freeMemory(context) < VoiceModel.MIN_FREE_BYTES) return@withLock
+                val ptr = VoiceNative.open(segmentation.path, embedding.path, TranscriptionEngine.preferredThreadCount())
+                if (ptr == 0L) return@withLock
+                try {
+                    val left = AudioDecoder.decodeRange(context, uri, 0L, toMs, Channel.LEFT).audio
+                    val right = AudioDecoder.decodeRange(context, uri, 0L, toMs, Channel.RIGHT).audio
+                    val speech = speechOf(left, yours.map { VoiceTurn(it.startMs, it.endMs, 0) }, Long.MAX_VALUE)
+                    val window = (WINDOW_MS * SAMPLES_PER_MS).toInt()
+                    val windows = (0 until minOf(MAX_WINDOWS, speech.size / window)).mapNotNull { i ->
+                        VoiceNative.embed(ptr, speech.copyOfRange(i * window, (i + 1) * window)).takeIf { it.isNotEmpty() }
+                    }
+                    val other = speechOf(right, theirs.map { VoiceTurn(it.startMs, it.endMs, 0) }, EMBED_MS)
+                        .takeIf { it.size >= MIN_EMBED_MS * SAMPLES_PER_MS }
+                        ?.let { VoiceNative.embed(ptr, it).takeIf { e -> e.isNotEmpty() } }
+                    val offered = OwnerPrintFromCalls.offer(
+                        OwnerPrintFromCalls.Call(leftMs, speakerphone = null, sideCorrelation, windows, other),
+                    )
+                    if (offered == null) {
+                        Log.i(TAG, "This call's left side is not plainly one voice; the print is unchanged")
+                    } else {
+                        val kept = store.addCall(offered, System.currentTimeMillis())
+                        Log.i(TAG, "The print now comes from ${kept?.callCount ?: 0} call(s)")
+                    }
+                } finally {
+                    VoiceNative.close(ptr)
+                }
+            }
+        }
     }
 
     /**
@@ -176,7 +229,7 @@ object VoiceStep {
         val raw = VoiceNative.turns(ptr, slice.audio)
         val local = (raw.indices step 3).map { VoiceTurn(raw[it].toLong(), raw[it + 1].toLong(), raw[it + 2]) }
         val embeddings = local.map { it.voice }.distinct().mapNotNull { voice ->
-            val pcm = speechOf(slice.audio, local.filter { it.voice == voice })
+            val pcm = speechOf(slice.audio, local.filter { it.voice == voice }, EMBED_MS)
             if (pcm.size < MIN_EMBED_MS * SAMPLES_PER_MS) null
             else VoiceNative.embed(ptr, pcm).takeIf { it.isNotEmpty() }?.let { voice to it }
         }.toMap()
@@ -188,9 +241,9 @@ object VoiceStep {
         return VoiceLink.Chunk(turns, embeddings)
     }
 
-    /** The samples of [turns], one after the other, up to [EMBED_MS]. */
-    private fun speechOf(audio: FloatArray, turns: List<VoiceTurn>): FloatArray {
-        val max = (EMBED_MS * SAMPLES_PER_MS).toInt()
+    /** The samples of [turns], one after the other, up to [maxMs]. */
+    private fun speechOf(audio: FloatArray, turns: List<VoiceTurn>, maxMs: Long): FloatArray {
+        val max = (minOf(maxMs, Int.MAX_VALUE / SAMPLES_PER_MS) * SAMPLES_PER_MS).toInt()
         val out = FloatArray(minOf(max, turns.sumOf { it.lengthMs * SAMPLES_PER_MS }.toInt()))
         var n = 0
         for (t in turns) {
@@ -216,4 +269,8 @@ object VoiceStep {
         }.getOrDefault(-1)
 
     private const val SAMPLES_PER_MS = 16L
+
+    /** The owner's speech in a messenger call is described in windows of this much, to see it is one voice. */
+    private const val WINDOW_MS = 10_000L
+    private const val MAX_WINDOWS = 4
 }

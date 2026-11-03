@@ -41,8 +41,12 @@ microphone permission is asked at **Start**, with why. Under 20 s of speech:
   **Voice 1** / **Voice 2** buttons; once marked, an **Undo** in a snackbar,
   and the line goes. With no print yet, the same line adds: "Record your
   voice in Settings so the app knows next time."
-- The overflow menu has **Swap You and Them** for a one-mix transcript named
-  by the print, and **Not marked** (undo) for a marked one.
+- As built: for a transcript named by the print or marked, a line above the
+  first says "You were found by your voice." or "You marked your voice.",
+  with **Swap** and **Not marked** beside it - not an overflow menu, which
+  the transcript screen does not have; its row of actions under the lines
+  (Copy all, Export, Transcribe again) is full. No snackbar Undo: Not marked
+  is the undo, and it stays there.
 - While the voice step runs after the lines are shown: "Telling voices
   apart..." under the title, as the summary's progress is shown.
 - Copy and share: "Voice 1:", "Voice 2:" as they write "You:", "Them:".

@@ -52,6 +52,7 @@ class TranscriptionRunnerTest {
         levels: Pair<DoubleArray, DoubleArray>?,
         detected: Map<Channel, List<Pair<String, Double>>> = emptyMap(),
         voices: VoiceTeller? = null,
+        learnVoice: (suspend (Uri, List<TranscriptSegment>, Double) -> Unit)? = null,
         output: (List<Channel>) -> List<TranscriptSegment>,
     ) =
         TranscriptionRunner(
@@ -72,6 +73,7 @@ class TranscriptionRunnerTest {
             clock = { clockMs },
             now = { 42 },
             voices = voices,
+            learnVoice = learnVoice,
         )
 
     private fun request(sides: Sides = Sides.AUTO, language: String? = "no") =
@@ -137,6 +139,19 @@ class TranscriptionRunnerTest {
         assertEquals(RunOutcome.Done(1), outcome)
         assertEquals(listOf(Speaker.NONE), repo.load("a.ogg")!!.lines.map { it.speaker })
         assertEquals(VoiceSource.NONE, repo.load("a.ogg")!!.facts.voiceSource)
+    }
+
+    /** A call with its sides apart is offered to the owner's voice print; a one-mix call is not. */
+    @Test fun onlySidesApartAreOfferedToThePrint() = runBlocking {
+        val offered = mutableListOf<Pair<List<Speaker>, Double>>()
+        val learn: suspend (Uri, List<TranscriptSegment>, Double) -> Unit = { _, lines, correlation -> offered += lines.map { it.speaker } to correlation }
+        runner(apart, learnVoice = learn, output = ::sideLines).run(request())
+        assertEquals(1, offered.size)
+        assertEquals(listOf(Speaker.YOU, Speaker.THEM), offered.single().first)
+        // The sides take turns: their levels move apart.
+        assertTrue(offered.single().second < 0)
+        runner(apart.first to apart.first.copyOf(), learnVoice = learn, output = ::sideLines).run(request())
+        assertEquals(1, offered.size)
     }
 
     @Test fun unreadableLevelsMeanTheMix() = runBlocking {

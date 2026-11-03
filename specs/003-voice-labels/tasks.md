@@ -101,22 +101,22 @@ and screen tests for new screens.
 
 ### Tests for User Story 2
 
-- [ ] T030 [P] [US2] JRT/transcribe/VoiceNamesTest.kt: R16's numbers as fixtures (0.64 vs 0.17 gives You; 0.53 vs low gives You; 0.27 and 0.27 gives voices; no print gives voices; 0.46 vs 0.30 fails the 0.20 margin) (V6)
-- [ ] T031 [P] [US2] JRT/transcribe/OwnerPrintFromCallsTest.kt: a left side under 20 s, with speakerphone, whose windows disagree (cosine under 0.7) or match the right side (0.4 or more) makes no print; a good one adds a call; up to five calls kept, newest; a sample replaces calls (V7)
+- [X] T030 [P] [US2] JRT/transcribe/VoiceNamesTest.kt: R16's numbers as fixtures (0.64 vs 0.17 gives You; 0.53 vs low gives You; 0.27 and 0.27 gives voices; no print gives voices; 0.46 vs 0.30 fails the 0.20 margin) (V6)
+- [X] T031 [P] [US2] JRT/transcribe/OwnerPrintFromCallsTest.kt: a left side under 20 s, with speakerphone, whose windows disagree (cosine under 0.7) or match the right side (0.4 or more) makes no print; a good one adds a call; up to five calls kept, newest; a sample replaces calls (V7)
 
 ### Implementation for User Story 2
 
-- [ ] T032 [P] [US2] Write JR/transcribe/VoiceNames.kt (V6), thresholds as named constants with R16's numbers in their comments
-- [ ] T033 [P] [US2] Write JR/transcribe/OwnerPrintFromCalls.kt (V7's tests, plain)
-- [ ] T034 [US2] Write JR/transcribe/OwnerPrint.kt: the file in `noBackupFilesDir/voice/print.bin` (data-model.md), read, write, delete, void on another model id; confirm `data_extraction_rules` keeps no-backup out of backups
-- [ ] T035 [US2] Find out whether the call's audio route (speakerphone) is known after a messenger call; if not, use the level-correlation fallback of V7; write which in V7
-- [ ] T036 [US2] After a SPLIT call is transcribed, feed its left side to OwnerPrintFromCalls when "Learn my voice from my calls" is on and no sample is recorded, in JR/transcribe/TranscriptionRunner.kt via VoiceStep's embedder
-- [ ] T037 [US2] Use VoiceNames in VoiceStep: You/Them and `voiceSource = print` when the print decides, else Voice 1 / Voice 2 (JR/transcribe/VoiceStep.kt)
-- [ ] T038 [US2] Add `RECORD_AUDIO` to app/src/main/AndroidManifest.xml, asked only on Record, with lint clean
-- [ ] T039 [US2] Write JR/ui/RecordVoiceScreen.kt: the text in the app's language, meter, 30 s ring, Start/Stop, under-20-s retry, audio kept in memory only, embedded and dropped (contracts/ui.md)
-- [ ] T040 [US2] Add the "Your voice" row and the "Learn my voice from my calls" switch (default on) to JR/ui/TranscriptsSettingsScreen.kt, with Record, Record again, Delete
-- [ ] T041 [US2] Add "Which one is you?" with Voice 1 / Voice 2 buttons, Undo, "Swap You and Them" and "Not marked" to JR/ui/TranscriptScreen.kt, writing through the DAO update of T013 (`marked`); a later print never touches a `marked` transcript
-- [ ] T042 [P] [US2] Screen tests in JRT/ui/screens/: the Your voice row in its three states, the Record screen, a transcript with "Which one is you?"; look at every PNG
+- [X] T032 [P] [US2] Write JR/transcribe/VoiceNames.kt (V6), thresholds as named constants with R16's numbers in their comments
+- [X] T033 [P] [US2] Write JR/transcribe/OwnerPrintFromCalls.kt (V7's tests, plain)
+- [X] T034 [US2] Write JR/transcribe/OwnerPrint.kt: the file in `noBackupFilesDir/voice/print.bin` (data-model.md), read, write, delete, void on another model id; confirm `data_extraction_rules` keeps no-backup out of backups
+- [ ] T035 [US2] Find out whether the call's audio route (speakerphone) is known after a messenger call; if not, use the level-correlation fallback of V7; write which in V7 (for now the fallback is used: VoiceStep.learnFromCall passes speakerphone = null; the route is still to be looked for)
+- [X] T036 [US2] After a SPLIT call is transcribed, feed its left side to OwnerPrintFromCalls when "Learn my voice from my calls" is on and no sample is recorded, in JR/transcribe/TranscriptionRunner.kt via VoiceStep's embedder
+- [X] T037 [US2] Use VoiceNames in VoiceStep: You/Them and `voiceSource = print` when the print decides, else Voice 1 / Voice 2 (JR/transcribe/VoiceStep.kt)
+- [X] T038 [US2] Add `RECORD_AUDIO` to app/src/main/AndroidManifest.xml, asked only on Record, with lint clean
+- [X] T039 [US2] Write JR/ui/RecordVoiceScreen.kt: the text in the app's language, meter, 30 s ring, Start/Stop, under-20-s retry, audio kept in memory only, embedded and dropped (contracts/ui.md)
+- [X] T040 [US2] Add the "Your voice" row and the "Learn my voice from my calls" switch (default on) to JR/ui/TranscriptsSettingsScreen.kt, with Record, Record again, Delete
+- [X] T041 [US2] Add "Which one is you?" with Voice 1 / Voice 2 buttons, Undo, "Swap You and Them" and "Not marked" to JR/ui/TranscriptScreen.kt, writing through the DAO update of T013 (`marked`); a later print never touches a `marked` transcript
+- [X] T042 [P] [US2] Screen tests in JRT/ui/screens/: the Your voice row in its three states, the Record screen, a transcript with "Which one is you?"; look at every PNG
 - [ ] T043 [US2] On the A24 with the user (quickstart, owner's voice): ten one-mix calls with a recorded print, five between other people, three Telegram calls for a print from calls, R16's echo and played-audio calls making no print; write the numbers into V6/V7 and move the thresholds only with them (SC-002)
 
 **Checkpoint**: US2 complete; commit.
