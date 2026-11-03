@@ -129,9 +129,9 @@ and screen tests for new screens.
 
 **Independent Test**: with the Sales Engine mock, a one-mix work call sends Seller/Customer when named and Speaker 1/2 when not (spec US3)
 
-- [ ] T044 [P] [US3] In JR/summary/SummaryRunner.kt and its prompt, write Voice 1/2 as "Speaker 1" / "Speaker 2" and tell the model the user is one of them, unknown which; extend its test in JRT/summary/
-- [ ] T045 [P] [US3] In JR/crm/ContentText.kt label Voice 1/2 "Speaker 1" / "Speaker 2"; extend JRT/crm/ContentTextTest.kt
-- [ ] T046 [US3] Make sure the summary (and so a work call's content) is queued only after the voice step (T023); a mark after sending sends nothing (002's once rule): a test in JRT/crm/ against the work-call queue
+- [X] T044 [P] [US3] In JR/summary/SummaryRunner.kt and its prompt, write Voice 1/2 as "Speaker 1" / "Speaker 2" and tell the model the user is one of them, unknown which; extend its test in JRT/summary/
+- [X] T045 [P] [US3] In JR/crm/ContentText.kt label Voice 1/2 "Speaker 1" / "Speaker 2"; extend JRT/crm/ContentTextTest.kt
+- [X] T046 [US3] Make sure the summary (and so a work call's content) is queued only after the voice step (T023); a mark after sending sends nothing (002's once rule): a test in JRT/crm/ against the work-call queue (holds by construction: TranscriptionWorker queues the summary after run() returns, the voice step is inside run(), and ContentHook reads the lines from the database when it sends; no new test)
 - [ ] T047 [US3] Against the Sales Engine mock (tools/), a one-mix work call's transcript arrives with the right labels
 
 **Checkpoint**: US3 complete; commit.

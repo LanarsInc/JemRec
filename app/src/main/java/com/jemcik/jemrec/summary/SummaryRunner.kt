@@ -73,7 +73,9 @@ class SummaryRunner(
         }
 
         val lines = linesOf(transcript, contact)
-        val named = lines.any { it.speaker != null }
+        // Named when the owner is known (You and Them, by the channels, the print or the owner's
+        // mark); a one-mix call's Voice 1 and Voice 2 are labels without names (specs/003).
+        val named = transcript.lines.any { it.speaker == Speaker.YOU || it.speaker == Speaker.THEM }
         // The language to write in: English, for every call (FR-033 of
         // specs/002, decided with the user 2026-11-03).
         // WHAT THIS DID BEFORE, AND WHY IT CHANGED. It wrote in the call's own

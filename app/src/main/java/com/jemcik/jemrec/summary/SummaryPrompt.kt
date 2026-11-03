@@ -132,9 +132,10 @@ object SummaryPrompt {
      * and a model left to interpret them will report them: "A asked about the invoice" is a worse
      * summary than the unlabelled version was.
      *
-     * @param speakersAreNamed whether the labels are real names, or the neutral `A`/`B` the capture
-     *   stores while the app is still unsure which channel is whose. Neutral is not a lesser case to
-     *   be tidied over: it is the honest one, and the model is told not to guess past it.
+     * @param speakersAreNamed whether the labels are real names, or neutral ones - "Voice 1" and
+     *   "Voice 2", a one-mix call's two voices told apart while the app does not know which is the
+     *   phone owner's (specs/003-voice-labels). Neutral is not a lesser case to be tidied over: it
+     *   is the honest one, and the model is told not to guess past it.
      */
     private fun speakerClause(
         segments: List<SummaryLine>,
@@ -145,8 +146,9 @@ object SummaryPrompt {
             "Each line begins with who said it. \"You\" is the person whose phone recorded the " +
                 "call — write about them in the second person."
         } else {
-            "Each line begins with which side of the call said it. A and B are the two people " +
-                "speaking; which of them is which is not known, so never put a name to either."
+            "Each line begins with which of the two people said it. One of them is the person " +
+                "whose phone recorded the call, but which one is not known: never put a name to " +
+                "either, and do not write about either as \"you\"."
         }
     }
 

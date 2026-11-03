@@ -90,6 +90,30 @@ class SummaryRunnerTest {
         assertTrue(!prompts.single().contains("/no_think"))
     }
 
+    /** A one-mix call's voices not yet named: two people, one of them the owner, neither "you". */
+    @Test fun voicesAreTwoPeopleNotYou() = runBlocking {
+        repo.save(
+            "a.ogg",
+            TranscriptFacts("small-q5_1", "no", false, 20_000, 30_000, 900, 6, 1),
+            listOf(
+                TranscriptSegment(1_000, 4_000, "Hei, gjelder det leveransen?", Speaker.VOICE1),
+                TranscriptSegment(5_000, 9_000, "Ja, den kommer på fredag.", Speaker.VOICE2),
+            ),
+        )
+        runner().run("a.ogg", "Kari", SummaryModel.QWEN3_1_7B_Q4_K_M, "/m")
+        val prompt = prompts.single()
+        assertTrue(prompt.contains("Voice 1: Hei") && prompt.contains("Voice 2: Ja"))
+        assertTrue(prompt.contains("which one is not known"))
+        assertTrue(!prompt.contains("write about them in the second person"))
+    }
+
+    /** The calls named by their channels keep the second person for "You". */
+    @Test fun namedSidesAreStillYou() = runBlocking {
+        transcript()
+        runner().run("a.ogg", null, SummaryModel.QWEN3_1_7B_Q4_K_M, "/m")
+        assertTrue(prompts.single().contains("write about them in the second person"))
+    }
+
     /** A number for a name is not a name: the other side is "Them". */
     @Test fun aNumberIsNotUsedAsTheOtherSidesName() = runBlocking {
         transcript()
