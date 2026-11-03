@@ -43,6 +43,7 @@ import com.jemcik.jemrec.transcribe.Speaker
 import com.jemcik.jemrec.transcribe.TranscriptionLanguageChoice
 import com.jemcik.jemrec.transcribe.TranscriptSegment
 import com.jemcik.jemrec.transcripts.Transcript
+import com.jemcik.jemrec.transcripts.VoiceSource
 import java.util.Locale
 
 /**
@@ -120,7 +121,7 @@ internal fun TranscriptContent(ui: TranscriptUi, playingName: String?, vm: MainV
                 if (i > 0 && line.speaker != transcript.lines[i - 1].speaker) HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                 Line(
                     line = line,
-                    named = transcript.facts.split,
+                    named = transcript.facts.voiceSource != VoiceSource.NONE,
                     modifier = Modifier.combinedClickable(
                         onClick = { haptics.tap(); vm.playFrom(recording, line.startMs) },
                         onLongClick = { clipboard.setText(AnnotatedString(line.text)); vm.notice("Line copied") },
@@ -357,10 +358,15 @@ private fun Status(ui: TranscriptUi, vm: MainViewModel) {
         }
         is JobState.Running -> Column(body, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                if (job.percent == null) "Getting ready…" else "Transcribing on the phone… ${job.percent}%",
+                when {
+                    // The lines are below already; their voices come next (VoiceStep).
+                    ui.tellingVoices -> "Telling the two voices apart…"
+                    job.percent == null -> "Getting ready…"
+                    else -> "Transcribing on the phone… ${job.percent}%"
+                },
                 style = MaterialTheme.typography.bodyMedium,
             )
-            if (job.percent == null) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (job.percent == null || ui.tellingVoices) LinearProgressIndicator(Modifier.fillMaxWidth())
             else LinearProgressIndicator(progress = { job.percent / 100f }, modifier = Modifier.fillMaxWidth())
             Text(
                 "It goes on with the screen off. You can leave this screen.",

@@ -19,6 +19,7 @@ import com.jemcik.jemrec.transcribe.ModelChoice
 import com.jemcik.jemrec.transcribe.Sides
 import com.jemcik.jemrec.transcribe.TranscribeMode
 import com.jemcik.jemrec.transcribe.TranscriptionScheduler
+import com.jemcik.jemrec.transcribe.VoiceStep
 import com.jemcik.jemrec.transcribe.TranscriptionLanguageChoice
 import com.jemcik.jemrec.transcribe.TranscribeSettings
 import com.jemcik.jemrec.transcribe.TranscriptionEstimate
@@ -28,6 +29,7 @@ import com.jemcik.jemrec.transcribe.model.DownloadableModel
 import com.jemcik.jemrec.transcribe.model.ModelDownloadWorker
 import com.jemcik.jemrec.transcribe.model.ModelRepository
 import com.jemcik.jemrec.transcribe.model.SpeechModel
+import com.jemcik.jemrec.transcribe.model.VoiceModel
 import com.jemcik.jemrec.transcripts.Transcript
 import com.jemcik.jemrec.transcripts.TranscriptRepository
 import com.jemcik.jemrec.transcripts.db.TranscriptDatabase
@@ -94,6 +96,8 @@ data class TranscriptUi(
     val summaryJob: JobState = JobState.Idle,
     /** A line to bring into view, from a tap on a summary point: its time in ms. */
     val jumpToMs: Long? = null,
+    /** This recording's voices are being told apart now (VoiceStep), its lines already shown. */
+    val tellingVoices: Boolean = false,
 )
 
 /** One speech model's row in Settings. */
@@ -118,6 +122,18 @@ data class SummaryModelRow(
     val partialBytes: Long,
 )
 
+/** The voice model's row in Settings: its two files as one (VoiceModel). */
+data class VoiceModelRow(
+    /** This phone can hold it (VoiceModel.fits). */
+    val fits: Boolean = true,
+    /** Both files on the phone and verified. */
+    val installed: Boolean = false,
+    /** Downloading now: how far across both files; null otherwise. */
+    val downloading: Int? = null,
+    /** Left from interrupted downloads, in bytes. */
+    val partialBytes: Long = 0,
+)
+
 /** Settings > Transcripts and summaries. */
 data class TranscriptsSettingsUi(
     /** The Settings language: an ISO code or "auto", which is also what not having chosen means. */
@@ -139,6 +155,7 @@ data class TranscriptsSettingsUi(
     val transcriptsBytes: Long = 0,
     /** The one summaries use: chosen and fitting, else the best that fits. */
     val summaryModel: SummaryModel? = null,
+    val voiceModel: VoiceModelRow = VoiceModelRow(),
 )
 
 /**
@@ -177,6 +194,9 @@ class TranscriptsController(
                     .collect { infos -> _state.update { it.copy(job = jobOf(infos)) } }
             },
             scope.launch(Dispatchers.IO) { refreshModel() },
+            scope.launch {
+                VoiceStep.running.collect { name -> _state.update { it.copy(tellingVoices = name == recording.name) } }
+            },
             scope.launch {
                 repository.observeSummary(recording.name).collect { entry ->
                     _state.update {
@@ -380,7 +400,7 @@ class TranscriptsController(
         if (pinned) return
         watchingModels.forEach { it.cancel() }
         refreshSettings()
-        watchingModels = (SpeechModel.entries + SummaryModel.entries).map { model ->
+        watchingModels = (SpeechModel.entries + SummaryModel.entries + VoiceModel.files).map { model ->
             scope.launch {
                 WorkManager.getInstance(app).getWorkInfosForUniqueWorkFlow(ModelDownloadWorker.workNameFor(model)).collect { infos ->
                     val info = infos.lastOrNull()
@@ -418,12 +438,43 @@ class TranscriptsController(
                     SummaryModelRow(m, m.fits(total), ModelRepository.isInstalled(app, m), downloads[m], ModelRepository.partialBytes(app, m))
                 },
                 summaryModel = SummaryWorker.chosenModel(app),
+                voiceModel = voiceModelRow(total),
                 mode = settings.mode,
                 chargingOnly = settings.chargingOnly,
                 summariseAfter = settings.summariseAfterTranscript,
                 modelsBytes = ModelRepository.bytesUsed(app),
                 transcriptsBytes = TranscriptDatabase.bytesUsed(app),
             )
+        }
+    }
+
+    /** The two files as one row: downloading while either is, how far by bytes across both. */
+    private fun voiceModelRow(totalMemory: Long): VoiceModelRow {
+        val installed = VoiceModel.files.map { ModelRepository.isInstalled(app, it) }
+        val downloading = VoiceModel.files.any { it in downloads }
+        val done = VoiceModel.files.zip(installed).sumOf { (part, here) ->
+            if (here) part.sizeBytes else part.sizeBytes * (downloads[part] ?: 0) / 100
+        }
+        return VoiceModelRow(
+            fits = VoiceModel.fits(totalMemory),
+            installed = installed.all { it },
+            downloading = if (downloading) (done * 100 / VoiceModel.sizeBytes).toInt() else null,
+            partialBytes = VoiceModel.files.sumOf { ModelRepository.partialBytes(app, it) },
+        )
+    }
+
+    fun downloadVoices() {
+        VoiceModel.download(app, settings.modelsWifiOnly)
+        downloads = downloads + VoiceModel.files.filterNot { ModelRepository.isInstalled(app, it) }.map { it to 0 }
+        refreshSettings()
+    }
+
+    fun cancelVoices() = VoiceModel.cancel(app)
+
+    fun deleteVoices() {
+        scope.launch(Dispatchers.IO) {
+            VoiceModel.delete(app)
+            refreshSettings()
         }
     }
 

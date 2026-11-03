@@ -79,6 +79,12 @@ be measured before it is relied on marked **Measure**.
   today; then the voice step runs under the same `EngineLock` / heavy queue,
   and the transcript's labels are updated in one write. A stop, a deleted
   recording, too little memory or a failure leaves the unnamed transcript.
+- **As built (T023)**: the runner takes a `VoiceTeller` (VoiceStep in the
+  app, a stand-in in its tests, none by default); `saveVoices` writes only if
+  the transcript is still the one made at that `createdAt`, so a transcript
+  made again or deleted meanwhile is not written over. The summary is queued
+  after `run` returns, so it already follows the voice step. The transcript
+  screen shows names by `voiceSource`, not by `split` as before.
 - **Rationale**: FR-009 (never later than without it). The heavy queue
   already keeps whisper and the summary model apart; the voice step joins it,
   so it never runs beside a summary (SC-004). The summary waits for the voice
@@ -93,8 +99,13 @@ be measured before it is relied on marked **Measure**.
   `ChunkPlan` already makes (5 min, 10 s overlap). Each chunk is told apart
   on its own into up to two voices, with each voice's mean embedding. Chunks
   are then linked in plain Kotlin (`VoiceLink`): a chunk's voice joins the
-  call's voice whose embedding it is closest to by cosine; the overlap's
-  turns settle a tie. Most calls are one chunk.
+  call's voice whose embedding it is closest to by cosine (two chunk voices
+  as the better of the two pairings; a lone one as the second call voice when
+  under 0.6 of the only one so far), and the call's voice is the mean of what
+  joined it, weighted by speech. The overlap's turns are not used to settle a
+  tie, as first planned: nothing measured needs it yet (T028). A voice's
+  first 60 s in a chunk is embedded; under 1.5 s, none. Most calls are one
+  chunk.
 - **Rationale**: a 1-hour call whole is 230 MB of float samples before the
   model's own memory; a chunk is 19 MB. R16's 349 MB peak was a 252 s call,
   so one chunk.
@@ -110,18 +121,47 @@ be measured before it is relied on marked **Measure**.
   as R16's 349 MB; SC-004's 500 MB is about the step, not the process.
   Decoding the 216 s Ogg took 61 s in that debug run, by itself - worth a
   look apart from this feature.
-- **Measure**: on a 20-30 min call (two Telegram calls mixed to one), the
-  linking against the channels' truth; and the peak memory.
+- **Accuracy, 2026-11-03 (T028, `VoiceAccuracyTest`, A24, debug build)**:
+  the phone's ten Telegram recordings, each mixed to one and told apart in
+  the app's 5-minute chunks and again in 60 s chunks (no 20-30 min call is on
+  the phone, so the linking is measured by cutting short calls finer);
+  truth = 20 ms frames where one channel leads by 10 dB, as in R16.
+
+  | Call | Length | Truth | 5-min chunks | 60 s chunks |
+  |---|---|---|---|---|
+  | 14:46, the one real conversation | 217 s | 105 s | named; 98.6% right, 92.6% of it covered; cosine 0.13 | the same: 98.6%, 92.8%; 0.10 |
+  | 16:29, one speaker | 306 s | 170 s | one voice: not named | two "voices" at 0.96: not named, but the linking was wrong (fixed below) |
+  | 10:06, one speaker | 113 s | 12 s | one voice: not named | 21.5 s and 1.7 s at 0.62: not named |
+  | 14:21, test call | 153 s | 37 s | 93 s and 5 s at 0.63: not named | not named |
+  | 14:13, test call | 167 s | 35 s | named: 7.6 s and 65.9 s at 0.11; 69.4% right | 0.77: not named |
+  | 10:08, 15:08, 14:21 (30th), 10:50 | 6-65 s | under 16 s | not named | not named |
+
+  So SC-001's 95% holds on the only call that can score it, and the
+  chunking does not change it. Every one-speaker call stayed unnamed. 14:13
+  was named and only 69% matches its channels; R16 already found its
+  channels an unsure truth (a test call, played audio and speakerphone), so
+  it is not counted for or against, but it is the case to listen to.
+- **Fixed after it**: sherpa-onnx is told two voices, so a chunk of one
+  speaker comes back as two of theirs; in 60 s chunks the 306 s call had a
+  "second" call voice at cosine 0.96 to the first. VoiceLink now joins a
+  chunk's two voices into one call voice when they are 0.6 or more alike.
+  Run again on the three calls it touches: 16:29 in 60 s chunks one voice
+  (283.5 s), as in 5-minute chunks; 10:06 one voice in both; 14:13 now named
+  in both chunkings alike (cosine 0.11 and 0.19), 69% and 63% right against
+  its unsure channels.
 
 ## V5. Labelling the lines and cutting at a turn
 
-- **Decision**: each line takes the voice that covers most of its time.
-  When the other voice covers at least 1 s of it, and a word boundary falls
-  within 300 ms of that turn, the line is cut there (`VoiceSeam`, plain
+- **Decision (as built)**: each line takes the voice that covers most of its
+  time. When the other voice covers at least 1 s of it, each word goes to the
+  voice speaking when it starts, a run of words under 1 s joins its
+  neighbour, and the line is cut between the runs (`VoiceSeam`, plain
   Kotlin), each part keeping its own words. The word times come from the
-  JNI's `segmentWords` (kept from CallVault for this, unused so far), on the
-  VAD's compressed timeline: mapped back to the call's time with the same
-  speech stretches `SpeechGapSnap` uses.
+  JNI's `segmentWords` (kept from CallVault, unused until now), read only for
+  one-mix passes and kept in memory with each line. They are in the call's
+  time: whisper.cpp v1.9.3's `whisper_full_get_token_t0` maps a token back
+  from the VAD's compressed timeline, so the bridge now reads that instead of
+  the raw `token_data.t0` (compressed), and no mapping of our own is needed.
 - **Rationale**: R16's 11:44 call had lines merged across a turn come out
   45/55; CallVault's `SpeakerSeamSplit` solved the same.
 - **One voice, or too little**: fewer than 10 s of speech in all, or one

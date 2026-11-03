@@ -17,6 +17,7 @@ import com.jemcik.jemrec.transcribe.Speaker
 import com.jemcik.jemrec.transcribe.TranscriptSegment
 import com.jemcik.jemrec.transcripts.Transcript
 import com.jemcik.jemrec.transcripts.TranscriptFacts
+import com.jemcik.jemrec.transcripts.VoiceSource
 import com.jemcik.jemrec.transcripts.TranscriptRepository
 import com.jemcik.jemrec.transcripts.db.CallSummaryEntry
 import com.jemcik.jemrec.summary.CallSummary
@@ -130,6 +131,7 @@ internal object DemoRecordings {
             loadMs = 1400,
             threads = 6,
             createdAt = at,
+            voiceSource = VoiceSource.CHANNELS,
         )
         return Transcript(name, facts, lines.map { (ms, you, text) -> TranscriptSegment(ms, ms + 2500, text, if (you) Speaker.YOU else Speaker.THEM) })
     }

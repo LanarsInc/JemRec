@@ -66,8 +66,10 @@ data class RunRequest(
  * language found first and pinned, with the model made for it if there is one
  * (LanguageGuess); one retry when the text comes back in the
  * wrong script for the pinned language (CallVault's WrongScriptRetry); the
- * sides merged in time; saved whole; and this phone's speed for the model
- * remembered, so the next estimate is this phone's and not someone else's.
+ * sides merged in time; saved whole; for a one-mix call, its two voices told
+ * apart and the lines saved again under them (VoiceStep, specs/003); and this
+ * phone's speed for the model remembered, so the next estimate is this
+ * phone's and not someone else's.
  *
  * Written for JemRec after CallVault's runner (5cfa2c60), which also handles
  * imported audio, Drive and sidecar files that JemRec does not have.
@@ -85,6 +87,8 @@ class TranscriptionRunner(
     /** The same over the whole call, for QuietSide; null when they cannot be read. */
     private val callLevels: suspend (Uri) -> Pair<DoubleArray, DoubleArray>? = { null },
     private val durationMs: (Uri) -> Long,
+    /** Tells a one-mix call's voices apart; none unless given, so the tests not about it see the old behaviour. */
+    private val voices: VoiceTeller? = null,
     private val wasAborted: () -> Boolean = { TranscriptionEngine.wasAborted() },
     private val setupMs: () -> Long = { TranscriptionEngine.lastSetupMs },
     private val clock: () -> Long = { SystemClock.elapsedRealtime() },
@@ -153,6 +157,7 @@ class TranscriptionRunner(
         // Two sides in two languages are one transcript: it is filed under the
         // side that said more, which is also the language its summary is written in.
         val main = passes.maxByOrNull { it.chars } ?: Pass(channels, request.language, request.modelId, request.modelPath)
+        val createdAt = now()
         withContext(NonCancellable) {
             repository.save(
                 request.recording,
@@ -164,15 +169,40 @@ class TranscriptionRunner(
                     wallMs = wallMs,
                     loadMs = loadMs,
                     threads = request.threads,
-                    createdAt = now(),
+                    createdAt = createdAt,
                 ),
                 lines,
             )
+        }
+        // The lines are saved, and shown, before the voices are told apart: naming them must never
+        // make a transcript later than it was (spec FR-009). A call with two channels has its names.
+        if (sides != Sides.SPLIT && voices != null && lines.isNotEmpty()) {
+            tellVoices(request, createdAt, lines, shouldStop)
+        } else if (sides == Sides.SPLIT) {
+            Log.i(TAG, "Sides SPLIT, voices skipped")
         }
         // A speed is one model's over the whole call; two models' mixed would be neither's.
         if (passes.size == 1) rememberSpeed(main.modelId, audioMs, wallMs, loadMs)
         Log.i(TAG, "Saved ${lines.size} line(s) in ${wallMs / 1000}s (load ${loadMs}ms)")
         return RunOutcome.Done(lines.size)
+    }
+
+    /**
+     * The voice step, after the save: its labels replace the unnamed lines when it names them.
+     * A stop or a failure here leaves the transcript as saved, unnamed - never without one.
+     */
+    private suspend fun tellVoices(request: RunRequest, createdAt: Long, lines: List<TranscriptSegment>, shouldStop: () -> Boolean) {
+        val told = try {
+            voices?.tell(request.recording, request.uri, lines) { shouldStop() || wasAborted() }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Telling the voices apart failed: ${e.message}")
+            null
+        } ?: return
+        withContext(NonCancellable) {
+            repository.saveVoices(request.recording, createdAt, told.lines, told.source, told.modelId)
+        }
     }
 
     /** One transcription pass: the sides that share a language, and the model for it. */
@@ -243,6 +273,7 @@ class TranscriptionRunner(
                 sideLevels = { uri -> readSideLevels(app, uri, ChannelSides.LOOK_MS) },
                 callLevels = { uri -> readSideLevels(app, uri, Long.MAX_VALUE / 1000) },
                 durationMs = { uri -> AudioDecoder.durationMs(app, uri) },
+                voices = VoiceStep.teller(app),
             )
         }
 

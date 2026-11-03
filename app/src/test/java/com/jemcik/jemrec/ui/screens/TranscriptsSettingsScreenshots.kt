@@ -8,6 +8,7 @@ import com.jemcik.jemrec.ui.SummaryModelRow
 import com.jemcik.jemrec.summary.SummaryModel
 import com.jemcik.jemrec.ui.Screen
 import com.jemcik.jemrec.ui.TranscriptsSettingsUi
+import com.jemcik.jemrec.ui.VoiceModelRow
 import com.jemcik.jemrec.ui.theme.Look
 import com.jemcik.jemrec.ui.theme.LookChoice
 import org.junit.Test
@@ -52,29 +53,36 @@ class TranscriptsSettingsScreenshots : ScreenTest() {
             SummaryModelRow(SummaryModel.GEMMA_4_E2B_QAT_Q4_K_XL, fits = false, installed = false, downloading = null, partialBytes = 0),
         ),
         summaryModel = SummaryModel.QWEN3_1_7B_Q4_K_M,
+        voiceModel = VoiceModelRow(installed = true),
         modelsBytes = 1_297_494_959,
         transcriptsBytes = 2_400_000,
     )
 
-    @Config(qualifiers = "+h2000dp")
+    @Config(qualifiers = "+h2600dp")
     @Test fun inUse() {
         draw(inUse)
         snap("transcripts-settings")
     }
 
-    @Config(qualifiers = "+h2000dp")
+    @Config(qualifiers = "+h2600dp")
     @Test fun freshPhone() {
-        draw(inUse.copy(language = "en", models = inUse.models.map { it.copy(installed = false, downloading = null, partialBytes = 0) }))
+        draw(inUse.copy(language = "en", models = inUse.models.map { it.copy(installed = false, downloading = null, partialBytes = 0) }, voiceModel = VoiceModelRow()))
         snap("transcripts-settings-fresh")
     }
 
-    @Config(qualifiers = "+h2000dp-night")
+    @Config(qualifiers = "+h2600dp")
+    @Test fun voiceModelDownloading() {
+        draw(inUse.copy(voiceModel = VoiceModelRow(downloading = 37)))
+        snap("transcripts-settings-voices-downloading")
+    }
+
+    @Config(qualifiers = "+h2600dp-night")
     @Test fun deckDark() {
         draw(inUse, LookChoice(Look.DECK))
         snap("transcripts-settings-deck-dark")
     }
 
-    @Config(qualifiers = "+h2000dp")
+    @Config(qualifiers = "+h2600dp")
     @Test fun multitrack() {
         draw(inUse, LookChoice(Look.MULTITRACK))
         snap("transcripts-settings-multitrack")

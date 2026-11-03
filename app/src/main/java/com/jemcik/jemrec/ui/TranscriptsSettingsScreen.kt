@@ -16,6 +16,7 @@ import com.jemcik.jemrec.transcribe.LanguageNames
 import com.jemcik.jemrec.transcribe.Sides
 import com.jemcik.jemrec.transcribe.TranscribeMode
 import com.jemcik.jemrec.transcribe.TranscriptionScheduler
+import com.jemcik.jemrec.transcribe.model.VoiceModel
 import com.jemcik.jemrec.transcribe.TranscriptionLanguageChoice
 
 /**
@@ -133,6 +134,14 @@ internal fun TranscriptsSettingsContent(ui: TranscriptsSettingsUi, vm: MainViewM
             }
         }
 
+        SettingsGroup(
+            "Voices",
+            note = "Phone calls that come out as one mix - both people on both channels - have their two " +
+                "voices told apart on the phone, and each line marked Voice 1 or Voice 2.",
+        ) {
+            row { VoiceModelRowView(ui.voiceModel, vm) }
+        }
+
         SettingsGroup("Space used") {
             row {
                 SettingsRow(
@@ -151,7 +160,8 @@ internal fun TranscriptsSettingsContent(ui: TranscriptsSettingsUi, vm: MainViewM
         SettingsFooter(
             "A call whose two sides are on the two channels - every messenger call, and phone calls on " +
                 "phones that keep them apart - has each line named You or Them. Where both channels " +
-                "carry the same sound, the lines are not named.",
+                "carry the same sound, the two voices are told apart with the voice model; without it, " +
+                "the lines are not named.",
         )
     }
     if (choosingLanguage) {
@@ -221,6 +231,33 @@ private fun SummaryModelRowView(row: SummaryModelRow, chosen: Boolean, vm: MainV
                     row.downloading != null -> TextButton(onClick = { c.cancelDownload(m) }) { Text("Stop") }
                     row.installed -> TextButton(onClick = { c.delete(m) }) { Text("Delete") }
                     else -> TextButton(onClick = { c.download(m) }) { Text(if (row.partialBytes > 0) "Continue" else "Download") }
+                }
+            }
+        },
+    )
+}
+
+/** The voice model: two files, one row - its size and memory, whether the phone can hold it, and what can be done. */
+@Composable
+private fun VoiceModelRowView(row: VoiceModelRow, vm: MainViewModel) {
+    val c = vm.transcripts
+    val state = when {
+        !row.fits -> "Needs a phone with more memory"
+        row.downloading != null -> "Downloading… ${row.downloading}%"
+        row.installed -> "Downloaded"
+        row.partialBytes > 0 -> "${sizeMb(row.partialBytes)} of ${sizeMb(VoiceModel.sizeBytes)} downloaded"
+        else -> "${sizeMb(VoiceModel.sizeBytes)}, ${sizeMb(VoiceModel.PEAK_MEMORY_BYTES)} of memory"
+    }
+    SettingsRow(
+        title = "Voice model",
+        summary = state,
+        enabled = row.fits,
+        trailing = {
+            if (row.fits) {
+                when {
+                    row.downloading != null -> TextButton(onClick = c::cancelVoices) { Text("Stop") }
+                    row.installed -> TextButton(onClick = c::deleteVoices) { Text("Delete") }
+                    else -> TextButton(onClick = c::downloadVoices) { Text(if (row.partialBytes > 0) "Continue" else "Download") }
                 }
             }
         },

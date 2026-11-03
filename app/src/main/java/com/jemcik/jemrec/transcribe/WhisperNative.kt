@@ -129,8 +129,9 @@ object WhisperNative {
     external fun segmentText(ptr: Long, index: Int): String
 
     /**
-     * The i-th segment's words, one per line as `<start in ms>\t<word>`, on the VAD's compressed
-     * timeline. Kept from CallVault, which splits lines at speaker turns with it; see the native side for why words are assembled
+     * The i-th segment's words, one per line as `<start in ms>\t<word>`, in the buffer's own time
+     * (mapped back from the VAD's compressed timeline natively). Read for one-mix calls, whose lines
+     * are cut where the voice changes (VoiceSeam); see the native side for why words are assembled
      * there rather than here.
      */
     external fun segmentWords(ptr: Long, index: Int): String

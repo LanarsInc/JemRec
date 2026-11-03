@@ -70,23 +70,23 @@ and screen tests for new screens.
 
 ### Tests for User Story 1
 
-- [ ] T015 [P] [US1] JRT/transcribe/VoiceLinkTest.kt: chunks with fixed centroids and overlapping turns link into two call voices; a chunk with one voice joins the nearer; a tie settled by the overlap (V4)
-- [ ] T016 [P] [US1] JRT/transcribe/VoiceSeamTest.kt: a line takes the voice covering most of it; a line with at least 1 s of the other voice is cut at a word boundary within 300 ms of the turn, words kept once and in order; no boundary near, no cut; word times mapped from the VAD timeline as SpeechGapSnap does (V5)
-- [ ] T017 [P] [US1] JRT/transcribe/VoiceSilenceTest.kt: under 10 s of speech, one voice over 95%, or centroids closer than 0.6 give no names (V5, FR-004)
+- [X] T015 [P] [US1] JRT/transcribe/VoiceLinkTest.kt: chunks with fixed centroids and overlapping turns link into two call voices; a chunk with one voice joins the nearer; a tie settled by the overlap (V4)
+- [X] T016 [P] [US1] JRT/transcribe/VoiceSeamTest.kt: a line takes the voice covering most of it; a line with at least 1 s of the other voice is cut at a word boundary within 300 ms of the turn, words kept once and in order; no boundary near, no cut; word times mapped from the VAD timeline as SpeechGapSnap does (V5)
+- [X] T017 [P] [US1] JRT/transcribe/VoiceSilenceTest.kt: under 10 s of speech, one voice over 95%, or centroids closer than 0.6 give no names (V5, FR-004)
 
 ### Implementation for User Story 1
 
-- [ ] T018 [P] [US1] Write JR/transcribe/VoiceLink.kt (V4)
-- [ ] T019 [P] [US1] Write JR/transcribe/VoiceSeam.kt (V5), using the word times from `WhisperNative.segmentWords`
-- [ ] T020 [P] [US1] Write JR/transcribe/VoiceSilence.kt (V5's no-names rule)
-- [ ] T021 [US1] Keep each line's word times from the decode for MIX passes in JR/transcribe/TranscriptionEngine.kt (in memory only, not saved), mapped to the call's time
-- [ ] T022 [US1] Write JR/transcribe/VoiceStep.kt: decode the call to 16 kHz mono in `ChunkPlan`'s chunks, `VoiceNative.turns` per chunk, embed each chunk voice in windows of up to 60 s, link, apply the silence rule, label as Voice 1 (heard first) / Voice 2, cut with VoiceSeam; check free memory first; stop on abort or a deleted recording; log time, peak memory and the decision
-- [ ] T023 [US1] Call the voice step from JR/transcribe/TranscriptionRunner.kt after the MIX lines are saved, under the heavy lock, before the summary is queued; save the new labels and `voiceSource = voices` in one write; SPLIT calls log "voices skipped" and do nothing more (FR-002, SC-006)
-- [ ] T024 [US1] Show Voice 1 / Voice 2 in JR/ui/TranscriptScreen.kt in the You/Them colours, and "Telling voices apart..." while the step runs (contracts/ui.md)
-- [ ] T025 [US1] Add the Voices group's voice model row and the "one mix" note to JR/ui/TranscriptsSettingsScreen.kt (contracts/ui.md), offered only on phones with the memory
-- [ ] T026 [US1] Copy and share write "Voice 1:" / "Voice 2:" (FR-014), in the transcript's share and copy code
-- [ ] T027 [P] [US1] Screen tests in JRT/ui/screens/: the transcript with Voice 1 / Voice 2 and the voice model row in its states; record with `-PrecordScreens=true` and look at every PNG
-- [ ] T028 [US1] Accuracy test JRA/transcribe/VoiceAccuracyTest.kt: Telegram recordings on the phone, channels mixed to one in memory, scored against the 10 dB frames (quickstart); run with `am instrument` on the A24, including a 20-30 min call; record results in V4/V5 and check SC-001 (95%)
+- [X] T018 [P] [US1] Write JR/transcribe/VoiceLink.kt (V4)
+- [X] T019 [P] [US1] Write JR/transcribe/VoiceSeam.kt (V5), using the word times from `WhisperNative.segmentWords`
+- [X] T020 [P] [US1] Write JR/transcribe/VoiceSilence.kt (V5's no-names rule)
+- [X] T021 [US1] Keep each line's word times from the decode for MIX passes in JR/transcribe/TranscriptionEngine.kt (in memory only, not saved), mapped to the call's time
+- [X] T022 [US1] Write JR/transcribe/VoiceStep.kt: decode the call to 16 kHz mono in `ChunkPlan`'s chunks, `VoiceNative.turns` per chunk, embed each chunk voice in windows of up to 60 s, link, apply the silence rule, label as Voice 1 (heard first) / Voice 2, cut with VoiceSeam; check free memory first; stop on abort or a deleted recording; log time, peak memory and the decision
+- [X] T023 [US1] Call the voice step from JR/transcribe/TranscriptionRunner.kt after the MIX lines are saved, under the heavy lock, before the summary is queued; save the new labels and `voiceSource = voices` in one write; SPLIT calls log "voices skipped" and do nothing more (FR-002, SC-006)
+- [X] T024 [US1] Show Voice 1 / Voice 2 in JR/ui/TranscriptScreen.kt in the You/Them colours, and "Telling voices apart..." while the step runs (contracts/ui.md)
+- [X] T025 [US1] Add the Voices group's voice model row and the "one mix" note to JR/ui/TranscriptsSettingsScreen.kt (contracts/ui.md), offered only on phones with the memory (the note is the group's own and the footer, always shown; not tied to the last call)
+- [X] T026 [US1] Copy and share write "Voice 1:" / "Voice 2:" (FR-014), in the transcript's share and copy code (done in T012: both go through SummaryRunner.linesOf)
+- [X] T027 [P] [US1] Screen tests in JRT/ui/screens/: the transcript with Voice 1 / Voice 2 and the voice model row in its states; record with `-PrecordScreens=true` and look at every PNG
+- [X] T028 [US1] Accuracy test JRA/transcribe/VoiceAccuracyTest.kt: Telegram recordings on the phone, channels mixed to one in memory, scored against the 10 dB frames (quickstart); run with `am instrument` on the A24, including a 20-30 min call; record results in V4/V5 and check SC-001 (95%)
 - [ ] T029 [US1] On the A24 with the user: a real two-person phone call shows two voices matching what was said; from the app's log, the voice step's time (at most half the call, SC-003) and peak memory (under 500 MB, SC-004); a messenger call transcribed before and after comes out the same (SC-006); record what was measured in V5
 
 **Checkpoint**: US1 complete; commit.

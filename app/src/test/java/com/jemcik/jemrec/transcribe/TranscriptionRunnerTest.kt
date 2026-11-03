@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.room.Room
 import com.jemcik.jemrec.transcripts.TranscriptRepository
+import com.jemcik.jemrec.transcripts.VoiceSource
 import com.jemcik.jemrec.transcripts.db.TranscriptDatabase
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -50,6 +51,7 @@ class TranscriptionRunnerTest {
     private fun runner(
         levels: Pair<DoubleArray, DoubleArray>?,
         detected: Map<Channel, List<Pair<String, Double>>> = emptyMap(),
+        voices: VoiceTeller? = null,
         output: (List<Channel>) -> List<TranscriptSegment>,
     ) =
         TranscriptionRunner(
@@ -69,6 +71,7 @@ class TranscriptionRunnerTest {
             setupMs = { 2_000 },
             clock = { clockMs },
             now = { 42 },
+            voices = voices,
         )
 
     private fun request(sides: Sides = Sides.AUTO, language: String? = "no") =
@@ -96,6 +99,44 @@ class TranscriptionRunnerTest {
         runner(same, output = ::sideLines).run(request())
         assertEquals(listOf(listOf(Channel.MIX)), asked)
         assertEquals(listOf(Speaker.NONE), repo.load("a.ogg")!!.lines.map { it.speaker })
+    }
+
+    /** A teller that splits the one line into Voice 1 and Voice 2, and notes what it was given. */
+    private val told = mutableListOf<List<TranscriptSegment>>()
+    private val twoVoices = VoiceTeller { _, _, lines, _ ->
+        told += lines
+        VoiceResult(
+            listOf(lines.single().copy(endMs = 1000, text = "hei", speaker = Speaker.VOICE1), lines.single().copy(startMs = 1000, text = "hallo", speaker = Speaker.VOICE2)),
+            VoiceSource.VOICES, "voices-test", emptyList(),
+        )
+    }
+
+    /** The voices of a one-mix call are told apart after its lines are saved, and replace them. */
+    @Test fun oneMixGetsItsVoicesTold() = runBlocking {
+        val same = apart.first to apart.first.copyOf()
+        assertEquals(RunOutcome.Done(1), runner(same, voices = twoVoices, output = ::sideLines).run(request()))
+        assertEquals(listOf(listOf("linje MIX")), told.map { lines -> lines.map { it.text } })
+        val t = repo.load("a.ogg")!!
+        assertEquals(listOf(Speaker.VOICE1, Speaker.VOICE2), t.lines.map { it.speaker })
+        assertEquals(VoiceSource.VOICES, t.facts.voiceSource)
+    }
+
+    /** A call with two channels has its names: the voice step is not run (SC-006). */
+    @Test fun sidesApartNeverReachTheVoiceStep() = runBlocking {
+        runner(apart, voices = twoVoices, output = ::sideLines).run(request())
+        assertTrue(told.isEmpty())
+        assertEquals(VoiceSource.CHANNELS, repo.load("a.ogg")!!.facts.voiceSource)
+    }
+
+    /** Not told apart, or failing: the transcript stays as saved, unnamed - never lost. */
+    @Test fun aVoiceStepThatGivesNothingOrFailsLeavesTheLinesUnnamed() = runBlocking {
+        val same = apart.first to apart.first.copyOf()
+        runner(same, voices = { _, _, _, _ -> null }, output = ::sideLines).run(request())
+        assertEquals(listOf(Speaker.NONE), repo.load("a.ogg")!!.lines.map { it.speaker })
+        val outcome = runner(same, voices = { _, _, _, _ -> error("model would not load") }, output = ::sideLines).run(request())
+        assertEquals(RunOutcome.Done(1), outcome)
+        assertEquals(listOf(Speaker.NONE), repo.load("a.ogg")!!.lines.map { it.speaker })
+        assertEquals(VoiceSource.NONE, repo.load("a.ogg")!!.facts.voiceSource)
     }
 
     @Test fun unreadableLevelsMeanTheMix() = runBlocking {

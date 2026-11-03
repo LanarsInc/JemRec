@@ -53,4 +53,18 @@ data class TranscriptSegment(
     val endMs: Long,
     val text: String,
     val speaker: Speaker = Speaker.NONE,
-)
+    /**
+     * The line's words with their start times, from the recording's start;
+     * kept only in memory, for one-mix calls, so a line two voices share can
+     * be cut where the voice changes (VoiceSeam). Empty everywhere else, and
+     * never saved.
+     */
+    val words: List<Word> = emptyList(),
+) {
+    /** The same line moved by [ms], its words with it. */
+    fun shiftedBy(ms: Long): TranscriptSegment =
+        copy(startMs = startMs + ms, endMs = endMs + ms, words = words.map { it.copy(startMs = it.startMs + ms) })
+}
+
+/** One word of a line and when it starts. */
+data class Word(val startMs: Long, val text: String)
