@@ -126,12 +126,12 @@ enum class Screen {
     // Reached from a recording, and back home.
     TRANSCRIPT,
     // Reached from Settings, and back to it.
-    WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME, WHEN_OFF, TRANSCRIPTS;
+    WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME, WHEN_OFF, TRANSCRIPTS, SALES_ENGINE;
 
     /** Where Back goes from here. */
     val up: Screen get() = when (this) {
         HOME, SETTINGS, TRANSCRIPT -> HOME
-        WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME, WHEN_OFF, TRANSCRIPTS -> SETTINGS
+        WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME, WHEN_OFF, TRANSCRIPTS, SALES_ENGINE -> SETTINGS
     }
 }
 
@@ -384,6 +384,9 @@ class MainViewModel @JvmOverloads constructor(
 
     /** The Transcript screen's state and actions (TranscriptsController). */
     val transcripts = TranscriptsController(app, viewModelScope)
+
+    /** Settings > Sales Engine: sign-in, notice, work line (SalesEngineController). */
+    val salesEngine = SalesEngineController(app, viewModelScope)
 
     /**
      * Which recordings have a transcript, as the database changes: for the

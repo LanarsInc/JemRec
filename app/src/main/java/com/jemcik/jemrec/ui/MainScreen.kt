@@ -76,6 +76,7 @@ import kotlinx.coroutines.flow.conflate
 @Composable
 fun MainScreen(vm: MainViewModel = viewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val activity = LocalActivity.current
 
     // Re-checked every time the screen comes forward, not once when it is
     // created. Everything shown here lives outside this process - the daemon,
@@ -88,6 +89,11 @@ fun MainScreen(vm: MainViewModel = viewModel()) {
     // strategy.
     LifecycleResumeEffect(Unit) {
         vm.refreshSetup()
+        // The Sales Engine: a session under 7 days from its end is renewed
+        // while there is an activity for Credential Manager to use (§2.3),
+        // and calls the call log shows since are taken into the queue.
+        activity?.let(vm.salesEngine::renewIfDue)
+        vm.salesEngine.sweep()
         onPauseOrDispose { }
     }
 
@@ -162,7 +168,6 @@ fun MainScreen(vm: MainViewModel = viewModel()) {
     // Reset revokes this app's own permissions, and the system only applies
     // that once the app is out of the way. Closing is part of the operation,
     // not a courtesy.
-    val activity = LocalActivity.current
     LaunchedEffect(state.resetDone) {
         if (!state.resetDone) return@LaunchedEffect
         activity?.finishAndRemoveTask()
@@ -363,6 +368,7 @@ internal fun AppScaffold(state: UiState, vm: MainViewModel) {
                             Screen.ANSWERING_MACHINE -> AnsweringMachineScreen(state, vm)
                             Screen.WHEN_OFF -> WhenOffScreen(state, vm)
                             Screen.TRANSCRIPTS -> TranscriptsSettingsScreen(vm)
+                            Screen.SALES_ENGINE -> SalesEngineSettingsScreen(vm)
                             else -> SettingsScreen(state, vm)
                         }
                     }
@@ -428,6 +434,7 @@ internal fun AppHeader(state: UiState, vm: MainViewModel, panel: (@Composable ()
             Screen.TRASH -> "Recently deleted"
             Screen.TRANSCRIPT -> "Transcript"
             Screen.TRANSCRIPTS -> "Transcripts"
+            Screen.SALES_ENGINE -> "Sales Engine"
             Screen.THEME -> "Theme"
             Screen.WHEN_OFF -> "When JemRec is off"
             else -> "Settings"

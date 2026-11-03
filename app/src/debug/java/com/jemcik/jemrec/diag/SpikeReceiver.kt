@@ -604,6 +604,53 @@ class SpikeReceiver : BroadcastReceiver() {
                         report(appContext, "trash", "$name: listed=$listed trashed=$trashed$moved")
                     }
 
+                    // The Sales Engine (specs/002). A token LANARS issued by
+                    // hand on the stand (§2.3), so the API can be tried before
+                    // sign-in works: --es value <token> --ei int <user id> [--es name <name>].
+                    "crm-token" -> {
+                        val token = intent.getStringExtra("value").orEmpty()
+                        val store = com.jemcik.jemrec.crm.CrmSync.store(appContext)
+                        if (token.length != 40) {
+                            report(appContext, "crm-token", "a token is 40 characters")
+                        } else {
+                            store.saveTestToken(token, intent.getIntExtra("int", 1), intent.getStringExtra("name") ?: "Test token")
+                            report(appContext, "crm-token", "kept, prefix ${token.take(8)}; agree to the notice in Settings > Sales Engine")
+                        }
+                    }
+
+                    // The session and setup, never the token; and the queue's states.
+                    "crm-state" -> {
+                        val store = com.jemcik.jemrec.crm.CrmSync.store(appContext)
+                        val s = store.session()
+                        val calls = com.jemcik.jemrec.crm.db.CrmDatabase.of(appContext).calls().all()
+                        report(
+                            appContext, "crm-state",
+                            "state=${store.state} user=${s?.userId} prefix=${s?.tokenPrefix} notice=${store.noticeAcknowledged}/${store.noticeCurrent} " +
+                                "line=${store.workSubscriptionId} setupAt=${store.setupAtMs} lastCallLogId=${store.lastCallLogId} " +
+                                "calls=${calls.size} " + calls.joinToString(" ") { "[${it.id} ${it.localState} server=${it.serverId} content=${it.contentState} err=${it.lastError}]" },
+                        )
+                    }
+
+                    // What the call log's rows carry for the SIM, beside the phone's SIMs (research R4).
+                    "crm-lines" -> {
+                        val sims = com.jemcik.jemrec.crm.WorkLine.sims(appContext)
+                        val rows = mutableListOf<String>()
+                        appContext.contentResolver.query(
+                            android.provider.CallLog.Calls.CONTENT_URI,
+                            arrayOf(
+                                android.provider.CallLog.Calls.DATE,
+                                android.provider.CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME,
+                                android.provider.CallLog.Calls.PHONE_ACCOUNT_ID,
+                            ),
+                            null, null, "${android.provider.CallLog.Calls.DATE} DESC LIMIT 8",
+                        )?.use { c -> while (c.moveToNext()) rows += "${c.getLong(0)} ${c.getString(1)} id=${c.getString(2)}" }
+                        report(
+                            appContext, "crm-lines",
+                            "sims=" + sims.joinToString { "[sub=${it.subscriptionId} slot=${it.slot} icc=${it.iccId?.let { i -> "${i.take(6)}…${i.takeLast(4)} (${i.length})" }} country=${it.countryIso}]" } +
+                                " rows=" + rows.joinToString(" | "),
+                        )
+                    }
+
                     "demo" -> {
                         val on = intent.getBooleanExtra("on", false)
                         DemoRecordings.set(appContext, on)

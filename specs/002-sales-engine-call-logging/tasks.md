@@ -56,17 +56,17 @@ and screen tests for new screens.
 **Goal**: sign in, agree to the notice, choose the line, see the state, sign out.
 **Independent test**: on the stand (or with a debug token on the mock), Settings → Sales Engine shows "Connected as …"; sign out returns to "Not connected".
 
-- [ ] T018 [US1] `JR/crm/GoogleSignIn.kt`: Credential Manager with `GetSignInWithGoogleOption(BuildConfig.SALES_ENGINE_WEB_CLIENT_ID)` for the button and `GetGoogleIdOption(filterByAuthorizedAccounts = true, autoSelectEnabled = true)` for silent renewal; returns the ID token or a reason; never stores it (research R2)
-- [ ] T019 [US1] `JR/crm/CrmAccount.kt`: sign in (exchange, store session, compare user id with the stored one and drop queued calls of another person, FR-044), renew when `expiresAt` is under 7 days away (called when the main screen opens), sign out (`DELETE`, clear token, set `signedOutAt`), refusal messages of §2.2, `min_app_version` check
-- [ ] T020 [US1] `JR/crm/WorkLine.kt`: active subscriptions (name, carrier, last digits), chosen line, its `simCountryIso`, `matches(callLogRow)` trying subscription id, then ICCID, then single-SIM (research R4)
+- [X] T018 [US1] `JR/crm/GoogleSignIn.kt`: Credential Manager with `GetSignInWithGoogleOption(BuildConfig.SALES_ENGINE_WEB_CLIENT_ID)` for the button and `GetGoogleIdOption(filterByAuthorizedAccounts = true, autoSelectEnabled = true)` for silent renewal; returns the ID token or a reason; never stores it (research R2)
+- [X] T019 [US1] `JR/crm/CrmAccount.kt`: sign in (exchange, store session, compare user id with the stored one and drop queued calls of another person, FR-044), renew when `expiresAt` is under 7 days away (called when the main screen opens), sign out (`DELETE`, clear token, set `signedOutAt`), refusal messages of §2.2, `min_app_version` check
+- [X] T020 [US1] `JR/crm/WorkLine.kt`: active subscriptions (name, carrier, last digits), chosen line, its `simCountryIso`, `matches(callLogRow)` trying subscription id, then ICCID, then single-SIM (research R4)
 - [ ] T021 [US1] Measure on the A24 what the call log's `PHONE_ACCOUNT_ID` holds for SIM calls (debug diag op printing the last rows' component and id beside the subscription list); write the answer with device and date in research R4 and in `WorkLine.kt`'s comment
-- [ ] T022 [US1] `JR/crm/CrmSetup.kt`: notice fetch and acknowledge (409 -> refetch), `setupAt` set the first time sign-in, notice and line are all done; `state()` for the screen: not connected, needs notice, needs line, needs call-log permission, connected, needs sign-in, update required, blocked
-- [ ] T023 [P] [US1] `JR/ui/NoticeScreen.kt`: the server's text as given (title, intro, sections with paragraphs, bullet items, numbered items), **I agree** ([contracts/ui.md](contracts/ui.md))
-- [ ] T024 [US1] `JR/ui/SalesEngineSettingsScreen.kt`: account, notice, work line, what reaches the CRM (with the no-model / summaries-off warnings), permissions; row in `JR/ui/SettingsList.kt` with the state line; wired in `JR/ui/MainScreen.kt` and `JR/ui/MainViewModel.kt`
-- [ ] T025 [US1] Debug diag op `crm-token` (set a token and user by hand, §2.3) and `crm-state` (print session and setup, never the token) in `app/src/debug/java/com/jemcik/jemrec/diag/SpikeReceiver.kt`
-- [ ] T026 [P] [US1] Tests: `JRT/crm/CrmAccountTest.kt` (fake client: another user drops the queue, renewal window, each refusal), `JRT/crm/CrmSetupTest.kt` (state order, `setupAt` set once), `JRT/crm/WorkLineTest.kt` (matching rules)
-- [ ] T027 [US1] Screen tests in `JRT/ui/screens/SalesEngineScreenshots.kt`: settings in each state, notice, in the three looks; record, look at every PNG
-- [ ] T028 [US1] Commit "Sales Engine: sign in, notice and work line"
+- [X] T022 [US1] `JR/crm/CrmSetup.kt`: notice fetch and acknowledge (409 -> refetch), `setupAt` set the first time sign-in, notice and line are all done; `state()` for the screen: not connected, needs notice, needs line, needs call-log permission, connected, needs sign-in, update required, blocked
+- [X] T023 [P] [US1] `JR/ui/NoticeScreen.kt`: the server's text as given (title, intro, sections with paragraphs, bullet items, numbered items), **I agree** ([contracts/ui.md](contracts/ui.md))
+- [X] T024 [US1] `JR/ui/SalesEngineSettingsScreen.kt`: account, notice, work line, what reaches the CRM (with the no-model / summaries-off warnings), permissions; row in `JR/ui/SettingsList.kt` with the state line; wired in `JR/ui/MainScreen.kt` and `JR/ui/MainViewModel.kt`
+- [X] T025 [US1] Debug diag op `crm-token` (set a token and user by hand, §2.3) and `crm-state` (print session and setup, never the token) in `app/src/debug/java/com/jemcik/jemrec/diag/SpikeReceiver.kt`
+- [X] T026 [P] [US1] Tests: `JRT/crm/CrmAccountTest.kt` (fake client: another user drops the queue, renewal window, each refusal), `JRT/crm/CrmSetupTest.kt` (state order, `setupAt` set once), `JRT/crm/WorkLineTest.kt` (matching rules)
+- [X] T027 [US1] Screen tests in `JRT/ui/screens/SalesEngineScreenshots.kt`: settings in each state, notice, in the three looks; record, look at every PNG
+- [X] T028 [US1] Commit "Sales Engine: sign in, notice and work line"
 
 ## Phase 4: US2 - A work call lands on its deal by itself (P1) 🎯 MVP part 2
 

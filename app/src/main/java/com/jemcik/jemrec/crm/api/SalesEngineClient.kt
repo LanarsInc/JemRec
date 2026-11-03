@@ -90,9 +90,12 @@ class SalesEngineClient(
             if (body != null) {
                 connection.doOutput = true
                 connection.setRequestProperty("content-type", "application/json")
-                val bytes = body.toByteArray(Charsets.UTF_8)
-                connection.setFixedLengthStreamingMode(bytes.size)
-                connection.outputStream.use { it.write(bytes) }
+                // Buffered, not setFixedLengthStreamingMode: in streaming mode
+                // the JDK's connection answers a 401 with an HttpRetryException
+                // instead of the status and body, and a refused sign-in read as
+                // a network error (CrmAccountTest, 2026-11-03). Bodies are at
+                // most about 210 KB (§8), so buffering costs nothing.
+                connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
             }
             val status = connection.responseCode
             val text = (if (status >= 400) connection.errorStream else connection.inputStream)

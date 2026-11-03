@@ -40,15 +40,13 @@ class CrmSync(
     private suspend fun step(call: WorkCallEntry): Long? = null
 
     companion object {
-        fun of(context: Context): CrmSync {
-            val store = store(context)
-            return CrmSync(
-                CrmDatabase.of(context).calls(),
-                store,
-                SalesEngineClient(BuildConfig.SALES_ENGINE_URL, BuildConfig.VERSION_NAME, store::token),
-            )
-        }
+        fun of(context: Context): CrmSync = CrmSync(CrmDatabase.of(context).calls(), store(context), client(context))
 
         fun store(context: Context) = SessionStore(Prefs.of(context), KeystoreTokenSealer)
+
+        fun client(context: Context): SalesEngineClient {
+            val store = store(context)
+            return SalesEngineClient(BuildConfig.SALES_ENGINE_URL, BuildConfig.VERSION_NAME, store::token)
+        }
     }
 }
