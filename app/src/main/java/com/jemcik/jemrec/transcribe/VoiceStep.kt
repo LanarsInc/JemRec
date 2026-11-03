@@ -190,9 +190,21 @@ object VoiceStep {
             Log.w(TAG, "Could not load the voice model")
             return null
         }
+        // The mix whisper decoded, when it is kept (MixCache): no second decode of the call. Not for
+        // the accuracy test's own chunking, which whisper did not use.
+        val cache = MixCache.of(context)
+        val cached = if (targetChunkMs == ChunkPlan.TARGET_CHUNK_MS) cache.pieces(uri) else null
         val chunks = mutableListOf<VoiceLink.Chunk>()
         try {
-            for (chunk in plan) {
+            if (cached != null) for (piece in cached) {
+                if (shouldStop()) {
+                    Log.i(TAG, "Stopped; the lines stay unnamed")
+                    return null
+                }
+                val audio = cache.read(piece)
+                if (audio.isEmpty()) continue
+                chunks += tellChunk(ptr, AudioDecoder.DecodedRange(audio, piece.startMs), keepFromMs = piece.keepFromMs)
+            } else for (chunk in plan) {
                 if (shouldStop()) {
                     Log.i(TAG, "Stopped; the lines stay unnamed")
                     return null
@@ -217,7 +229,7 @@ object VoiceStep {
         val cosine = if (call.embeddings.size == 2) "%.2f".format(VoiceLink.cosine(call.embeddings[0], call.embeddings[1])) else "-"
         Log.i(
             TAG,
-            "${durationMs / 1000}s in ${plan.size} chunk(s), ${tookMs / 1000}s: " +
+            "${durationMs / 1000}s in ${cached?.size ?: plan.size} chunk(s) ${if (cached != null) "kept from the transcription" else "decoded again"}, ${tookMs / 1000}s: " +
                 "${call.embeddings.size} voice(s), ${call.speechMs(0) / 1000}s and ${call.speechMs(1) / 1000}s, cosine $cosine, " +
                 "peak ${peakRssMb()} MB",
         )

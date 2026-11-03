@@ -98,6 +98,8 @@ class TranscriptionWorker(context: Context, params: WorkerParameters) : Coroutin
             )
         } finally {
             ticker.cancel()
+            // The mix kept for the voice step is read by now, or will never be (MixCache).
+            MixCache.of(app).clear()
         }
 
         // The output never carries an input key. Every transcription joins one

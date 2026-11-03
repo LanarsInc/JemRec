@@ -13,6 +13,7 @@ import android.net.Uri
 import android.os.SystemClock
 import androidx.annotation.VisibleForTesting
 import android.util.Log
+import com.jemcik.jemrec.transcribe.model.VoiceModel
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -333,6 +334,9 @@ object TranscriptionEngine {
                     "(setup took ${lastSetupMs} ms)",
             )
 
+            // A one-mix call's decoded audio, kept for the voice step after it so the call is not
+            // decoded twice (MixCache); only while the voice model is there to use it.
+            val mixCache = if (Channel.MIX in channels && VoiceModel.isInstalled(context)) MixCache.of(context).also { it.start(uri) } else null
             val all = mutableListOf<TranscriptSegment>()
             for ((side, channel) in channels.withIndex()) plan.forEachIndexed { index, chunk ->
                 chunkIndex = side * plan.size + index
@@ -370,6 +374,10 @@ object TranscriptionEngine {
                 if (slice.audio.isEmpty()) {
                     Log.w(TAG, "Pass ${index + 1}/${plan.size} decoded no audio")
                     return@forEachIndexed
+                }
+                if (channel == Channel.MIX) {
+                    runCatching { mixCache?.put(index, slice.startMs, if (singlePass) 0L else chunk.keepFromMs, slice.audio) }
+                        .onFailure { Log.w(TAG, "Could not keep the mix for the voices: ${it.message}") }
                 }
 
                 // Bracketed as tightly as possible around the native call: outside it, the counter
