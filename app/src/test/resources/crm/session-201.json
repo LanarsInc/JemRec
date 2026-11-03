@@ -1,0 +1,23 @@
+{
+  "data": {
+    "token": "0123456789abcdef0123456789abcdef01234567",
+    "token_prefix": "01234567",
+    "expires_at": "2027-01-31T09:00:00.000Z",
+    "idle_timeout_days": 30,
+    "scopes": [
+      "calls:lookup",
+      "calls:write"
+    ],
+    "user": {
+      "id": 1000001,
+      "name": "Test Seller",
+      "email": "android-test@example.no",
+      "role": "member"
+    },
+    "notice": {
+      "version": "2026-11-02",
+      "acknowledged": false
+    },
+    "min_app_version": "1.4.0"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "client_call_id": "8e2f3a4b-5c6d-4e7f-9a81-223344556677",
+  "direction": "incoming",
+  "answered": false,
+  "phone": "40000001",
+  "presentation": "allowed",
+  "country_iso": "NO",
+  "started_at": "2026-11-03T10:00:00.000Z",
+  "duration_seconds": 0,
+  "outcome": "no_answer",
+  "deal_choice": "auto",
+  "transcript_expected": false
+}

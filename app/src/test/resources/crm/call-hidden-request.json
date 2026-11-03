@@ -1,0 +1,12 @@
+{
+  "client_call_id": "7d1e2f3a-4b5c-4d6e-8f70-112233445566",
+  "direction": "incoming",
+  "answered": true,
+  "phone": null,
+  "presentation": "restricted",
+  "started_at": "2026-11-03T09:00:00.000Z",
+  "duration_seconds": 95,
+  "outcome": "reached",
+  "deal_choice": "auto",
+  "transcript_expected": true
+}

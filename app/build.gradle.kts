@@ -137,7 +137,32 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        // The Sales Engine's address and Google's Web client id, from
+        // gradle.properties (specs/002-sales-engine-call-logging, research R11).
+        buildConfig = true
+    }
+
+    // The CRM a build talks to. Release always talks to production; debug to
+    // LANARS's test stand once its host is set, so debugging never writes on
+    // real deals. Empty values mean "not configured": the Sales Engine
+    // settings then say so instead of trying.
+    val salesEngineUrl = property("salesEngineUrl") as String
+    val salesEngineStandUrl = property("salesEngineStandUrl") as String
+    val salesEngineWebClientId = property("salesEngineWebClientId") as String
+    defaultConfig {
+        buildConfigField("String", "SALES_ENGINE_WEB_CLIENT_ID", "\"$salesEngineWebClientId\"")
+    }
+    buildTypes {
+        getByName("release") {
+            buildConfigField("String", "SALES_ENGINE_URL", "\"$salesEngineUrl\"")
+        }
+        getByName("debug") {
+            val url = salesEngineStandUrl.ifBlank { salesEngineUrl }
+            buildConfigField("String", "SALES_ENGINE_URL", "\"$url\"")
+        }
+    }
 
     externalNativeBuild {
         cmake {
@@ -338,6 +363,20 @@ dependencies {
     implementation("androidx.room:room-ktx:2.8.4")
     ksp("androidx.room:room-compiler:2.8.4")
     testImplementation("androidx.room:room-testing:2.8.4")
+
+    // Sign in with Google for the Sales Engine: its API takes only a Google
+    // ID token issued for LANARS's Web client (specs/002, research R2).
+    // Credential Manager is Google's current way to get one; the old
+    // GoogleSignInClient is deprecated. 1.6.0 is the latest stable (1.7 is
+    // alpha, 2026-11-03).
+    implementation("androidx.credentials:credentials:1.6.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.6.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.2.1")
+
+    // A real HTTP server in the JVM tests, to run the Sales Engine client
+    // against every body of the API document. Test only: the app itself
+    // talks with HttpURLConnection (research R1).
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.1")
 
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")

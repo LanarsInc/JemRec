@@ -1,0 +1,31 @@
+{
+  "data": {
+    "call": {
+      "id": 5013,
+      "client_call_id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+      "status": "pending",
+      "deal": null,
+      "activity_id": null,
+      "completed_planned_call": false,
+      "next_activity_id": null,
+      "callback_activity_id": null,
+      "content_status": "expected",
+      "pending_reason": "deal_not_candidate",
+      "candidates": [
+        {
+          "deal_id": 1000456,
+          "title": "Eksempel AS – nettside",
+          "org_name": "Eksempel AS",
+          "status": "open",
+          "stage_name": "Contact attempted",
+          "owner": {
+            "id": 1000001,
+            "name": "Test Seller"
+          },
+          "has_due_call": true
+        }
+      ],
+      "candidates_total": 1
+    }
+  }
+}

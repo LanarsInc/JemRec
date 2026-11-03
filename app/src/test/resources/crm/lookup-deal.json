@@ -1,0 +1,34 @@
+{
+  "data": {
+    "match": "deal",
+    "candidates": [
+      {
+        "deal_id": 1000456,
+        "title": "Eksempel AS – nettside",
+        "org_name": "Eksempel AS",
+        "status": "open",
+        "stage_name": "Contact attempted",
+        "owner": {
+          "id": 1000001,
+          "name": "Test Seller"
+        },
+        "has_due_call": true
+      },
+      {
+        "deal_id": 1000457,
+        "title": "Eksempel AS – app",
+        "org_name": "Eksempel AS",
+        "status": "lost",
+        "stage_name": "Proposal sent (fixed price)",
+        "owner": {
+          "id": 1000001,
+          "name": "Test Seller"
+        },
+        "has_due_call": false
+      }
+    ],
+    "candidates_total": 2,
+    "auto_deal_id": 1000456,
+    "suggested_deal_id": 1000456
+  }
+}

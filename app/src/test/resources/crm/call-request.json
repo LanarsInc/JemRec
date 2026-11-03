@@ -1,0 +1,20 @@
+{
+  "client_call_id": "3f1c2a9e-6b7d-4c1e-9a52-1d2e3f4a5b6c",
+  "direction": "outgoing",
+  "answered": true,
+  "phone": "+47 400 00 001",
+  "presentation": "allowed",
+  "country_iso": "no",
+  "started_at": "2026-11-03T08:14:05.123Z",
+  "duration_seconds": 184,
+  "outcome": "reached",
+  "deal_choice": "deal",
+  "deal_id": 1000456,
+  "chosen_by": "auto",
+  "next": {
+    "due_date": "2026-11-05",
+    "due_time": "10:00",
+    "subject": "Follow up offer"
+  },
+  "transcript_expected": true
+}

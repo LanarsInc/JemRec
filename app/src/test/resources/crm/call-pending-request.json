@@ -1,0 +1,13 @@
+{
+  "client_call_id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+  "direction": "outgoing",
+  "answered": true,
+  "phone": "+47 400 00 002",
+  "presentation": "allowed",
+  "country_iso": "no",
+  "started_at": "2026-11-03T08:05:00.000Z",
+  "duration_seconds": 75,
+  "outcome": "reached",
+  "deal_choice": "auto",
+  "transcript_expected": true
+}

@@ -1,0 +1,13 @@
+{
+  "client_call_id": "b15c6d7e-8f90-4a1b-8cd4-556677889900",
+  "direction": "outgoing",
+  "answered": true,
+  "phone": "+47 400 00 010",
+  "presentation": "allowed",
+  "country_iso": "no",
+  "started_at": "2026-11-03T11:30:00.000Z",
+  "duration_seconds": 120,
+  "outcome": "reached",
+  "deal_choice": "auto",
+  "transcript_expected": true
+}

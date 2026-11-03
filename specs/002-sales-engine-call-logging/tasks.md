@@ -30,11 +30,11 @@ and screen tests for new screens.
 
 ## Phase 1: Setup
 
-- [ ] T001 Add `androidx.credentials:credentials:1.6.0`, `androidx.credentials:credentials-play-services-auth:1.6.0`, `com.google.android.libraries.identity.googleid:googleid:1.2.1` and `testImplementation("com.squareup.okhttp3:mockwebserver:4.12.1")` in `app/build.gradle.kts`, each with a one-line why (research R1, R2)
-- [ ] T002 Add `salesEngineUrl=https://crm.lanars.no/api/v1`, `salesEngineStandUrl=` and `salesEngineWebClientId=` to `gradle.properties` with a comment; enable `buildFeatures.buildConfig` and expose them as `BuildConfig.SALES_ENGINE_URL` (debug: stand when set, else production; release: production) and `SALES_ENGINE_WEB_CLIENT_ID` in `app/build.gradle.kts` (research R11)
-- [ ] T003 [P] Copy every JSON body of the API document into `app/src/test/resources/crm/` as one file per example (`session-201.json`, `lookup-deal.json`, `lookup-no-org.json`, `lookup-internal.json`, `lookup-none.json`, `call-logged.json`, `call-pending.json`, the §6.2 one-liners, `deal-*.json`, `content-*.json`, `get-call.json`, `private.json`, `notice.json` with the cut items filled by invented ones, each error body of §11), named after the section
-- [ ] T004 Keep `READ_PHONE_STATE` in `app/src/main/AndroidManifest.xml` (drop its `tools:node="remove"`, comment why: the work line, research R4) and update the comment block that explains the removed permissions
-- [ ] T005 Confirm `./gradlew assembleDebug testDebugUnitTest lint` passes with the new dependencies (lint may flag the new permission: answer it in `app/lint.xml` only with a reason)
+- [X] T001 Add `androidx.credentials:credentials:1.6.0`, `androidx.credentials:credentials-play-services-auth:1.6.0`, `com.google.android.libraries.identity.googleid:googleid:1.2.1` and `testImplementation("com.squareup.okhttp3:mockwebserver:4.12.1")` in `app/build.gradle.kts`, each with a one-line why (research R1, R2)
+- [X] T002 Add `salesEngineUrl=https://crm.lanars.no/api/v1`, `salesEngineStandUrl=` and `salesEngineWebClientId=` to `gradle.properties` with a comment; enable `buildFeatures.buildConfig` and expose them as `BuildConfig.SALES_ENGINE_URL` (debug: stand when set, else production; release: production) and `SALES_ENGINE_WEB_CLIENT_ID` in `app/build.gradle.kts` (research R11)
+- [X] T003 [P] Copy every JSON body of the API document into `app/src/test/resources/crm/` as one file per example (`session-201.json`, `lookup-deal.json`, `lookup-no-org.json`, `lookup-internal.json`, `lookup-none.json`, `call-logged.json`, `call-pending.json`, the §6.2 one-liners, `deal-*.json`, `content-*.json`, `get-call.json`, `private.json`, `notice.json` with the cut items filled by invented ones, each error body of §11), named after the section
+- [X] T004 Keep `READ_PHONE_STATE` in `app/src/main/AndroidManifest.xml` (drop its `tools:node="remove"`, comment why: the work line, research R4) and update the comment block that explains the removed permissions
+- [X] T005 Confirm `./gradlew assembleDebug testDebugUnitTest lint` passes with the new dependencies (lint may flag the new permission: answer it in `app/lint.xml` only with a reason)
 
 ## Phase 2: Foundation (blocks every story)
 
