@@ -179,6 +179,8 @@ class CallMonitorService : Service() {
                         intent.getStringExtra(EXTRA_APP),
                     )
                     ACTION_CALL_ENDED -> {
+                        // Without call tracking this is the one news of a call's end (specs/002).
+                        runCatching { com.jemcik.jemrec.crm.CrmIntakeWorker.afterCall(applicationContext) }
                         if (intent.getBooleanExtra(EXTRA_TEST, false)) {
                             noteTestCall(intent.getLongExtra(EXTRA_STARTED, 0L), intent.getBooleanExtra(EXTRA_INCOMING, false))
                         }
@@ -454,6 +456,12 @@ class CallMonitorService : Service() {
                 // still holds the foreground (TranscriptionScheduler).
                 runCatching { TranscriptionScheduler.afterCall(this, outcome.name, outcome.uri, null) }
                     .onFailure { Log.w(TAG, "monitor: could not queue the transcript", it) }
+                // Its work call, if the Sales Engine has one, now has a recording (specs/002).
+                runCatching {
+                    com.jemcik.jemrec.crm.CallIntake.recordingSaved(
+                        this, com.jemcik.jemrec.crm.CallIntake.Saved(outcome.name, outcome.startMillis, outcome.incoming, outcome.message),
+                    )
+                }.onFailure { Log.w(TAG, "monitor: could not link the recording to its work call", it) }
                 // And while the daemon is plainly reachable, whether any
                 // earlier call went by unrecorded.
                 runCatching { MissedCalls.check(this) }

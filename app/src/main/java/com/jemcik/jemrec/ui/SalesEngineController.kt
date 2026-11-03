@@ -46,6 +46,8 @@ data class SalesEngineUi(
     val callLogAllowed: Boolean = false,
     /** Why the CRM will get calls without a summary, or null when it will get them. */
     val contentWarning: String? = null,
+    /** The work call whose sheet is open (CallSheet), from its notification or row. */
+    val sheetCall: Long? = null,
 )
 
 /**
@@ -138,8 +140,7 @@ class SalesEngineController(private val app: Application, private val scope: Cor
 
     /** Takes calls the call log shows since the last look, and sends what is due. */
     fun sweep() {
-        if (store.state == SessionStore.State.SIGNED_OUT || store.state == SessionStore.State.BLOCKED) return
-        CrmSyncWorker.now(app)
+        com.jemcik.jemrec.crm.CrmIntakeWorker.now(app)
     }
 
     fun signOut() = scope.launch {
@@ -156,6 +157,11 @@ class SalesEngineController(private val app: Application, private val scope: Cor
             is ApiResult.Failed -> _state.update { it.copy(busy = false, reading = false, message = failureLine(r.failure)) }
         }
     }
+
+    /** Opens a work call's sheet: its deal, Private, outcome and next call. */
+    fun openCall(id: Long) = _state.update { it.copy(sheetCall = id) }
+
+    fun closeCall() = _state.update { it.copy(sheetCall = null) }
 
     fun closeNotice() = run { if (!pinned) _state.update { it.copy(reading = false) } }
 

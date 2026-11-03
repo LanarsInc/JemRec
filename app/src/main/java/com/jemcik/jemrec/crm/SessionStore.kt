@@ -64,7 +64,12 @@ class SessionStore(private val prefs: SharedPreferences, private val sealer: Tok
     val lastUserId: Int?
         get() = if (prefs.contains(KEY_USER_ID)) prefs.getInt(KEY_USER_ID, 0) else null
 
-    fun saveSession(s: SessionData) = prefs.edit {
+    fun saveSession(s: SessionData) {
+        closeOutWindow()
+        saveSessionFields(s)
+    }
+
+    private fun saveSessionFields(s: SessionData) = prefs.edit {
         putString(KEY_TOKEN, sealer.seal(s.token))
         putString(KEY_TOKEN_PREFIX, s.tokenPrefix)
         putLong(KEY_EXPIRES, s.expiresAtMs)
@@ -79,7 +84,12 @@ class SessionStore(private val prefs: SharedPreferences, private val sealer: Tok
     }
 
     /** A token set by hand on the stand (debug only, §2.3). */
-    fun saveTestToken(token: String, userId: Int, userName: String) = prefs.edit {
+    fun saveTestToken(token: String, userId: Int, userName: String) {
+        closeOutWindow()
+        saveTestTokenFields(token, userId, userName)
+    }
+
+    private fun saveTestTokenFields(token: String, userId: Int, userName: String) = prefs.edit {
         putString(KEY_TOKEN, sealer.seal(token))
         putString(KEY_TOKEN_PREFIX, token.take(8))
         putLong(KEY_EXPIRES, Long.MAX_VALUE)
@@ -95,6 +105,24 @@ class SessionStore(private val prefs: SharedPreferences, private val sealer: Tok
         remove(KEY_TOKEN)
         putString(KEY_STATE, State.SIGNED_OUT.name)
         putLong(KEY_SIGNED_OUT_AT, nowMs)
+    }
+
+    /**
+     * The stretches the seller was signed out on purpose: calls in them are
+     * never sent, even by a sweep after the next sign-in (FR-046). Kept as
+     * "from-to;from-to", the latest few.
+     */
+    fun outWindows(): List<LongRange> = prefs.getString(KEY_OUT_WINDOWS, null).orEmpty().split(';').mapNotNull { w ->
+        val (a, b) = w.split('-').takeIf { it.size == 2 } ?: return@mapNotNull null
+        val from = a.toLongOrNull() ?: return@mapNotNull null
+        val to = b.toLongOrNull() ?: return@mapNotNull null
+        from..to
+    } + listOfNotNull(signedOutAtMs?.let { it..Long.MAX_VALUE })
+
+    private fun closeOutWindow() {
+        val from = signedOutAtMs ?: return
+        val kept = prefs.getString(KEY_OUT_WINDOWS, null).orEmpty().split(';').filter { it.isNotBlank() }.takeLast(9)
+        prefs.edit { putString(KEY_OUT_WINDOWS, (kept + "$from-${System.currentTimeMillis()}").joinToString(";")) }
     }
 
     /** When the seller last signed out on purpose, if they are still out. */
@@ -159,6 +187,7 @@ class SessionStore(private val prefs: SharedPreferences, private val sealer: Tok
         private const val KEY_USER_EMAIL = "crm_user_email"
         private const val KEY_MIN_VERSION = "crm_min_app_version"
         private const val KEY_SIGNED_OUT_AT = "crm_signed_out_at"
+        private const val KEY_OUT_WINDOWS = "crm_out_windows"
         private const val KEY_NOTICE_ACKED = "crm_notice_acknowledged"
         private const val KEY_NOTICE_CURRENT = "crm_notice_current"
         private const val KEY_NOTICE_AT = "crm_notice_at"

@@ -1116,6 +1116,10 @@ class MainViewModel @JvmOverloads constructor(
                         play(recording)
                     }
                 }
+                // The Sales Engine's prompts: sign in again, read the new notice, update.
+                DeepLink.Kind.SALES_ENGINE -> showScreen(Screen.SALES_ENGINE)
+                // A work call's notification: its deal, Private, outcome and next call.
+                DeepLink.Kind.CRM_CALL -> link.name?.toLongOrNull()?.let(salesEngine::openCall)
                 // A finished transcript's notice: that call's Transcript screen.
                 DeepLink.Kind.TRANSCRIPT -> {
                     refreshNow()

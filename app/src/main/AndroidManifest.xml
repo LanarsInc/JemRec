@@ -312,6 +312,11 @@
             android:name=".capture.AfterCallReceiver"
             android:exported="false" />
 
+        <!-- Private on a work call's Sales Engine notification (CrmNotifications). -->
+        <receiver
+            android:name=".crm.CrmPrivateReceiver"
+            android:exported="false" />
+
         <!-- The Cancel on a transcription's or summary's notification (HeavyQueue). -->
         <receiver
             android:name=".transcribe.HeavyQueue$CancelReceiver"
