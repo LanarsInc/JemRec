@@ -90,12 +90,12 @@ and screen tests for new screens.
 **Goal**: picker, pending list, fresh candidates, Make private.
 **Independent test**: on the mock or stand, a two-deal call waits; picking the second logs it there; Make private on a not-in-CRM call answers `private`.
 
-- [ ] T040 [US3] `JR/ui/CallSheet.kt`: the deal part of the call sheet (radio rows with title, organisation, stage, won/lost chip, call-due mark; suggested preselected; Don't log; "N more deals: log this call in the web app"); **Log call** and **Private** / **Make private**
-- [ ] T041 [US3] `JR/ui/CallSheetActivity.kt` (theme like `RecordPromptActivity`, opened from the notification) and the same sheet from the Calls tab; registered in `app/src/main/AndroidManifest.xml`
-- [ ] T042 [US3] Pick and private actions in `JR/crm/CrmSync.kt`: `GET /calls/{id}` before showing a waited call's candidates (§7), `POST /deal`, `deal_not_candidate` -> show again with fresh candidates, `POST /private` for anything not logged, 409 on a logged call -> "edited in the web app" (§10)
-- [ ] T043 [US3] CRM mark on a work call's row in `JR/ui/CallRows.kt` and chip **Choose a deal** in `JR/ui/ListChips.kt` / `JR/ui/CallsScreen.kt` by the existing chip rule; state from `crm.db` in `JR/ui/MainViewModel.kt`
-- [ ] T044 [P] [US3] Tests: `JRT/crm/CrmSyncPickTest.kt` (pick logs, stale pick shows fresh list, Don't log -> declined, private, 409 on logged); screen tests for the sheet (one deal, several, more than five, after sending) and the Calls tab marks; record, look at every PNG
-- [ ] T045 [US3] Commit "Sales Engine: choosing the deal and keeping calls private"
+- [X] T040 [US3] `JR/ui/CallSheet.kt`: the deal part of the call sheet (radio rows with title, organisation, stage, won/lost chip, call-due mark; suggested preselected; Don't log; "N more deals: log this call in the web app"); **Log call** and **Private** / **Make private**
+- [X] T041 [US3] The sheet as a bottom sheet over the app (CallSheetHost in MainScreen), opened from the notification through a guarded deep link (DeepLink.Kind.CRM_CALL) and from the Calls tab - no activity of its own: one way in, the app's own look
+- [X] T042 [US3] Pick and private actions in `JR/crm/CrmSync.kt`: `GET /calls/{id}` before showing a waited call's candidates (§7), `POST /deal`, `deal_not_candidate` -> show again with fresh candidates, `POST /private` for anything not logged, 409 on a logged call -> "edited in the web app" (§10)
+- [X] T043 [US3] CRM mark under a work call's row and a card over the list for the calls waiting for a deal, in `JR/ui/CallsScreen.kt` and `JR/ui/CallSheet.kt` (a card rather than a chip: it names what to do, and the chips stay the Recordings tab's rule); state from `crm.db` (SalesEngineController.workCalls)
+- [X] T044 [P] [US3] Tests: `JRT/crm/CrmSyncPickTest.kt` (pick logs, stale pick shows fresh list, Don't log -> declined, private, 409 on logged); screen tests for the sheet (one deal, several, more than five, after sending) and the Calls tab marks; record, look at every PNG
+- [X] T045 [US3] Commit "Sales Engine: choosing the deal and keeping calls private"
 
 ## Phase 6: US6 - Nothing lost (P2)
 
@@ -128,10 +128,10 @@ and screen tests for new screens.
 **Goal**: outcome chips and a next call in the sheet.
 **Independent test**: on the mock or stand, "Call back" and a next call tomorrow 10:00 are in the step-1 body.
 
-- [ ] T060 [US5] Outcome chips and next call (date picker in Oslo dates from the call's Oslo date, optional time, subject up to 300) in `JR/ui/CallSheet.kt`; defaults: answered -> reached, else no answer; none for a missed incoming call (FR-025, FR-026)
-- [ ] T061 [US5] Outcome and next stored before step 1 and in the pick (`JR/crm/CrmSync.kt`); after step 1 the outcome is not resent (§6.3 ignores it)
-- [ ] T062 [P] [US5] Tests: bodies with outcome and next, Oslo date bounds; screen tests of the sheet with them; record, look at every PNG
-- [ ] T063 [US5] Commit "Sales Engine: outcome and next call"
+- [X] T060 [US5] Outcome chips and next call (date picker in Oslo dates from the call's Oslo date, optional time, subject up to 300) in `JR/ui/CallSheet.kt`; defaults: answered -> reached, else no answer; none for a missed incoming call (FR-025, FR-026)
+- [X] T061 [US5] Outcome and next stored before step 1 and in the pick (`JR/crm/CrmSync.kt`); after step 1 the outcome is not resent (§6.3 ignores it)
+- [X] T062 [P] [US5] Tests: bodies with outcome and next, Oslo date bounds; screen tests of the sheet with them; record, look at every PNG
+- [X] T063 [US5] Commit "Sales Engine: outcome and next call"
 
 ## Phase 9: Every place that describes it
 

@@ -242,6 +242,8 @@ internal fun AppScaffold(state: UiState, vm: MainViewModel) {
         ) { padding ->
             // Share's sheet, over whichever tab asked for it.
             if (ready) ShareSheets(state, vm)
+            // A work call's Sales Engine sheet, from its notification or its row.
+            if (ready) CallSheetHost(vm)
             // Settings keeps its place while a screen opened from it is up -
             // Recently deleted included, which is drawn by a different branch
             // below, so this lives above them all - and Back lands where the tap

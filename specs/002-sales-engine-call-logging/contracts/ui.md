@@ -62,11 +62,11 @@ Opened from Change/Choose, or from a call's row. A bottom sheet:
 
 ## Calls tab
 
-A work call's row gets a small CRM mark in its details line:
-"On Eksempel AS – nettside", "Choose a deal", "Not in CRM", "Private",
-"Sending...", "Not sent". A chip **Choose a deal** filters to the calls
-waiting for one (shown by the tab's existing rule). Tapping the mark opens
-the call sheet.
+A work call's row gets a line under it: "Sales Engine · On Eksempel AS –
+nettside", "Choose a deal" (in the error colour), "Not in the CRM",
+"Private: not sent", "Not sent ...". Over the list, a card says how many
+calls wait for a deal. Tapping either opens the call sheet. (A card, not
+the chip first planned: it says what to do.)
 
 ## Prompts that need the seller
 

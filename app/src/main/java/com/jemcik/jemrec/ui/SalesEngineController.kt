@@ -8,6 +8,7 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 import com.jemcik.jemrec.BuildConfig
 import com.jemcik.jemrec.crm.CrmAccount
+import com.jemcik.jemrec.crm.CrmActions
 import com.jemcik.jemrec.crm.CrmState
 import com.jemcik.jemrec.crm.CrmSync
 import com.jemcik.jemrec.crm.CrmSyncWorker
@@ -15,13 +16,19 @@ import com.jemcik.jemrec.crm.GoogleSignIn
 import com.jemcik.jemrec.crm.SessionStore
 import com.jemcik.jemrec.crm.WorkLine
 import com.jemcik.jemrec.crm.api.ApiFailure
+import com.jemcik.jemrec.crm.api.ApiModels
 import com.jemcik.jemrec.crm.api.ApiResult
 import com.jemcik.jemrec.crm.api.Notice
 import com.jemcik.jemrec.crm.db.CrmDatabase
+import com.jemcik.jemrec.crm.db.WorkCallEntry
 import com.jemcik.jemrec.summary.SummaryModel
 import com.jemcik.jemrec.transcribe.TranscribeSettings
 import com.jemcik.jemrec.transcribe.model.ModelRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,7 +54,7 @@ data class SalesEngineUi(
     /** Why the CRM will get calls without a summary, or null when it will get them. */
     val contentWarning: String? = null,
     /** The work call whose sheet is open (CallSheet), from its notification or row. */
-    val sheetCall: Long? = null,
+    val sheet: CallSheetUi? = null,
 )
 
 /**
@@ -159,9 +166,39 @@ class SalesEngineController(private val app: Application, private val scope: Cor
     }
 
     /** Opens a work call's sheet: its deal, Private, outcome and next call. */
-    fun openCall(id: Long) = _state.update { it.copy(sheetCall = id) }
+    fun openCall(id: Long) = scope.launch {
+        val calls = CrmDatabase.of(app).calls()
+        var c = calls.byId(id) ?: return@launch
+        _state.update { it.copy(sheet = CallSheetUi.of(c, loading = true)) }
+        // §7: a call that waited shows the deals as they are now.
+        if (CallSheetUi.isPending(c) && c.serverId != null) {
+            val fresh = withContext(Dispatchers.IO) { CrmSync.client(app).getCall(c.serverId!!) }
+            if (fresh is ApiResult.Ok) {
+                c = c.copy(serverJson = ApiModels.callJson(fresh.value).toString())
+                calls.update(c)
+            }
+        }
+        _state.update { it.copy(sheet = CallSheetUi.of(c, loading = false)) }
+    }
 
-    fun closeCall() = _state.update { it.copy(sheetCall = null) }
+    fun closeCall() = _state.update { it.copy(sheet = null) }
+
+    /** The seller's choice from the sheet: sent at once (CrmActions). */
+    fun choose(choice: CrmActions.Choice) = scope.launch {
+        val id = _state.value.sheet?.id ?: return@launch
+        CrmActions.choose(app, id, choice)
+        closeCall()
+    }
+
+    fun makePrivate() = scope.launch {
+        val id = _state.value.sheet?.id ?: return@launch
+        CrmActions.makePrivate(app, id)
+        closeCall()
+    }
+
+    /** Every work call, newest first, for the Calls tab's marks. */
+    val workCalls: StateFlow<List<WorkCallEntry>> = CrmDatabase.of(app).calls().watch()
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun closeNotice() = run { if (!pinned) _state.update { it.copy(reading = false) } }
 
