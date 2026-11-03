@@ -14,4 +14,10 @@
       per-grant content URI; swept when stale.
     -->
     <external-files-path name="shares" path="shares/" />
+    <!--
+      A transcript exported as text, Markdown, subtitles or JSON, written at
+      the moment of sharing (transcripts/export/TranscriptExportFile), the
+      folder emptied at each export. In the cache: it is a copy, not data.
+    -->
+    <cache-path name="exports" path="exports/" />
 </paths>

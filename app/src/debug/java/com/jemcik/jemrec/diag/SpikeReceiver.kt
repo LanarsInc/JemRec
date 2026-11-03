@@ -17,6 +17,21 @@ import com.jemcik.jemrec.capture.LastCallReport
 import com.jemcik.jemrec.ui.appVersion
 import com.jemcik.jemrec.capture.CallMonitorService
 import com.jemcik.jemrec.capture.RecorderKeepAlive
+import com.jemcik.jemrec.capture.Recordings
+import com.jemcik.jemrec.summary.LlamaNative
+import com.jemcik.jemrec.transcribe.VadModel
+import com.jemcik.jemrec.transcribe.WhisperNative
+import com.jemcik.jemrec.transcribe.model.ModelRepository
+import com.jemcik.jemrec.transcribe.model.ModelDownloadWorker
+import com.jemcik.jemrec.transcribe.model.SpeechModel
+import com.jemcik.jemrec.transcribe.TranscriptionWorker
+import com.jemcik.jemrec.transcribe.TranscriptionEngine
+import com.jemcik.jemrec.transcribe.LanguageGuess
+import com.jemcik.jemrec.transcribe.ModelChoice
+import com.jemcik.jemrec.transcribe.ReadyModel
+import com.jemcik.jemrec.transcribe.Channel
+import com.jemcik.jemrec.summary.SummaryModel
+import com.jemcik.jemrec.transcripts.TranscriptRepository
 import io.github.muntashirakon.adb.android.AdbMdns
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -170,6 +185,106 @@ class SpikeReceiver : BroadcastReceiver() {
                         val text = SelfTest.run(appContext).report
                         ResultFile.write(appContext, text)
                         report(appContext, "selftest", text)
+                    }
+
+                    // Whether the speech and language engines load on this
+                    // phone, and which CPU kernels ggml picked for it - its
+                    // feature line names them (DOTPROD, MATMUL_INT8). Plus
+                    // the VAD model and any models pushed by hand.
+                    "engines" -> {
+                        val libDir = appContext.applicationInfo.nativeLibraryDir
+                        val memory = android.app.ActivityManager.MemoryInfo().also {
+                            appContext.getSystemService(android.app.ActivityManager::class.java).getMemoryInfo(it)
+                        }
+                        val text = buildString {
+                            appendLine("whisper: ${runCatching { WhisperNative.systemInfo(libDir) }.getOrElse { "failed: $it" }}")
+                            appendLine("llama: ${runCatching { LlamaNative.systemInfo(libDir) }.getOrElse { "failed: $it" }}")
+                            appendLine("vad: ${VadModel.ensureExtracted(appContext) ?: "not unpacked"}")
+                            appendLine("memory: total ${memory.totalMem / 1_000_000} MB, available ${memory.availMem / 1_000_000} MB")
+                            appendLine("imported: ${ModelRepository.importedModels(appContext).joinToString { it.name }.ifEmpty { "none" }}")
+                        }
+                        report(appContext, "engines", text)
+                    }
+
+                    // Fetch a model by id, as the screen's Download does:
+                    //   --es op txmodel --es id small-q5_1
+                    "txmodel" -> {
+                        val id = intent.getStringExtra("id").orEmpty()
+                        val model = SpeechModel.fromId(id) ?: SummaryModel.fromId(id)
+                        if (model == null) report(appContext, "txmodel", "no model '$id'")
+                        else {
+                            ModelDownloadWorker.enqueue(appContext, model, wifiOnly = false)
+                            report(appContext, "txmodel", "queued ${model.id}, ${model.sizeBytes} bytes")
+                        }
+                    }
+
+                    // Transcribe a recording, as the screen's Transcribe does,
+                    // the newest unless named: --es op transcribe [--es name <file>]
+                    "transcribe" -> {
+                        val all = Recordings.list(appContext)
+                        val name = intent.getStringExtra("name")
+                        val recording = if (name == null) all.maxByOrNull { it.name } else all.firstOrNull { it.name == name }
+                        if (recording == null) report(appContext, "transcribe", "no such recording")
+                        else {
+                            TranscriptionWorker.enqueue(appContext, recording.name, recording.uri, recording.caller)
+                            report(appContext, "transcribe", "queued ${recording.name}, ${recording.durationMillis} ms")
+                        }
+                    }
+
+                    // Cancel a recording's transcription, as the screen's Cancel does:
+                    //   --es op cancel --es name <file>
+                    "cancel" -> {
+                        val name = intent.getStringExtra("name").orEmpty()
+                        TranscriptionWorker.cancel(appContext, name)
+                        report(appContext, "cancel", "asked to stop $name")
+                    }
+
+                    // Only the language, as a call left to detect is read before it is
+                    // transcribed (LanguageGuess), on a model of choice or the one it would use:
+                    //   --es op detect --es name <file> [--es id turbo-q8_0]
+                    // Reported when done, after the broadcast has returned: it takes a minute.
+                    "detect" -> {
+                        val recording = Recordings.list(appContext).firstOrNull { it.name == intent.getStringExtra("name") }
+                        val id = intent.getStringExtra("id")
+                        val model = if (id == null) ModelChoice.speechModelFor(appContext, null).second
+                            else SpeechModel.fromId(id)?.let { m -> ModelRepository.pathFor(appContext, m)?.let { ReadyModel(m.id, m.label, it) } }
+                        if (recording == null || model == null) report(appContext, "detect", "no such recording or model")
+                        else CoroutineScope(Dispatchers.IO).launch {
+                            val sides = listOf(Channel.LEFT, Channel.RIGHT, Channel.MIX)
+                            val text = runCatching {
+                                TranscriptionEngine.detectLanguages(appContext, recording.uri, model.file.absolutePath, sides)
+                                    .entries.joinToString("\n") { (side, guesses) -> "$side ${LanguageGuess.decide(guesses) ?: "unsure"} $guesses" }
+                            }.getOrElse { "failed: ${it.message}" }
+                            report(appContext, "detect", "${recording.name} with ${model.id}\n$text")
+                        }
+                    }
+
+                    // Summarise a recording, as the screen's Summarise does:
+                    //   --es op summarise --es name <file>
+                    "summarise" -> {
+                        val name = intent.getStringExtra("name").orEmpty()
+                        com.jemcik.jemrec.summary.SummaryWorker.enqueue(appContext, name, null)
+                        report(appContext, "summarise", "queued $name")
+                    }
+
+                    // A recording's summary as stored. --es op summary --es name <file>
+                    "summary" -> {
+                        val name = intent.getStringExtra("name").orEmpty()
+                        val entry = TranscriptRepository.of(appContext).summary(name)
+                        report(appContext, "summary", entry?.let { "${it.modelId} ${it.language} ${it.wallMs} ms\n${it.json}" } ?: "none for $name")
+                    }
+
+                    // A transcript as stored: its facts and lines.
+                    //   --es op transcript [--es name <file>]
+                    "transcript" -> {
+                        val repo = TranscriptRepository.of(appContext)
+                        val name = intent.getStringExtra("name") ?: Recordings.list(appContext).maxByOrNull { it.name }?.name.orEmpty()
+                        val t = repo.load(name)
+                        report(
+                            appContext, "transcript",
+                            if (t == null) "none for $name"
+                            else "$name\n${t.facts}\n" + t.lines.joinToString("\n") { "${it.startMs}ms ${it.speaker}: ${it.text}" },
+                        )
                     }
 
                     // What Copy a report on Diagnostics copies (LastCallReport).

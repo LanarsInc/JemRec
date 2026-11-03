@@ -312,8 +312,11 @@ internal fun ChoiceRow(
                 buildAnnotatedString {
                     lines.forEachIndexed { index, (label, text) ->
                         if (index > 0) append("\n")
-                        withStyle(labelStyle) { append(label) }
-                        append(" ")
+                        // A line with no label is the text alone, not indented by the space after one.
+                        if (label.isNotEmpty()) {
+                            withStyle(labelStyle) { append(label) }
+                            append(" ")
+                        }
                         append(text)
                     }
                 },

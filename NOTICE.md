@@ -86,6 +86,31 @@ The GitHub mark on the website's APK button is GitHub's, as drawn in Primer
 Octicons (`mark-github`, MIT, Copyright GitHub, Inc.), used to link to GitHub
 as GitHub's logo guidelines allow. <https://github.com/primer/octicons>
 
+## whisper.cpp and llama.cpp
+
+Copyright (c) 2023-2026 The ggml authors, MIT licence. Built from the pinned
+submodules in `third_party/` into the app's native libraries, for transcripts
+and summaries on the phone. Text: `app/src/main/assets/licenses/MIT-ggml.txt`.
+<https://github.com/ggml-org/whisper.cpp>, <https://github.com/ggml-org/llama.cpp>
+
+## Silero VAD
+
+`app/src/main/assets/ggml-silero-v5.1.2.bin`, the voice-activity model that
+trims silence before transcription. Copyright (c) 2024 Silero Team, MIT
+licence <https://github.com/snakers4/silero-vad>; ggml conversion by ggml-org,
+MIT <https://huggingface.co/ggml-org/whisper-vad>. Text:
+`app/src/main/assets/licenses/MIT-silero-vad.txt`.
+
+## CallVault - code taken, licence to settle
+
+The transcription and summary code (`app/src/main/cpp/whisperjr.cpp`,
+`llamajr.cpp` and the `transcribe`, `summary` and `transcripts` packages) is
+taken from CallVault (madkongo/CallVault at `5cfa2c60`), which is GPL-3.0 with
+additional Section 7 terms. Those files keep CallVault's header. This is an
+internal fork and how it is licensed is still to be settled: until then, the
+Apache-2.0 line at the top does not cover these files.
+<https://github.com/madkongo/CallVault>
+
 ## ShizuCallRecorder - reference only, no code taken
 
 `kitsumed/ShizuCallRecorder` is GPL-3.0. It is a **reference for the approach

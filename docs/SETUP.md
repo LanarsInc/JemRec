@@ -468,6 +468,38 @@ nothing matches, it says so.
 It needs permission to read the call log, the same optional permission that
 puts names on recordings; the tab asks for it if you have not given it.
 
+## Transcripts and summaries
+
+The list button on a recording opens its **Transcript**: the call as text, made
+on the phone - the call never leaves it. The first time, JemRec offers to
+download the speech model, with its size; the phone then works for about as
+long as the call, with a notification and **Cancel**, and goes on with the
+screen off. Each line has the time it was said, and **You** or **Them** where
+the call's two sides are on the two channels - every messenger call, and phone
+calls on phones that keep them apart. A tap on a line plays the recording from
+there; a long press copies it.
+
+**The language.** JemRec finds it: each side's first minute is listened to
+before the call is transcribed, so a Norwegian call gets the model made for
+Norwegian, NB-Whisper, and two people speaking two languages each get theirs.
+Seventeen are offered. Settings → Transcripts can set one for every call
+instead, and **Change**, on a transcript, sets one for that call alone - worth
+it for a side of a few words, which is too little to tell.
+
+**Summary**, beside Transcript, writes why the call happened, what was said,
+and the points, decisions, things to do and facts, each with the time it was
+said - a tap goes to that line. It needs a second download, a language model,
+and a phone with 6 GB of memory or more; a phone with 8 GB gets a larger one.
+It is made from the transcript, so it can leave things out: check what matters.
+
+**Without asking** - Settings → Transcripts → When: **After each call**, the
+default once a model is downloaded, or **Overnight**, while charging, for the
+last 30 days' calls without one; a summary follows each transcript unless
+turned off. **Only when I ask** leaves it to the Transcript button. **Copy
+all** and **Export** (text, Markdown with the summary, SRT or VTT subtitles,
+JSON) are under a transcript, and the Recordings search finds words said in a
+call.
+
 ## Three looks
 
 **Settings → Theme** changes how JemRec looks, never what it does. **Memo**,

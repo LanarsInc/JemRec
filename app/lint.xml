@@ -71,12 +71,22 @@
       LocalDark), each caller's colour on the Calls tab (LocalCallerColours),
       the side panel's rows and player (LocalRowsSelectable, LocalPlayerHere),
       a bar's insets (LocalBarSides), the screen tests' invented waveforms
-      (LocalInventedLevels) and ButtonPair's shrinking labels
-      (LocalLabelsShrink). A NEW one is still reported, so it gets the same
-      thought before it is added here.
+      (LocalInventedLevels), ButtonPair's shrinking labels
+      (LocalLabelsShrink), and the words a search found in each recording's
+      transcript (LocalTextHits), which every look's row shows and none is
+      handed. A NEW one is still reported, so it gets the same thought before
+      it is added here.
     -->
     <issue id="ComposeCompositionLocalUsage">
         <option name="allowed-composition-locals"
-            value="LocalNow,LocalLook,LocalLookChoice,LocalDark,LocalCallerColours,LocalRowsSelectable,LocalPlayerHere,LocalBarSides,LocalInventedLevels,LocalLabelsShrink" />
+            value="LocalNow,LocalLook,LocalLookChoice,LocalDark,LocalCallerColours,LocalRowsSelectable,LocalPlayerHere,LocalBarSides,LocalInventedLevels,LocalLabelsShrink,LocalTextHits" />
     </issue>
+
+    <!--
+      The speech and language engines are built for arm64 only (abiFilters in
+      app/build.gradle.kts): their ARM kernels are why they run at phone speed,
+      and this fork goes to phones as an APK. A Chromebook runs arm64 apps
+      through its own translation, as this rule's own text says.
+    -->
+    <issue id="ChromeOsAbiSupport" severity="ignore" />
 </lint>

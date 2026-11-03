@@ -198,6 +198,7 @@ internal fun AppScaffold(state: UiState, vm: MainViewModel) {
     val ready = state.step == SetupStep.READY
     val offHome = ready && state.screen != Screen.HOME
     val inTrash = ready && state.screen == Screen.TRASH
+    val inTranscript = ready && state.screen == Screen.TRANSCRIPT
     val inDiagnostics = ready && state.screen == Screen.DIAGNOSTICS
     val selecting = ready && !offHome && state.selecting
 
@@ -218,7 +219,10 @@ internal fun AppScaffold(state: UiState, vm: MainViewModel) {
     val window = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.let { DpSize(it.width.toDp(), it.height.toDp()) } }
     val aside = ready && !offHome && headerAside(window.width.value.toInt(), window.height.value.toInt())
 
-    CompositionLocalProvider(LocalCallerColours provides state.callerColours) {
+    // The words around a match only while there is a search: folded away by
+    // its chip, the last search's hits would still hang under the rows.
+    val textHits = if (state.recordingsNarrowing.query.isBlank()) emptyMap() else state.text.hits
+    CompositionLocalProvider(LocalCallerColours provides state.callerColours, LocalTextHits provides textHits) {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbars) },
             topBar = {
@@ -328,6 +332,9 @@ internal fun AppScaffold(state: UiState, vm: MainViewModel) {
             } else if (inTrash) {
                 // A list too, with its own scroll, for the same reason.
                 TrashScreen(state, vm, modifier = Modifier.padding(padding))
+            } else if (inTranscript) {
+                // A list as well: a long call is hundreds of lines.
+                TranscriptScreen(state, vm, modifier = Modifier.padding(padding))
             } else {
                 Column(
                     modifier = Modifier
@@ -355,6 +362,7 @@ internal fun AppScaffold(state: UiState, vm: MainViewModel) {
                             Screen.DIAGNOSTICS -> DiagnosticsScreen(state, vm)
                             Screen.ANSWERING_MACHINE -> AnsweringMachineScreen(state, vm)
                             Screen.WHEN_OFF -> WhenOffScreen(state, vm)
+                            Screen.TRANSCRIPTS -> TranscriptsSettingsScreen(vm)
                             else -> SettingsScreen(state, vm)
                         }
                     }
@@ -418,6 +426,8 @@ internal fun AppHeader(state: UiState, vm: MainViewModel, panel: (@Composable ()
             Screen.DIAGNOSTICS -> "Diagnostics"
             Screen.ANSWERING_MACHINE -> "Answering machine"
             Screen.TRASH -> "Recently deleted"
+            Screen.TRANSCRIPT -> "Transcript"
+            Screen.TRANSCRIPTS -> "Transcripts"
             Screen.THEME -> "Theme"
             Screen.WHEN_OFF -> "When JemRec is off"
             else -> "Settings"

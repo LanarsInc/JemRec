@@ -10,6 +10,12 @@ Wireless debugging and starts a recorder that runs as the shell user
 
 - JDK 21 exactly - the daemon's bytes depend on it. Point `JEMREC_JAVA_HOME` at
   one if the default java is another.
+- Transcripts and summaries are native: whisper.cpp and llama.cpp are
+  submodules (`git submodule update --init`), built with NDK 28.2 and CMake
+  3.22.1, arm64 only. Models are downloaded by the app and never committed.
+  Their tests on a phone run with `adb shell am instrument`, never Gradle's
+  connected task, which uninstalls the app
+  ([docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#tests)).
 - The daemon's decisions live in plain Java (`AnswerMachine`, `CallStates`,
   `Checks`, ...) so they can be tested off the phone: keep Android out of them.
 - Screen tests compare against `app/src/test/screenshots`. After a meant change:
@@ -89,3 +95,9 @@ They must all say the same thing; a feature is not done until they do.
 - Check Material 3 and Android's docs before calling a UI pattern standard.
 - No runnable commands for steps that only hold after a merge.
 - One line of status before emulator or device work.
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan:
+[specs/001-transcripts-summaries/plan.md](specs/001-transcripts-summaries/plan.md)
+<!-- SPECKIT END -->

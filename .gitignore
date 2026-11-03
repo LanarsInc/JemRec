@@ -51,3 +51,7 @@ __pycache__/
 # The VoIP probe (shellserver/probe): a test tool, built by hand, never shipped
 /shellserver/probe/build/
 /shellserver/probe/voip-probe.jar
+
+# Speech and language models: hundreds of MB to GB, downloaded by the app,
+# never committed. (The Silero VAD .bin in assets is the one model that is.)
+*.gguf

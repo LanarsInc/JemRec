@@ -23,7 +23,7 @@ internal fun picked(selected: Set<String>, shown: List<String>): Picked = when {
  *  user cannot see. */
 internal fun stillShown(state: UiState): Set<String> {
     if (state.selected.isEmpty()) return state.selected
-    val shown = filterRecordings(state.recordings, state.recordingsNarrowing).map { it.name }.toSet()
+    val shown = filterRecordings(state.recordings, state.recordingsNarrowing, state.text).map { it.name }.toSet()
     return state.selected intersect shown
 }
 

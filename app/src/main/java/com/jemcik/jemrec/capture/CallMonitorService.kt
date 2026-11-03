@@ -13,6 +13,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import com.jemcik.jemrec.MainActivity
+import com.jemcik.jemrec.transcribe.TranscriptionScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -449,6 +450,10 @@ class CallMonitorService : Service() {
                 // them - not the recording's.
                 runCatching { AfterCall.saved(this, outcome, outcome.incoming, outcome.startMillis) }
                     .onFailure { Log.w(TAG, "monitor: after-call notice failed", it) }
+                // Transcribed now, if the user set that, while this service
+                // still holds the foreground (TranscriptionScheduler).
+                runCatching { TranscriptionScheduler.afterCall(this, outcome.name, outcome.uri, null) }
+                    .onFailure { Log.w(TAG, "monitor: could not queue the transcript", it) }
                 // And while the daemon is plainly reachable, whether any
                 // earlier call went by unrecorded.
                 runCatching { MissedCalls.check(this) }

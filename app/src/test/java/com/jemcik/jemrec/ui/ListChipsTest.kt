@@ -197,4 +197,33 @@ class ListChipsTest {
         val searching = CallsNarrowing(searchOpen = true, query = "olivia")
         assertEquals(CallsNarrowing(), searching.tapped(ListChip(ChipKind.SEARCH)))
     }
+
+    // ---- the Transcribed chip, and words said in the calls ----------------------------------------
+
+    private fun rec(name: String, caller: String) = com.jemcik.jemrec.capture.Recording(
+        name = name, uri = org.mockito.Mockito.mock(android.net.Uri::class.java), whenLabel = "", incoming = true, durationLabel = "1:00", sizeLabel = "1 MB", caller = caller,
+    )
+
+    @Test fun transcribedIsOfferedOnlyWhenSomeButNotAllAre() {
+        assertTrue(ChipKind.TRANSCRIBED in kinds(chips(ChipFacts(false, false, false, null, false, transcribed = true), facts())))
+        assertFalse(ChipKind.TRANSCRIBED in kinds(chips(facts(), facts())))
+    }
+
+    @Test fun transcribedLeavesTheTranscribed() {
+        val list = listOf(rec("a.ogg", "Ann"), rec("b.ogg", "Bo"))
+        val text = TextFacts(transcribed = setOf("b.ogg"))
+        val left = filterRecordings(list, RecordingsNarrowing().tapped(ListChip(ChipKind.TRANSCRIBED)), text)
+        assertEquals(listOf("b.ogg"), left.map { it.name })
+    }
+
+    /** A word said in a call finds it, though neither its caller nor its time has the word. */
+    @Test fun searchFindsWhatWasSaid() {
+        val list = listOf(rec("a.ogg", "Ann"), rec("b.ogg", "Bo"))
+        val text = TextFacts(hits = mapOf("b.ogg" to "kommer på \u0002fredag\u0003"))
+        assertEquals(listOf("b.ogg"), filterRecordings(list, RecordingsNarrowing(query = "fredag"), text).map { it.name })
+    }
+
+    @Test fun theCallsTabIgnoresTheTranscribedChip() {
+        assertEquals(CallsNarrowing(), CallsNarrowing().tapped(ListChip(ChipKind.TRANSCRIBED)))
+    }
 }

@@ -13,6 +13,13 @@ import com.jemcik.jemrec.capture.OpusOggWriter
 import com.jemcik.jemrec.capture.Recording
 import com.jemcik.jemrec.capture.Recordings
 import com.jemcik.jemrec.capture.Waveforms
+import com.jemcik.jemrec.transcribe.Speaker
+import com.jemcik.jemrec.transcribe.TranscriptSegment
+import com.jemcik.jemrec.transcripts.Transcript
+import com.jemcik.jemrec.transcripts.TranscriptFacts
+import com.jemcik.jemrec.transcripts.TranscriptRepository
+import com.jemcik.jemrec.transcripts.db.CallSummaryEntry
+import com.jemcik.jemrec.summary.CallSummary
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.ByteBuffer
@@ -73,7 +80,78 @@ internal object DemoRecordings {
         Recordings.override = if (on) { context -> recordings(context) } else null
         CallHistory.override = if (on) { context -> calls(context) } else null
         Waveforms.override = if (on) { name -> Waveforms.invented(name.hashCode().toLong()) } else null
+        TranscriptRepository.override = if (on) { name -> transcriptFor(name) } else null
+        TranscriptRepository.summaryOverride = if (on) { name -> summaryFor(name) } else null
     }
+
+    /** An invented summary for each invented transcript, in its language. */
+    private fun summaryFor(name: String): CallSummaryEntry? {
+        val transcript = transcriptFor(name) ?: return null
+        val norwegian = transcript.facts.language == "no"
+        val summary = if (norwegian) {
+            CallSummary(
+                intent = "Tegninger og pris for kjøkkenet",
+                summary = "Marcus har fått tegningene og liker kjøkkenet, men vinduet er tegnet feil vei. Du sender en ny versjon før fredag, og prisen står fast.",
+                keyPoints = listOf("[0:04] Vinduet er tegnet feil vei"),
+                decisions = listOf("[0:14] Prisen står fast på 48 000, inkludert montering"),
+                actionItems = listOf("[0:10] Du sender en ny versjon av tegningene før fredag"),
+                keyFacts = listOf("48 000 kroner", "Fredag"),
+            )
+        } else {
+            CallSummary(
+                intent = "Appointment moved",
+                summary = "The surgery has moved your appointment from Thursday to Friday at 9:10, as Dr Hale is away. Bring the letter and come ten minutes early.",
+                keyPoints = listOf("[0:06] Dr Hale is away on Thursday"),
+                decisions = listOf("[0:06] The appointment is now Friday at 9:10"),
+                actionItems = listOf("[0:16] Bring the letter", "[0:16] Arrive ten minutes early for the forms"),
+                keyFacts = listOf("Friday, 9:10", "Dr Hale"),
+            )
+        }
+        return CallSummaryEntry(name, "qwen3-1.7b-q4_k_m", transcript.facts.language, summary.toJson(), summary.searchableText(), 94_000, transcript.facts.createdAt)
+    }
+
+    /**
+     * Invented transcripts for two of the invented calls, so the Transcript
+     * screen has something to show: Olivia's with the two sides apart, as a
+     * messenger call or a split phone call comes out, and Marcus's WhatsApp
+     * call in Norwegian, this fork's language. A call is found by its time:
+     * the names are made from "now" each time the list is read, so they move.
+     */
+    private fun transcriptFor(name: String): Transcript? {
+        val at = runCatching { SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).parse(name.take(15))!!.time }.getOrNull() ?: return null
+        val call = CALLS.firstOrNull { kotlin.math.abs(System.currentTimeMillis() - it.minutesAgo * 60_000 - at) < 5 * 60_000 } ?: return null
+        val lines = DEMO_LINES[call.caller] ?: return null
+        val facts = TranscriptFacts(
+            modelId = if (call.caller == "Marcus Chen") "nb-small-q5_0" else "turbo-q8_0",
+            language = if (call.caller == "Marcus Chen") "no" else "en",
+            split = true,
+            audioMs = call.seconds * 1000L,
+            wallMs = call.seconds * 1100L,
+            loadMs = 1400,
+            threads = 6,
+            createdAt = at,
+        )
+        return Transcript(name, facts, lines.map { (ms, you, text) -> TranscriptSegment(ms, ms + 2500, text, if (you) Speaker.YOU else Speaker.THEM) })
+    }
+
+    /** Who said what and when: invented, as the calls are. */
+    private val DEMO_LINES = mapOf(
+        "Olivia Bennett" to listOf(
+            Triple(1_200L, false, "Hi, it's Olivia from the surgery."),
+            Triple(3_900L, true, "Hello! Is it about Thursday?"),
+            Triple(6_400L, false, "Yes - Dr Hale is away, so we've moved you to Friday at ten past nine."),
+            Triple(12_100L, true, "Friday works. Do I still need to bring the letter?"),
+            Triple(16_800L, false, "Please do, and come ten minutes early for the forms."),
+            Triple(21_300L, true, "Will do. Thanks for letting me know."),
+        ),
+        "Marcus Chen" to listOf(
+            Triple(900L, true, "Hei Marcus, har du fått tegningene?"),
+            Triple(4_200L, false, "Ja, i går kveld. Kjøkkenet ser bra ut, men vinduet er feil vei."),
+            Triple(10_500L, true, "Da sender jeg en ny versjon før fredag."),
+            Triple(14_800L, false, "Perfekt. Og prisen står fast på 48 000?"),
+            Triple(19_100L, true, "Ja, inkludert montering."),
+        ),
+    )
 
     /**
      * A silent call [seconds] long, for the player to play in the

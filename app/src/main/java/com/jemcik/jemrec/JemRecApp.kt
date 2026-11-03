@@ -2,6 +2,7 @@ package com.jemcik.jemrec
 
 import android.app.Application
 import android.util.Log
+import com.jemcik.jemrec.transcribe.TranscriptionScheduler
 import com.jemcik.jemrec.capture.BackgroundKill
 
 /**
@@ -27,6 +28,10 @@ class JemRecApp : Application() {
         Thread({
             runCatching { BackgroundKill.checkOwnRecords(app, "at process start") }
                 .onFailure { Log.w("JemRec", "backgroundkill: start check failed", it) }
+            // The overnight transcription job, as the setting says (WorkManager keeps it;
+            // this puts it right after an update or a setting changed while away).
+            runCatching { TranscriptionScheduler.apply(app) }
+                .onFailure { Log.w("JemRec", "transcripts: could not schedule", it) }
         }, "jemrec-startcheck").start()
     }
 }

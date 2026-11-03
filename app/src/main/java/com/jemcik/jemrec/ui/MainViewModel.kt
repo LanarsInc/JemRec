@@ -68,6 +68,7 @@ import com.jemcik.jemrec.capture.RecordingStore
 import com.jemcik.jemrec.capture.StartWithoutWifi
 import com.jemcik.jemrec.capture.Trash
 import com.jemcik.jemrec.capture.Waveforms
+import com.jemcik.jemrec.transcripts.TranscriptRepository
 import com.jemcik.jemrec.capture.Retention
 import com.jemcik.jemrec.capture.KeepMarks
 import com.jemcik.jemrec.capture.SelfTest
@@ -82,6 +83,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -108,6 +110,9 @@ private const val RECORDER_ELSEWHERE_MS = 30_000L
  *  which is as far back as anyone reads. */
 private const val LOG_LIMIT = 8_000
 
+/** How long typing has to pause before the calls' words are searched. */
+private const val TEXT_SEARCH_DELAY_MS = 250L
+
 /**
  * Which screen is showing.
  *
@@ -118,13 +123,15 @@ private const val LOG_LIMIT = 8_000
  */
 enum class Screen {
     HOME, SETTINGS,
+    // Reached from a recording, and back home.
+    TRANSCRIPT,
     // Reached from Settings, and back to it.
-    WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME, WHEN_OFF;
+    WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME, WHEN_OFF, TRANSCRIPTS;
 
     /** Where Back goes from here. */
     val up: Screen get() = when (this) {
-        HOME, SETTINGS -> HOME
-        WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME, WHEN_OFF -> SETTINGS
+        HOME, SETTINGS, TRANSCRIPT -> HOME
+        WHOSE_CALLS, MESSENGER_CALLS, DIAGNOSTICS, TRASH, ANSWERING_MACHINE, THEME, WHEN_OFF, TRANSCRIPTS -> SETTINGS
     }
 }
 
@@ -263,6 +270,8 @@ data class UiState(
     val recordings: List<Recording> = emptyList(),
     /** The Recordings tab's chips and search. */
     val recordingsNarrowing: RecordingsNarrowing = RecordingsNarrowing(),
+    /** Which recordings have a transcript, and which match the search by their words (TextFacts). */
+    val text: TextFacts = TextFacts(),
     /** The Calls tab's own chips and search. */
     val callsNarrowing: CallsNarrowing = CallsNarrowing(),
     /** What is in Recently deleted, soonest to go first. See Trash. */
@@ -373,6 +382,28 @@ class MainViewModel @JvmOverloads constructor(
     /** The answering machine's settings, greeting and diagnostics. */
     val answer = AnswerController(app, viewModelScope, ::say, initialAnswer, quiet = { controller?.pause() })
 
+    /** The Transcript screen's state and actions (TranscriptsController). */
+    val transcripts = TranscriptsController(app, viewModelScope)
+
+    /**
+     * Which recordings have a transcript, as the database changes: for the
+     * Transcribed chip. Started by the first refresh rather than here, so a
+     * view model made in a plain JVM test starts no coroutine.
+     */
+    private var watchingTranscribed: Job? = null
+
+    private fun watchTranscribed() {
+        if (watchingTranscribed != null) return
+        val app = getApplication<Application>()
+        watchingTranscribed = viewModelScope.launch {
+            runCatching {
+                TranscriptRepository.of(app).observeTranscribed().collect { set ->
+                    _state.update { it.copy(text = it.text.copy(transcribed = set)) }
+                }
+            }.onFailure { if (it !is CancellationException) Log.w("JemRec", "could not watch transcripts", it) }
+        }
+    }
+
     /** Failures of something the user just did, for a snackbar where they are:
      *  the log in Diagnostics is no place to learn that a share or a delete
      *  did not work. */
@@ -466,7 +497,16 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     /** One step back: a screen reached from Settings returns to it. */
-    fun back() = _state.update { it.copy(screen = it.screen.up) }
+    fun back() {
+        if (_state.value.screen == Screen.TRANSCRIPT) transcripts.close()
+        _state.update { it.copy(screen = it.screen.up) }
+    }
+
+    /** A recording's transcript, from the row's Transcript button. */
+    fun openTranscript(recording: Recording) {
+        transcripts.open(recording)
+        _state.update { it.copy(screen = Screen.TRANSCRIPT) }
+    }
 
     /** Switch tabs. Leaving Recordings ends a selection, which only means
      *  something there; arriving at Calls reads the call log. */
@@ -1073,6 +1113,12 @@ class MainViewModel @JvmOverloads constructor(
                         play(recording)
                     }
                 }
+                // A finished transcript's notice: that call's Transcript screen.
+                DeepLink.Kind.TRANSCRIPT -> {
+                    refreshNow()
+                    val recording = _state.value.recordings.firstOrNull { it.name == link.name }
+                    if (recording == null) tell("that recording is no longer there") else openTranscript(recording)
+                }
                 DeepLink.Kind.SELF_TEST -> {
                     MissedCalls.dismiss(app)
                     showScreen(Screen.DIAGNOSTICS)
@@ -1105,6 +1151,24 @@ class MainViewModel @JvmOverloads constructor(
         // can no longer see. Widening the query keeps everything, as it should.
         val next = current.copy(recordingsNarrowing = current.recordingsNarrowing.copy(query = query))
         next.copy(selected = stillShown(next))
+    }
+
+    /**
+     * The words said in the calls, searched for [query] a moment after typing
+     * stops: a full-text query per keystroke would run for every letter of a
+     * word. Called by the list as the query changes (LaunchedEffect), which
+     * cancels the call before when typing goes on.
+     */
+    suspend fun searchText(query: String) {
+        val hits = if (query.isBlank()) emptyMap() else {
+            delay(TEXT_SEARCH_DELAY_MS)
+            withContext(Dispatchers.IO) { TranscriptRepository.of(getApplication()).search(query) }
+        }
+        _state.update { current ->
+            if (current.recordingsNarrowing.query != query) return@update current
+            val next = current.copy(text = current.text.copy(hits = hits))
+            next.copy(selected = stillShown(next))
+        }
     }
 
     /** A chip of the Recordings tab tapped. Leaves a selection to the rows
@@ -1340,6 +1404,7 @@ class MainViewModel @JvmOverloads constructor(
 
     private suspend fun refreshNow() {
         val app = getApplication<Application>()
+        watchTranscribed()
         // Refreshes overlap - a resume, a save announced, a keep toggled - and
         // each reads the list, then waits on the recorder for seconds. One
         // started earlier and finishing later must not put back a list from
@@ -1552,7 +1617,12 @@ class MainViewModel @JvmOverloads constructor(
                 // invented calls, or none for want of the audio permission -
                 // every waveform would go, to be worked out again.
                 if (Recordings.override == null && now.canReadAudio) {
-                    Waveforms.prune(app, (now.recordings + now.trashed).map { it.name })
+                    val kept = (now.recordings + now.trashed).map { it.name }
+                    Waveforms.prune(app, kept)
+                    // A recording deleted for good takes its transcript and
+                    // summary with it, however it went (TranscriptRepository.prune).
+                    runCatching { TranscriptRepository.of(app).prune(kept) }
+                        .onFailure { Log.w("JemRec", "could not prune transcripts", it) }
                 }
                 for (recording in now.recordings) {
                     if (!isActive) break
@@ -1831,6 +1901,33 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Plays [recording] from [ms]: a transcript line's time. Starts it if it
+     * is not the one loaded, and keeps it playing if it is; unlike [play], it
+     * never pauses - a tap on a line means "from here".
+     */
+    fun playFrom(recording: Recording, ms: Long) {
+        if (inCall()) {
+            tell("a recording does not play during a call")
+            return
+        }
+        if (_state.value.playingName != recording.name) {
+            _state.update { it.copy(playingName = recording.name, playing = false, positionMs = ms.toInt(), durationMs = 0) }
+            loadWaveform(recording)
+        }
+        withController { c ->
+            if (c.currentMediaItem?.mediaId != recording.name) {
+                c.setMediaItem(mediaItem(recording), ms)
+                c.prepare()
+            } else {
+                if (c.playbackState == Player.STATE_IDLE) c.prepare()
+                c.seekTo(ms)
+            }
+            c.play()
+        }
+        _state.update { it.copy(positionMs = ms.toInt()) }
+    }
+
     fun seekTo(ms: Int) {
         controller?.seekTo(ms.toLong())
         _state.update { it.copy(positionMs = ms) }
@@ -2088,7 +2185,7 @@ class MainViewModel @JvmOverloads constructor(
     fun selectAllVisible() = _state.update { current ->
         // "All visible" means all that pass the search and preset - the same
         // rows the list is showing - not every recording on disk.
-        val visible = filterRecordings(current.recordings, current.recordingsNarrowing).take(current.visibleCount)
+        val visible = filterRecordings(current.recordings, current.recordingsNarrowing, current.text).take(current.visibleCount)
         current.copy(selected = visible.map { it.name }.toSet())
     }
 
@@ -2145,6 +2242,11 @@ class MainViewModel @JvmOverloads constructor(
     private fun tell(text: String) {
         say(text)
         _notices.tryEmit(text.replaceFirstChar { it.uppercase() })
+    }
+
+    /** A snackbar alone, not logged: confirmation of a small thing done, like a line copied. */
+    fun notice(text: String) {
+        _notices.tryEmit(text)
     }
 
     private fun say(text: String) {

@@ -25,6 +25,14 @@
 # WorkManager in the graph brings that Room, this says it here.
 -keep class * extends androidx.room.RoomDatabase { void <init>(); }
 
+# The same trap in WorkManager 2.9.1's own rules: `-keep class * extends
+# androidx.work.InputMerger`, no member clause, and WorkerWrapper builds the
+# merger by reflection - getDeclaredConstructor().newInstance() - for every
+# work it runs. Measured on the Galaxy A24, 2026-10-30, 0.26.0 shrunk: each
+# work died with NoSuchMethodException: OverwritingInputMerger.<init>, so no
+# model downloaded ("The download did not finish") and no transcription ran.
+-keep class * extends androidx.work.InputMerger { <init>(); }
+
 # Conscrypt's compatibility shims for Android 4.x name two platform-private
 # classes that no longer exist, and R8 refuses to build on an unresolved
 # reference unless told it is expected. These two are the whole list R8

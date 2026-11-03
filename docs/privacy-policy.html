@@ -42,13 +42,15 @@
   <h2>What it collects</h2>
   <p><strong>Nothing is sent anywhere.</strong> There is no backend to send it to.
      The developer cannot see your recordings, your contacts, your call history,
-     or that you use the app at all.</p>
+     your transcripts, or that you use the app at all.</p>
 
   <h2>What stays on the phone</h2>
   <p class="muted">Each row in short, then in full: open a row for the
      policy&rsquo;s own words, which are what counts.</p>
   <div class="datamap">
     <div class="datamap-head" aria-hidden="true"><span>Data</span><span>Where it lives</span><span>How long</span><span>When</span></div>
+    <details class="datum"><summary><span class="what">Transcripts and summaries</span><span class="chip where"><b>Where</b> the app&rsquo;s private storage</span><span class="chip long"><b>Kept</b> until the recording is deleted</span><span class="chip when if"><b>When</b> only if you transcribe a call</span></summary><p>Only for the calls you transcribe, or that a setting does: each line with its time and side, a summary if you ask for one, and a language you set for one call. Made on the phone and kept in a database in the app&rsquo;s private storage, in no backup; deleting a recording for good deletes its text, and so does uninstalling. Copy and Export hand it on only where you send it.</p></details>
+    <details class="datum"><summary><span class="what">Speech and summary models</span><span class="chip where"><b>Where</b> the app&rsquo;s private storage</span><span class="chip long"><b>Kept</b> until you delete them</span><span class="chip when if"><b>When</b> only if you download one</span></summary><p>Only the ones you download, from Hugging Face, on your tap: files that turn sound into text and text into a summary, the same for everyone. Nothing about you or your calls is sent to fetch them. Settings &rarr; Transcripts lists them with their size and Delete; uninstalling deletes them.</p></details>
     <details class="datum"><summary><span class="what">Call recordings</span><span class="chip where"><b>Where</b> Recordings/JemRec, or your folder</span><span class="chip long"><b>Kept</b> until you delete them</span><span class="chip when"><b>When</b> every recorded call</span></summary><p>The phone&rsquo;s <code>Recordings/JemRec</code> folder, or a folder you choose. Yours to play, share, move or delete like any other file. One deleted in JemRec waits 30 days in Recently deleted, then is removed: in the standard folder, Android&rsquo;s own trash does that; in a folder you chose, it waits as a hidden file that JemRec removes. <em>Delete all for good</em> removes them all at once, when you ask. Messages the answering machine took are recordings too; which ones are messages, and which you marked to keep, is kept by file name in the app&rsquo;s private storage, and written inside each recording as well, so that a reinstall still knows.</p></details>
     <details class="datum"><summary><span class="what">Caller colours</span><span class="chip where"><b>Where</b> the app&rsquo;s private storage</span><span class="chip long"><b>Kept</b> until you uninstall</span><span class="chip when if"><b>When</b> once you use Multitrack</span></summary><p>Only once you use the Multitrack look: which of its six colours each caller has, so a caller keeps theirs, also after you change the look. Kept by a one-way code worked out from the name, not the name itself, in the app&rsquo;s private storage, and in no backup. Uninstalling deletes it.</p></details>
     <details class="datum"><summary><span class="what">Your greeting</span><span class="chip where"><b>Where</b> the app&rsquo;s private storage, and the recorder</span><span class="chip long"><b>Kept</b> until you delete it</span><span class="chip when if"><b>When</b> only if you record one</span></summary><p>Only if you record one for the answering machine: in the app&rsquo;s private storage, and a copy the recorder plays from. Deleting it in the app deletes both, and so does uninstalling.</p></details>
@@ -73,12 +75,19 @@
      turned away. Nothing of it is kept: it goes when the recording stops.</p>
 
   <h2>Network use</h2>
-  <p>The app holds the <code>INTERNET</code> permission and uses no network. Android
-     requires that permission for <em>any</em> TCP socket, including one to
-     <code>127.0.0.1</code>, and the app&rsquo;s two sockets are both to the phone
-     itself: pairing with the phone&rsquo;s own Wireless debugging during setup, and
-     talking to its recorder afterwards. Neither reaches your router, let alone the
-     internet.</p>
+  <p>The app holds the <code>INTERNET</code> permission. Android requires it for
+     <em>any</em> TCP socket, including one to <code>127.0.0.1</code>, and the
+     app&rsquo;s own sockets are both to the phone itself: pairing with the
+     phone&rsquo;s own Wireless debugging during setup, and talking to its recorder
+     afterwards. Neither reaches your router, let alone the internet.</p>
+  <p>The one exception is a model for transcripts or summaries, and only when you
+     tap <em>Download</em>: the file is fetched from Hugging Face
+     (<code>huggingface.co</code>), over Wi-Fi only unless you switch that off,
+     and checked against its published digest. What is sent is the request for a
+     file that is the same for everyone; Hugging Face sees that this address
+     asked for it, as any site does. No recording, transcript, summary, contact
+     or anything else about you is sent, then or ever: the models run on the
+     phone.</p>
   <p><em>Start without Wi-Fi</em>, off until you switch it on, has the
      phone&rsquo;s own debugging service listen on port 5555 as well, so that the
      app can reach it at <code>127.0.0.1</code> with no Wi-Fi. The app still
