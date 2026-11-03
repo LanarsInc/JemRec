@@ -18,7 +18,7 @@ the phone sets itself up.
 [![Android](https://img.shields.io/badge/Android-12%2B%20(API%2031)-3DDC84)](#phones-and-android-versions)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.3.21-7F52FF)](https://kotlinlang.org)
 [![Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4)](https://developer.android.com/jetpack/compose)
-[![Tests](https://img.shields.io/badge/tests-1433-success)](docs/DEVELOPMENT.md#tests)
+[![Tests](https://img.shields.io/badge/tests-1508-success)](docs/DEVELOPMENT.md#tests)
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/memo/home-dark.png"><img src="docs/screenshots/memo/home.png" width="26%" alt="Memo: the recordings list"></picture>
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/deck/home-dark.png"><img src="docs/screenshots/deck/home.png" width="26%" alt="Deck: the recordings list"></picture>
@@ -160,7 +160,7 @@ are in [How JemRec works](docs/ARCHITECTURE.md#after-a-restart).
 | **Hear about problems** | A notification after each call, and one when a recording is silent, the recorder is down, a call went unrecorded, or the phone stopped JemRec or held it back in the background. A call that came out wrong? *Copy a report* in Diagnostics says how it was recorded, for an issue on GitHub. → [more](docs/ARCHITECTURE.md#after-the-call-and-when-something-is-wrong) |
 | **Answering machine** | Off until you switch it on. Answers a phone call you have not taken after 5 to 30 seconds - after two rings when Do Not Disturb would silence the caller - plays the greeting you recorded and keeps the message, by the same rules as recording. Take the call or hang up from its notification while they speak. It stands down for a day after you call an emergency number. A test call tells you whether it works on your phone. → [more](docs/ARCHITECTURE.md#the-answering-machine) |
 | **Open your banking app** | Some banking apps won't open while Developer options or debugging is on. Turning JemRec off can hide Developer options too, or switch all debugging off; turning it on puts back what it switched off - away from Wi-Fi too, with *Start without Wi-Fi*. Settings → When JemRec is off. → [more](docs/ARCHITECTURE.md#off-and-debugging-with-it) |
-| **Read a call, and its summary** | Transcribed on the phone - the call never leaves it - in 17 languages, each side's found by itself, Norwegian with a model made for it; each line marked You or Them where the call's two sides are apart, and a tap plays from there. A summary in English beside it, whatever the call's language: why the call happened, what was decided, what to do. After each call by default, overnight on the charger, or only when you ask; search the words said, copy, or export as text or subtitles. → [more](docs/ARCHITECTURE.md#transcripts-and-summaries) |
+| **Read a call, and its summary** | Transcribed on the phone - the call never leaves it - in 17 languages, each side's found by itself, Norwegian with a model made for it; each line marked You or Them where the call's two sides are apart; where a phone call comes out as one mix, its two voices told apart on the phone - You and Them once it knows your voice, Voice 1 and Voice 2 until then - and a tap plays from there. A summary in English beside it, whatever the call's language: why the call happened, what was decided, what to do. After each call by default, overnight on the charger, or only when you ask; search the words said, copy, or export as text or subtitles. → [more](docs/ARCHITECTURE.md#transcripts-and-summaries) |
 | **Log work calls in the Sales Engine** | For LANARS's sellers: sign in with your lanars.com or lanars.no account, agree to LANARS's notice, choose the work SIM. After each call on it the call goes to the right deal in the Sales Engine by itself - or you choose the deal, or tap Private within two minutes and nothing about it is sent. Missed calls too. Its transcript and an English summary follow once the phone has made them; the recording never leaves the phone. → [more](docs/ARCHITECTURE.md#the-sales-engine) |
 | **Three looks** | Memo, calm and simple; Deck, a pocket recorder with an LCD and a REC key; Multitrack, a sound editor with a colour for each caller. Each light, dark or as the phone, in Settings → Theme. → [more](docs/ARCHITECTURE.md#three-looks) |
 
@@ -238,13 +238,21 @@ Honor - so the answering machine's settings hold its own checks and a test call.
 
 ## Privacy and permissions
 
-- **No microphone permission.** The app never records; the recorder does the
-  capturing - calls, and your answering-machine greeting.
+- **The microphone for one thing only.** The recorder does the capturing -
+  calls, and your answering-machine greeting - and needs no permission for it.
+  The app asks for the microphone only when you tap Record under *Your voice*
+  (Settings → Transcripts), to hear you read a short text once.
+- **Your voice, as numbers.** To tell you apart in a phone call that comes
+  out as one mix, JemRec keeps a print of your voice: numbers that describe
+  it, from the text you read or, until then, from your side of your messenger
+  calls when it is plainly only you (you can switch that off). No sound is
+  kept and none can be played back from it; it is never sent or backed up,
+  and Delete removes it.
 - **Nothing leaves the phone but work calls** (below), and nothing is collected about you. *Copy a
   report* in Diagnostics puts how the last call was recorded on the clipboard,
   with no number, name or sound in it, only when you tap it. Transcripts and
-  summaries are made on the phone; the model that makes them is fetched from
-  Hugging Face when you tap Download.
+  summaries are made on the phone, and so is telling voices apart; the models
+  are fetched from Hugging Face when you tap Download.
 - **Work calls go to LANARS's Sales Engine, once you sign in to it** - and
   only those: calls on the work SIM you choose, from after you signed in. Each
   one's number, direction, time and length, then its transcript and an English
@@ -283,13 +291,14 @@ recorder does not explain is one its user has to guess at:
 | `ACCESS_NETWORK_STATE` | To tell whether there is Wi-Fi to rebuild the recorder over, instead of trying and failing. |
 | `WRITE_SECURE_SETTINGS` | Granted by the app to itself over its own ADB session. Nothing but a shell can grant it, so no user can be talked into it. It lets JemRec switch debugging back on when the phone turns it off, and off with JemRec when you ask it to. |
 | `POST_NOTIFICATIONS` | The recording notice, the ask-first prompt, the pairing code box. |
-| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE` | To stay alive while a call is being recorded and while the finished file is collected; while the recorder is restarted after a computer's cable comes out; and for the seconds it takes to warn that the phone stopped JemRec in the background. `SPECIAL_USE` is the honest type: the microphone type would need a microphone permission this app does not hold. |
+| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE` | To stay alive while a call is being recorded and while the finished file is collected; while the recorder is restarted after a computer's cable comes out; and for the seconds it takes to warn that the phone stopped JemRec in the background. `SPECIAL_USE` is the honest type: the microphone type is for a service that records from the microphone itself, and this one does not - the recorder does. |
 | `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | To play a recording on with the screen off, under the phone's media controls. It plays; it never records. |
 | `RECEIVE_BOOT_COMPLETED` | A reboot kills the recorder; this is what arms the job that rebuilds it. |
 | `READ_MEDIA_AUDIO` | To list recordings made before a reinstall. Refusing it only hides those. |
 | `READ_EXTERNAL_STORAGE` | Android 12 only, which has no `READ_MEDIA_AUDIO`: the same, to list recordings made before a reinstall. It covers photos and videos too; JemRec reads only its own folder. Refusing it only hides those. |
 | `READ_CALL_LOG`, `READ_CONTACTS` | Optional, but the Sales Engine needs the call log: each work call's number, time and length come from it. Otherwise the only way to know who a call was with: to label a recording, to name a file after the caller, to keep or leave out a call by who it was with, and, for the call log, to notice a call that went unrecorded. |
 | `READ_PHONE_STATE` | Only for the Sales Engine, asked when you choose the work line: Android lists the phone's SIMs only with it. |
+| `RECORD_AUDIO` | Since 1.1, only for *Your voice*: asked when you tap Record, to hear you read a short text once so your voice is known in phone calls that come out as one mix. The sound stays in memory and is dropped; what is kept is numbers describing your voice. Calls are recorded by the recorder, which needs nothing of this. |
 | `MANAGE_ONGOING_CALLS` | For exact call tracking. Not one an app can ask for: the daemon allows it, as the shell, while the switch is on. Android then tells JemRec when each call is answered and ends. Tracking never acts on a call; the answering machine's answering is the recorder's, as the shell. |
 | `USE_FULL_SCREEN_INTENT` | Lets the ask-first prompt last a minute instead of five seconds. Not auto-granted, and nothing is gated on it. |
 | `WAKE_LOCK` | So the keep-alive job can finish its few seconds of work, and so a phone with its screen off stays awake while it brings the recorder back after a USB cable, a minute and a half at most. WorkManager declares it too. |
@@ -345,10 +354,30 @@ No. The speech and summary models run on the phone; the only thing fetched
 is the model itself, once, from Hugging Face, when you tap Download. They are
 175 MB to 2.6 GB: Whisper small or large-v3-turbo, or NB-Whisper for
 Norwegian, and Qwen3 1.7B for summaries - Gemma 4 E2B as well on a phone with
-8 GB of memory. On a Galaxy A24 a short call took about as long again to
+8 GB of memory - and 42 MB more to tell voices apart in a phone call that
+comes out as one mix. On a Galaxy A24 a short call took about as long again to
 transcribe, and a summary a minute and a half to two. Set the call's language
 rather than leaving it to detection: left to guess, it once wrote Russian as
 English words nobody said.
+
+</details>
+
+<details>
+<summary><b>Who said what in a phone call that comes out as one mix?</b></summary>
+
+<br>
+
+On some phones - a Galaxy A24, a Pixel by one report - a phone call's two
+channels carry the same mix, so the channels cannot say who spoke. With the
+voice model downloaded (Settings → Transcripts → Voices), JemRec tells the two
+voices apart on the phone after the call is transcribed and marks each line
+Voice 1 or Voice 2, cutting a line where the voice changes. Once it knows your
+voice - from a short text you read once, or from your side of your messenger
+calls - your lines say You and the other person's Them; where it is not sure,
+it keeps Voice 1 and Voice 2 rather than guess, and you can say which one is
+you. On the A24 it was 98.6% right on a real conversation, and calls of one
+voice were left unnamed. A third person on the line is put with whichever of
+the two they sound more like.
 
 </details>
 
@@ -504,7 +533,7 @@ SDK with platforms 37 and 36, build-tools 36.0.0, NDK 28.2.13676358 and CMake
 
     git submodule update --init  # whisper.cpp and llama.cpp
     ./gradlew assembleDebug      # build
-    ./gradlew test               # 1433 tests, screenshots of the screens included
+    ./gradlew test               # 1508 tests, screenshots of the screens included
 
 | | |
 | --- | --- |

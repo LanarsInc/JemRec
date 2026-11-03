@@ -68,9 +68,11 @@ Notifications are not decoration here. They are how the app tells you a call is
 being recorded, how it asks whether to record one, and where you will type the
 pairing code in step 4.
 
-JemRec does **not** ask for microphone access and does not have it. The
-recording is done by a separate, more privileged helper that the app starts
-later; the app itself only collects the finished file.
+JemRec does **not** ask for microphone access to record calls. The recording is
+done by a separate, more privileged helper that the app starts later; the app
+itself only collects the finished file. It asks for the microphone once, later,
+only if you choose to record a short text so your voice is known in
+transcripts.
 
 **Then one question.** Before you switch anything on, JemRec says what stays
 on: USB debugging and Wireless debugging, for as long as it is installed,
@@ -479,6 +481,23 @@ the call's two sides are on the two channels - every messenger call, and phone
 calls on phones that keep them apart. A tap on a line plays the recording from
 there; a long press copies it.
 
+**Voice 1 and Voice 2.** Some phones - a Galaxy A24, a Pixel by one report -
+put both people of a phone call on both channels. With the **voice model**
+downloaded (Settings → Transcripts → Voices, 42 MB), JemRec tells the two
+voices apart after the call is transcribed: the lines appear first, then each
+is marked **Voice 1** or **Voice 2**, and a line where the voice changes is cut
+in two. Too little speech, or one voice, and nothing is marked. **Which one is
+you?** above the lines turns them into **You** and **Them** for that call;
+**Swap** and **Not marked** turn it round or undo it.
+
+**Your voice.** Settings → Transcripts → **Your voice** → read a short text
+aloud for half a minute, and from then on phone calls say **You** for your
+lines where your voice is clear in them, and keep Voice 1 and Voice 2 where it
+is not. JemRec asks for the microphone then, for that alone. Until you do,
+**Learn my voice from my calls** uses your side of messenger calls when it is
+plainly only you speaking; it can be switched off. What is kept is numbers that
+describe your voice, never sound; **Delete** removes it.
+
 **The language.** JemRec finds it: each side's first minute is listened to
 before the call is transcribed, so a Norwegian call gets the model made for
 Norwegian, NB-Whisper, and two people speaking two languages each get theirs.
@@ -774,7 +793,8 @@ works, with the time as each recording's headline.
 **Transcripts**
 
 - **Transcripts** — the calls' language, the speech and summary models, when
-  transcripts are made, and who spoke; see Transcripts and summaries.
+  transcripts are made, who spoke, and Voices: the voice model, your voice and
+  whether to learn it from your calls; see Transcripts and summaries.
 
 **Notifications and shortcuts**
 

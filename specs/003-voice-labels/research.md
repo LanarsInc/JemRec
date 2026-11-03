@@ -169,6 +169,35 @@ be measured before it is relied on marked **Measure**.
   than 0.6 cosine (one person heard twice): no names (FR-004). **Measure**
   the 0.6 on calls with one speaker (a voice menu, a voicemail) and with two.
 
+## V5b. In the app, end to end (T029, A24, 2026-11-03, debug build)
+
+- **11:44** (252 s, two synthetic voices speaking Norwegian, R16's call),
+  transcribed in the app with Whisper small, the app on screen: 431 s for
+  the transcript (language detection unsure: ru 0.48, so whisper went on
+  auto). Then the voice step: 147 s - 57 s of it decoding the call again,
+  about 89 s telling the voices apart (0.35 of the call's length). Two
+  voices, 108 s and 60 s, cosine 0.22: named Voice 1 and Voice 2 (no print
+  on the phone); 41 lines became 42, one cut at a turn.
+- **By content** (inferred, no channel truth for a phone call): from about
+  110 s the lines alternate as the conversation does - Voice 1 the tutor
+  ("Vil du at jeg sier enklere?", "Er det riktig forstått?", "Vi stopper
+  samtalen her"), Voice 2 the other voice ("Vil du ha neste punkt?", "Skal
+  vi ta neste...?"). The first 55 s are whisper's repeats of what it
+  misheard, all under Voice 1.
+- **Not met: SC-003** counts the whole step, and 147 s is 0.58 of the call,
+  over the 0.5 allowed - because the call is decoded a second time, 57 s on
+  its own on the A24 in a debug build. Handing the voice step the mix
+  whisper already decoded, chunk by chunk, would take that away; left for
+  a follow-up, measured here.
+- **Peak memory** was not measurable here: VmHWM is the process's lifetime
+  peak (1406 MB), which included an earlier whisper run; the engine alone
+  measured about 360 MB (V4).
+- **Running in the background is slow**: the same app transcribing 11:17
+  from a broadcast, with Android refusing the foreground service
+  ("startForegroundService() not allowed"), was at 39% after 48 minutes;
+  in the foreground 11:44 took 7 minutes. Not this feature's, but worth
+  knowing for after-call transcription started while the app is not seen.
+
 ## V6. Which voice is the owner's
 
 - **Decision**: the owner's print is an L2-normalised mean embedding of the

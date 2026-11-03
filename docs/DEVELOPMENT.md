@@ -65,7 +65,7 @@ server runs, so 21 is what CI installs and what `build.sh` insists on -
 
 ## Tests
 
-1433 JVM tests, no device needed - 1237 for the app and 196 for the daemon:
+1508 JVM tests, no device needed - 1312 for the app and 196 for the daemon:
 
     ./gradlew test
 
@@ -133,7 +133,16 @@ afterwards (and with it the models, and with the recorder up, debugging):
         com.jemcik.jemrec.test/androidx.test.runner.AndroidJUnitRunner
 
 `WhisperBridgeTest` checks the bridges (5 tests; it needs Whisper small on the
-phone). `SummaryFaithfulnessTest` and `ThreadsBenchmark` are measurements:
+phone), and `VoiceBridgeTest` the voice engine's (2; the model test needs the
+voice model's two files and a two-sided recording copied under the app's
+`files/voice-test/` with `run-as`, and is skipped without them).
+`VoiceAccuracyTest` is a measurement: with the same files and any number of
+the phone's own messenger recordings there, it mixes each to one, tells its
+voices apart, and scores them against the channels, in the app's 5-minute
+chunks and in 60 s ones - `voice-accuracy.txt`. Delete the copies after;
+never commit a recording. In LANARS's build the test package is
+`com.lanars.jemrec.test`, so its runner is
+`com.lanars.jemrec.test/androidx.test.runner.AndroidJUnitRunner`. `SummaryFaithfulnessTest` and `ThreadsBenchmark` are measurements:
 they write a report to the app's external files directory -
 `summary-faithfulness.txt`, every summary model's summary of three invented
 calls beside what is true in them, to be read for anything invented;

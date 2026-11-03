@@ -87,7 +87,7 @@ and screen tests for new screens.
 - [X] T026 [US1] Copy and share write "Voice 1:" / "Voice 2:" (FR-014), in the transcript's share and copy code (done in T012: both go through SummaryRunner.linesOf)
 - [X] T027 [P] [US1] Screen tests in JRT/ui/screens/: the transcript with Voice 1 / Voice 2 and the voice model row in its states; record with `-PrecordScreens=true` and look at every PNG
 - [X] T028 [US1] Accuracy test JRA/transcribe/VoiceAccuracyTest.kt: Telegram recordings on the phone, channels mixed to one in memory, scored against the 10 dB frames (quickstart); run with `am instrument` on the A24, including a 20-30 min call; record results in V4/V5 and check SC-001 (95%)
-- [ ] T029 [US1] On the A24 with the user: a real two-person phone call shows two voices matching what was said; from the app's log, the voice step's time (at most half the call, SC-003) and peak memory (under 500 MB, SC-004); a messenger call transcribed before and after comes out the same (SC-006); record what was measured in V5
+- [X] T029 [US1] On the A24 with the user: a real two-person phone call shows two voices matching what was said; from the app's log, the voice step's time (at most half the call, SC-003) and peak memory (under 500 MB, SC-004); a messenger call transcribed before and after comes out the same (SC-006); record what was measured in V5
 
 **Checkpoint**: US1 complete; commit.
 
@@ -155,13 +155,13 @@ and screen tests for new screens.
 
 **Purpose**: CLAUDE.md's "When a feature lands" list; all must say the same
 
-- [ ] T050 [P] README.md: the "What you can do" table, the FAQ (one-mix calls, the voice print), the phones table (A24, Pixel), the privacy and permission lines (microphone, the voice print), the tests badge and the developer section's test count
-- [ ] T051 [P] tools/build_site.py: FEATURES/FEATURE_ROWS (a row with a picture), FAQ, "Will it work on your phone?", HOW_BODY, the manual's SETUP blocks (Settings > Voices, Record your voice, the transcript's labels, the memory notice), PRIVACY_DATA (the voice print as new data kept, the microphone, and their chips); then run it
-- [ ] T052 [P] docs/ARCHITECTURE.md: a section "Who spoke in a one-mix call" with R16's and this feature's measurements, the contents line, the permission table (`RECORD_AUDIO`)
-- [ ] T053 [P] docs/DEVELOPMENT.md and tools/README.md: the third submodule, test counts, the voice accuracy test's run command, the emulator check
-- [ ] T054 [P] NOTICE.md and the About screen: sherpa-onnx, onnxruntime, pyannote segmentation-3.0, and the embedding model's attribution (T008)
-- [ ] T055 Bump versionCode/versionName in gradle.properties; write fastlane/metadata/android/en-US/changelogs/<versionCode>.txt (at most 500 characters) and update full_description.txt (at most 4000)
-- [ ] T056 Demo data: a one-mix recording with Voice 1 / Voice 2 and one with You/Them by print in app/src/debug/java/com/jemcik/jemrec/diag/DemoRecordings.kt; a new screen in `SCREENS` of tools/build_site.py and `LISTING_ORDER` of tools/shoot.py with a name that sorts last; then run tools/shoot.py on the phone
+- [X] T050 [P] README.md: the "What you can do" table, the FAQ (one-mix calls, the voice print), the phones table (A24, Pixel), the privacy and permission lines (microphone, the voice print), the tests badge and the developer section's test count
+- [X] T051 [P] tools/build_site.py: FEATURES/FEATURE_ROWS (a row with a picture), FAQ, "Will it work on your phone?", HOW_BODY, the manual's SETUP blocks (Settings > Voices, Record your voice, the transcript's labels, the memory notice), PRIVACY_DATA (the voice print as new data kept, the microphone, and their chips); then run it
+- [X] T052 [P] docs/ARCHITECTURE.md: a section "Who spoke in a one-mix call" with R16's and this feature's measurements, the contents line, the permission table (`RECORD_AUDIO`)
+- [X] T053 [P] docs/DEVELOPMENT.md and tools/README.md: the third submodule, test counts, the voice accuracy test's run command, the emulator check
+- [X] T054 [P] NOTICE.md and the About screen: sherpa-onnx, onnxruntime, pyannote segmentation-3.0, and the embedding model's attribution (T008)
+- [X] T055 Bump versionCode/versionName in gradle.properties; write fastlane/metadata/android/en-US/changelogs/<versionCode>.txt (at most 500 characters) and update full_description.txt (at most 4000)
+- [ ] T056 Demo data: a one-mix recording with Voice 1 / Voice 2 and one with You/Them by print in app/src/debug/java/com/jemcik/jemrec/diag/DemoRecordings.kt; a new screen in `SCREENS` of tools/build_site.py and `LISTING_ORDER` of tools/shoot.py with a name that sorts last; then run tools/shoot.py on the phone (demo data done: Priya's call shows Voice 1 and Voice 2; no new listing screen - the voices live in the Transcript screen and Settings, neither in SCREENS; shoot.py not run yet)
 - [ ] T057 Emulator check in tools/emulator_checks.py: a one-mix fixture of two synthetic voices made by the script gets Voice 1 / Voice 2 lines; run on the four AVDs two at a time, cold boot
 - [ ] T058 `./gradlew lint`, `./gradlew :daemon-tests:errorProne`, and every unit and screen test pass
 
