@@ -95,6 +95,8 @@ class SalesEngineController(private val app: Application, private val scope: Cor
         )
         if (state == CrmState.CONNECTED) {
             store.markSetUp(System.currentTimeMillis())
+            // Whatever the seller was asked to fix is fixed: the prompt goes, the queue goes on.
+            com.jemcik.jemrec.crm.CrmNotifications.cancelPrompt(app)
             CrmSyncWorker.now(app)
         }
         val session = store.session().takeIf { store.state != SessionStore.State.SIGNED_OUT }

@@ -102,12 +102,12 @@ and screen tests for new screens.
 **Goal**: offline, outages, sign-in, update, blocked, another person, 30 days.
 **Independent test**: three calls in flight mode reach the mock once each when the network returns.
 
-- [ ] T046 [US6] Outcomes of `ApiErrors` acted on in `JR/crm/CrmSync.kt`: backoff 1..60 min, `retry-after`, 401 -> NEEDS_SIGN_IN and hold, 403 notice -> hold and prompt, 426 -> hold everything, 409 duplicate -> adopt `GET /calls/{id}`, 400 `next` -> resend once without, future `started_at` -> 1 h, 404 call -> NOT_SENT, `forbidden` -> stop until sign-in
-- [ ] T047 [US6] Blocked device: delete `crm.db` and the session, stop, keep recordings and transcripts (FR-043) in `JR/crm/CrmAccount.kt`
-- [ ] T048 [US6] Too old: a call not sent 30 days after its start becomes NOT_SENT, shown on its row (FR-045)
-- [ ] T049 [US6] Prompts on the channel: "Sign in again", "Read the new notice", "Update JemRec", each opening the Sales Engine settings, in `JR/crm/CrmNotifications.kt`
-- [ ] T050 [P] [US6] Tests `JRT/crm/CrmSyncFailuresTest.kt` with MockWebServer: each outcome, a cut connection after the server stored the call (resend -> 200, one call), restart in the middle (state from `crm.db`), another person's sign-in drops the queue
-- [ ] T051 [US6] Commit "Sales Engine: calls wait and go once"
+- [X] T046 [US6] Outcomes of `ApiErrors` acted on in `JR/crm/CrmSync.kt`: backoff 1..60 min, `retry-after`, 401 -> NEEDS_SIGN_IN and hold, 403 notice -> hold and prompt, 426 -> hold everything, 409 duplicate -> adopt `GET /calls/{id}`, 400 `next` -> resend once without, future `started_at` -> 1 h, 404 call -> NOT_SENT, `forbidden` -> stop until sign-in
+- [X] T047 [US6] Blocked device: delete `crm.db` and the session, stop, keep recordings and transcripts (FR-043) in `JR/crm/CrmAccount.kt`
+- [X] T048 [US6] Too old: a call not sent 30 days after its start becomes NOT_SENT, shown on its row (FR-045)
+- [X] T049 [US6] Prompts on the channel: "Sign in again", "Read the new notice", "Update JemRec", each opening the Sales Engine settings, in `JR/crm/CrmNotifications.kt`
+- [X] T050 [P] [US6] Tests `JRT/crm/CrmSyncFailuresTest.kt` with MockWebServer: each outcome, a cut connection after the server stored the call (resend -> 200, one call), restart in the middle (state from `crm.db`), another person's sign-in drops the queue
+- [X] T051 [US6] Commit "Sales Engine: calls wait and go once"
 
 ## Phase 7: US4 - The transcript and an English summary follow (P2)
 
