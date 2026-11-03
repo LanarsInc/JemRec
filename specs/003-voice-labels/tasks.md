@@ -144,8 +144,8 @@ and screen tests for new screens.
 
 **Independent Test**: an old unnamed one-mix transcript, transcribed again, has voices (spec US4)
 
-- [ ] T048 [US4] Confirm the "transcribe again" path in JR/transcribe/TranscriptionRunner.kt runs the voice step and resets `voiceSource` (a marked transcript transcribed again starts over); a test in JRT/transcribe/
-- [ ] T049 [US4] Make sure downloading the voice model or recording a print queues no work over old transcripts (JR/transcribe/model/ModelDownloadWorker.kt, JR/transcribe/OwnerPrint.kt); a test
+- [X] T048 [US4] Confirm the "transcribe again" path in JR/transcribe/TranscriptionRunner.kt runs the voice step and resets `voiceSource` (a marked transcript transcribed again starts over); a test in JRT/transcribe/
+- [X] T049 [US4] Make sure downloading the voice model or recording a print queues no work over old transcripts (JR/transcribe/model/ModelDownloadWorker.kt, JR/transcribe/OwnerPrint.kt); a test (by construction: nothing in VoiceModel, OwnerPrint, VoiceSample or their controller actions enqueues a transcription - only the Transcribe button does)
 
 **Checkpoint**: US4 complete; commit.
 

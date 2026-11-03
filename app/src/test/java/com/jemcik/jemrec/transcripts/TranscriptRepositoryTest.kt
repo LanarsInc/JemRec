@@ -78,6 +78,18 @@ class TranscriptRepositoryTest {
         assertEquals(1, db.transcripts().search("hvordan").size)
     }
 
+    /** Transcribing a marked call again starts its voices over: the new lines are unnamed until told apart (US4). */
+    @Test fun transcribingAgainStartsTheVoicesOver() = runBlocking {
+        val mix = facts.copy(split = false)
+        repo.save("a.ogg", mix, listOf(line(0, "Hei", Speaker.NONE)))
+        repo.saveVoices("a.ogg", mix.createdAt, listOf(line(0, "Hei", Speaker.YOU)), VoiceSource.MARKED, "m")
+        repo.save("a.ogg", mix.copy(createdAt = 2), listOf(line(0, "Hei igjen", Speaker.NONE)))
+        val t = repo.load("a.ogg")!!
+        assertEquals(VoiceSource.NONE, t.facts.voiceSource)
+        assertEquals(listOf(Speaker.NONE), t.lines.map { it.speaker })
+        assertEquals(null, db.transcripts().transcript("a.ogg")!!.voiceModel)
+    }
+
     /** Voices for a transcript that has been made again since are dropped, not written over the new one. */
     @Test fun voicesForAnOlderTranscriptAreDropped() = runBlocking {
         val mix = facts.copy(split = false)
