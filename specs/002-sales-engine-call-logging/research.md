@@ -73,7 +73,11 @@ file is the how.
   string; older Samsung builds wrote the ICCID). The match tries the
   subscription id, then the ICCID (`SubscriptionInfo.iccId` needs
   `READ_PHONE_STATE` too), then, with one active SIM, any Telephony row.
-  Recorded here with device and date once measured.
+  **Measured on the Galaxy A24 (SM-A245F, Android 14), 2026-11-03**, one SIM
+  (KYIVSTAR, slot 0): every call-log row's `PHONE_ACCOUNT_ID` was `1`, the
+  SIM's subscription id (`dumpsys isub`: `subId=1`), with Telephony's own
+  component. So the first match holds there. Not yet seen: a phone with two
+  SIMs in, and the Honor.
 - **Messenger and other calling apps**: their call-log rows have another
   component (`VoipApps`, Google Meet through Telecom), so the component check
   excludes them (FR-015).

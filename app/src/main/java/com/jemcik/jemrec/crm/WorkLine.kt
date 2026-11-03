@@ -62,6 +62,7 @@ object WorkLine {
      * Which SIM is in `PHONE_ACCOUNT_ID`, and how, differs by phone - the
      * subscription id on AOSP, the ICCID on some Samsung builds - so both are
      * tried; with one SIM in the phone, any Telephony row is that SIM's.
+     * On a Galaxy A24 (Android 14, 2026-11-03) it was the subscription id.
      */
     fun matches(component: String?, accountId: String?, line: Sim, simCount: Int): Boolean {
         if (!CallLogLookup.isPhoneCall(component)) return false
