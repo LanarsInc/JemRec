@@ -38,7 +38,8 @@ object GoogleSignIn {
         data class Failed(val reason: String) : Result
     }
 
-    val configured: Boolean get() = BuildConfig.SALES_ENGINE_WEB_CLIENT_ID.isNotBlank()
+    /** This build knows where the Sales Engine is and which Google client to ask for (app/build.gradle.kts). */
+    val configured: Boolean get() = BuildConfig.SALES_ENGINE_URL.isNotBlank() && BuildConfig.SALES_ENGINE_WEB_CLIENT_ID.isNotBlank()
 
     /** The Sign in with Google button's flow: any Google account on the phone, or another. */
     suspend fun withButton(activity: Activity): Result =

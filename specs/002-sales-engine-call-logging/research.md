@@ -187,11 +187,17 @@ file is the how.
 
 ## R11. Configuration and the stand
 
-- **Decision**: `gradle.properties` holds `salesEngineUrl`
-  (`https://crm.lanars.no/api/v1`), `salesEngineStandUrl` and
-  `salesEngineWebClientId` (both empty until LANARS sends them); they become
-  `BuildConfig` fields (`buildFeatures.buildConfig = true`). Release uses
-  production; debug uses the stand when set, else production. A debug-only
+- **Decision** (revised 2026-11-03, at the user's ask for dev and prod
+  hosts set from the environment): two environments, dev (LANARS's test
+  stand) and prod, each with an address and a Web client id -
+  `salesEngineDevUrl`, `salesEngineDevWebClientId`, `salesEngineProdUrl`
+  (`https://crm.lanars.no/api/v1`), `salesEngineProdWebClientId`. Each is read
+  from an environment variable (`JEMREC_SALES_ENGINE_DEV_URL`, ...), then
+  `local.properties`, then a Gradle property, `gradle.properties` holding the
+  defaults; they become `BuildConfig` fields with `SALES_ENGINE_ENV`. Debug
+  builds use dev and release builds prod; `JEMREC_SALES_ENGINE_ENV=dev` makes
+  a release build for testers on the stand. An empty dev address never falls
+  back to production: the app says it is not set up and sends nothing. A debug-only
   diag op sets a token by hand (§2.3: LANARS can issue one) so the API can be
   tried before sign-in works.
 - `x-app-version` and `device.app_version` are `versionName`.

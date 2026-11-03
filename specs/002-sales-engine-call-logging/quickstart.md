@@ -40,7 +40,7 @@ emulator checks (`tools/emulator_checks.py`), on the Android 12, 13, 16 and
 Needs from LANARS: the stand's host, the Web client id, and a stand user for
 the tester (asked 2026-11-03).
 
-1. Debug build with `salesEngineStandUrl` and `salesEngineWebClientId` set.
+1. Debug build with the stand set: `JEMREC_SALES_ENGINE_DEV_URL` and `JEMREC_SALES_ENGINE_DEV_WEB_CLIENT_ID` (or the same keys in `local.properties`).
 2. Settings → Sales Engine: sign in, agree to the notice, choose the SIM.
 3. Call a number with one open deal, say nothing for 2 minutes: the call is
    on that deal in the web app, with direction, time and length.

@@ -1,5 +1,6 @@
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -144,24 +145,41 @@ android {
         buildConfig = true
     }
 
-    // The CRM a build talks to. Release always talks to production; debug to
-    // LANARS's test stand once its host is set, so debugging never writes on
-    // real deals. Empty values mean "not configured": the Sales Engine
-    // settings then say so instead of trying.
-    val salesEngineUrl = property("salesEngineUrl") as String
-    val salesEngineStandUrl = property("salesEngineStandUrl") as String
-    val salesEngineWebClientId = property("salesEngineWebClientId") as String
-    defaultConfig {
-        buildConfigField("String", "SALES_ENGINE_WEB_CLIENT_ID", "\"$salesEngineWebClientId\"")
+    // The CRM a build talks to: LANARS's test stand ("dev") or production
+    // ("prod"). Debug builds go to dev, so debugging never writes on real
+    // deals, and release builds to prod; JEMREC_SALES_ENGINE_ENV=dev makes a
+    // release build for testers that talks to the stand.
+    //
+    // Each value is read, first found wins, from: an environment variable
+    // (JEMREC_SALES_ENGINE_DEV_URL, ...), local.properties (salesEngineDevUrl
+    // and so on, never committed), then a Gradle property - -P, or
+    // ~/.gradle/gradle.properties, or this project's gradle.properties, where
+    // the defaults are. So a stand's host or a client id that is not to
+    // be committed goes in the environment or local.properties.
+    //
+    // An empty address or client id means "not configured": the Sales Engine
+    // settings then say so, and nothing is sent - an empty dev address never
+    // falls back to production.
+    val localProperties = Properties().apply {
+        rootProject.file("local.properties").takeIf { it.isFile }?.reader()?.use(::load)
+    }
+    fun salesEngine(key: String): String {
+        val env = "JEMREC_SALES_ENGINE_" + key.replace(Regex("([a-z])([A-Z])"), "$1_$2").uppercase()
+        return (System.getenv(env) ?: localProperties.getProperty("salesEngine$key")
+            ?: providers.gradleProperty("salesEngine$key").orNull ?: "").trim()
+    }
+    val forcedEnv = salesEngine("Env").lowercase()
+    require(forcedEnv in setOf("", "dev", "prod")) { "salesEngineEnv must be dev or prod, not '$forcedEnv'" }
+    fun salesEngineFields(type: com.android.build.api.dsl.ApplicationBuildType, defaultEnv: String) {
+        val env = forcedEnv.ifEmpty { defaultEnv }
+        val suffix = env.replaceFirstChar { it.uppercase() }
+        type.buildConfigField("String", "SALES_ENGINE_ENV", "\"$env\"")
+        type.buildConfigField("String", "SALES_ENGINE_URL", "\"${salesEngine("${suffix}Url")}\"")
+        type.buildConfigField("String", "SALES_ENGINE_WEB_CLIENT_ID", "\"${salesEngine("${suffix}WebClientId")}\"")
     }
     buildTypes {
-        getByName("release") {
-            buildConfigField("String", "SALES_ENGINE_URL", "\"$salesEngineUrl\"")
-        }
-        getByName("debug") {
-            val url = salesEngineStandUrl.ifBlank { salesEngineUrl }
-            buildConfigField("String", "SALES_ENGINE_URL", "\"$url\"")
-        }
+        getByName("release") { salesEngineFields(this, "prod") }
+        getByName("debug") { salesEngineFields(this, "dev") }
     }
 
     externalNativeBuild {

@@ -42,6 +42,8 @@ class CrmSync(
     private val client: SalesEngineClient,
     private val events: Events = Events.NONE,
     private val now: () -> Long = System::currentTimeMillis,
+    /** This build has an address to send to (app/build.gradle.kts); tests point it at their own server. */
+    private val configured: () -> Boolean = { BuildConfig.SALES_ENGINE_URL.isNotBlank() },
 ) {
 
     interface Events {
@@ -78,7 +80,8 @@ class CrmSync(
         next
     }
 
-    private fun sending(): Boolean = store.state == SessionStore.State.ACTIVE && store.noticeOk && store.token() != null
+    private fun sending(): Boolean =
+        configured() && store.state == SessionStore.State.ACTIVE && store.noticeOk && store.token() != null
 
     /** Does [call]'s next step if it is due; returns when it next needs attention. */
     private suspend fun step(call: WorkCallEntry): Long? {

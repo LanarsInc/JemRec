@@ -75,11 +75,21 @@ each endpoint, each failure §11 names, a connection cut after the server
 stored the call. `./gradlew testDebugUnitTest --tests 'com.jemcik.jemrec.crm.*'`
 runs those alone.
 
-Which server a build talks to is in `gradle.properties`: release always
-`salesEngineUrl` (production); debug `salesEngineStandUrl` once it is set,
-so debugging never writes on real deals. `salesEngineWebClientId` is the Web
-client id LANARS sends for Sign in with Google; empty, the Sales Engine
-settings say the build is not set up. Google gives a token only to the
+Which server a build talks to: debug builds go to LANARS's test stand
+(dev), release builds to production (prod), each with its own address and
+Web client id for Sign in with Google. The defaults are in
+`gradle.properties` (`salesEngineDevUrl`, `salesEngineDevWebClientId`,
+`salesEngineProdUrl`, `salesEngineProdWebClientId`); an environment variable
+or `local.properties` overrides each without a commit:
+
+    JEMREC_SALES_ENGINE_DEV_URL=https://<stand-host>/api/v1 \
+    JEMREC_SALES_ENGINE_DEV_WEB_CLIENT_ID=<id> ./gradlew assembleDebug
+
+`JEMREC_SALES_ENGINE_ENV=dev` makes a release build that talks to the stand,
+for testers. An empty address or client id means not set up: the Sales
+Engine settings say so and nothing is sent - an empty dev address never falls
+back to production. Debug builds show the stand's host in Settings > Sales
+Engine. Google gives a token only to the
 package and certificate LANARS registered: `com.lanars.jemrec` with the
 shared debug key `app/debug.keystore` or the release key. Before sign-in
 works, a token LANARS issues by hand on the stand can be set with the debug

@@ -87,7 +87,8 @@ class SalesEngineController(private val app: Application, private val scope: Cor
         if (line != null && store.workSubscriptionId == null) store.setWorkLine(line.subscriptionId)
         val callLog = granted(Manifest.permission.READ_CALL_LOG)
         val state = CrmState.of(
-            configured = GoogleSignIn.configured || store.session() != null,
+            // A build with no address sends nothing; one with no Google client id can still use a stand token set by hand.
+            configured = BuildConfig.SALES_ENGINE_URL.isNotBlank() && (GoogleSignIn.configured || store.session() != null),
             session = store.state,
             noticeOk = store.noticeOk,
             callLogAllowed = callLog,

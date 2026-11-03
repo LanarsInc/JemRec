@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jemcik.jemrec.BuildConfig
 import com.jemcik.jemrec.crm.CrmState
 import com.jemcik.jemrec.crm.api.Notice
 import java.text.DateFormat
@@ -192,6 +193,19 @@ internal fun SalesEngineSettingsContent(
         if (ui.state == CrmState.UPGRADE_REQUIRED) {
             SettingsGroup {
                 row { SettingsRow(title = "Update the app", summary = "The Sales Engine needs a newer version", icon = Icons.Filled.Info) }
+            }
+        }
+
+        if (BuildConfig.SALES_ENGINE_ENV == "dev") {
+            // A tester should never wonder which CRM their calls went to.
+            SettingsGroup("Server") {
+                row {
+                    SettingsRow(
+                        title = "LANARS's test stand",
+                        summary = BuildConfig.SALES_ENGINE_URL.ifBlank { "No address in this build" }.removePrefix("https://").substringBefore('/'),
+                        icon = Icons.Filled.Info,
+                    )
+                }
             }
         }
 

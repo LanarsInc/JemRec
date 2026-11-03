@@ -9,7 +9,7 @@ check can compare what the app sent with what it must send.
     python3 tools/sales_engine_mock.py [--port 8787] [--numbers numbers.json]
 
 An emulator reaches it at http://10.0.2.2:8787/api/v1 - build the debug app
-with salesEngineStandUrl set to that - and a phone over `adb reverse tcp:8787
+with JEMREC_SALES_ENGINE_DEV_URL set to that - and a phone over `adb reverse tcp:8787
 tcp:8787` at http://127.0.0.1:8787/api/v1. The app then needs a token: set one
 with the debug receiver's crm-token op (any 40 hex characters; this mock takes
 any token).

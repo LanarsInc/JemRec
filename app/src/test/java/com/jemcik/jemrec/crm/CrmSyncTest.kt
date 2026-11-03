@@ -28,7 +28,7 @@ abstract class CrmSyncTestBase {
         override fun needsSeller(state: SessionStore.State, noticeOutdated: Boolean) {
             seen += if (noticeOutdated) "notice" else state.name
         }
-    }) { bed.nowMs }
+    }, now = { bed.nowMs }, configured = { true })
 
     @Before
     fun signedIn() {
