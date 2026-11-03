@@ -264,6 +264,12 @@ android {
             // Robolectric's Android 16 sets up a file descriptor through a
             // JDK internal that Java 21 keeps closed unless asked.
             test.jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED")
+            // The JDK's HttpURLConnection, which the Sales Engine client's tests run
+            // on, quietly sends a POST again when a connection drops, and reads
+            // this once per process. Off, so each dropped connection in
+            // CrmSyncFailuresTest is one failure the queue sees. A repeat reaching
+            // the real server is harmless: client_call_id makes it the same call.
+            test.systemProperty("sun.net.http.retryPost", "false")
             // With -Pcoverage: Robolectric loads the app's classes through a
             // class loader of its own, which JaCoCo skips unless told - and
             // then the screens the screen tests draw count as never run.

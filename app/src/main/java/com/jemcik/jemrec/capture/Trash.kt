@@ -112,6 +112,9 @@ object Trash {
 
     /** Move one recording to the trash. Deleted means it is there now. */
     fun trash(context: Context, uri: Uri, filePath: String?, name: String): DeleteResult {
+        // Its transcript can no longer be made: the Sales Engine is told so, if
+        // this was a work call's recording whose texts had not gone (specs/002, FR-036).
+        com.jemcik.jemrec.crm.ContentHook.recordingDeleted(context, name)
         val expires = System.currentTimeMillis() + DAYS * DAY_MS
         filePath?.let { path ->
             val file = File(path)

@@ -83,11 +83,12 @@ class SummaryWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         // And none fails: a failed work fails everything queued behind it (HeavyQueue).
         HeavyQueue.forget(app, id)
         when (outcome) {
-            is SummaryOutcome.Done -> HeavyQueue.finished()
+            // A work call's texts go to the Sales Engine; a summary that cannot be made is "failed" there (specs/002).
+            is SummaryOutcome.Done -> HeavyQueue.finished().also { com.jemcik.jemrec.crm.ContentHook.summarised(app, recording) }
             SummaryOutcome.Stopped -> HeavyQueue.finished(KEY_ERROR to ERROR_STOPPED)
-            SummaryOutcome.NoTranscript -> HeavyQueue.finished(KEY_ERROR to ERROR_NO_TRANSCRIPT)
-            is SummaryOutcome.NoRoom -> HeavyQueue.finished(KEY_ERROR to ERROR_NO_ROOM)
-            is SummaryOutcome.Failed -> HeavyQueue.finished(KEY_ERROR to outcome.reason)
+            SummaryOutcome.NoTranscript -> HeavyQueue.finished(KEY_ERROR to ERROR_NO_TRANSCRIPT).also { com.jemcik.jemrec.crm.ContentHook.summaryFailed(app, recording) }
+            is SummaryOutcome.NoRoom -> HeavyQueue.finished(KEY_ERROR to ERROR_NO_ROOM).also { com.jemcik.jemrec.crm.ContentHook.summaryFailed(app, recording) }
+            is SummaryOutcome.Failed -> HeavyQueue.finished(KEY_ERROR to outcome.reason).also { com.jemcik.jemrec.crm.ContentHook.summaryFailed(app, recording) }
         }
     }
 

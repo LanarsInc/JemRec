@@ -84,7 +84,18 @@ object SummaryPrompt {
             // The line that was missing. A poor transcript is exactly when the model reaches for
             // English, so the instruction has to name that situation rather than describe the goal.
             "Never switch language because the transcript was hard to read."
-        ) + listOfNotNull(IN_ITS_OWN_WORDS[code?.lowercase()])
+        ) + listOfNotNull(
+            IN_ITS_OWN_WORDS[code?.lowercase()],
+            // Summaries are English whatever the call's language (FR-033, specs/002), so
+            // the model translates as it sums up; what must survive that word for word is
+            // what the CRM's readers act on.
+            if (code?.lowercase() == "en") {
+                "The call itself may be in another language. Write in English all the same, and " +
+                    "keep names, companies, products, figures, prices and dates exactly as they were said."
+            } else {
+                null
+            },
+        )
     }
 
     /**

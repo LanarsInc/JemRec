@@ -64,16 +64,19 @@ class SummaryRunnerTest {
         ),
     )
 
-    @Test fun aNorwegianCallIsSummarisedInNorwegianAndKept() = runBlocking {
+    /** In English since 1.0, whatever the call's language (FR-033, specs/002): the Sales Engine takes English. */
+    @Test fun aNorwegianCallIsSummarisedInEnglishAndKept() = runBlocking {
         transcript()
         val outcome = runner().run("a.ogg", "Priya Raman", SummaryModel.QWEN3_1_7B_Q4_K_M, "/m")
         assertTrue(outcome is SummaryOutcome.Done)
-        assertTrue(prompts.single().contains("Norwegian (Bokmål)"))
+        assertTrue(prompts.single().contains("write EVERY text field in English"))
+        assertTrue(prompts.single().contains("The call itself may be in another language"))
+        assertTrue(!prompts.single().contains("Norwegian (Bokmål)"))
         // The sides by name, as JemRec told them apart.
         assertTrue(prompts.single().contains("You: Hei"))
         assertTrue(prompts.single().contains("Priya Raman: Ja"))
         val stored = repo.summary("a.ogg")!!
-        assertEquals("no", stored.language)
+        assertEquals("en", stored.language)
         assertTrue(stored.searchText.contains("fredag"))
     }
 

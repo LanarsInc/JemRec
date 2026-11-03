@@ -74,7 +74,19 @@ class SummaryRunner(
 
         val lines = linesOf(transcript, contact)
         val named = lines.any { it.speaker != null }
-        val language = languageOf(transcript, lines)
+        // The language to write in: English, for every call (FR-033 of
+        // specs/002, decided with the user 2026-11-03).
+        // WHAT THIS DID BEFORE, AND WHY IT CHANGED. It wrote in the call's own
+        // language - the transcript's, then Settings', then the text's script,
+        // then the phone's (SummaryLanguage.resolve) - because a small model left
+        // to infer the language wrote English for a Norwegian call. The pinning
+        // stays: the prompt still names one language, now always English, which
+        // LANARS's Sales Engine requires (§8 `summary_language`: `en`) and the
+        // phone shows the same summary. What made the Norwegian call's action
+        // items up - nobody saying what belongs there - is still said
+        // (NOTHING_DECIDED), and SummaryPrompt now adds that the call may be in
+        // another language. Measured on the A24 before release (research R9).
+        val language = SUMMARY_LANGUAGE
         val chunks = SummaryChunking.chunk(lines)
         onProgress(0, chunks.size)
         val startedAt = clock()
@@ -124,18 +136,11 @@ class SummaryRunner(
         return SummaryOutcome.Done(done)
     }
 
-    /** The language to write in: the transcript's own, then Settings', then the text's script, then the phone's. */
-    private fun languageOf(transcript: Transcript, lines: List<SummaryLine>): String =
-        SummaryLanguage.resolve(
-            chosen = null,
-            transcriptionSetting = settings.language?.takeIf { it != TranscriptionLanguageChoice.AUTO },
-            transcriptLanguage = transcript.facts.language.takeIf { it != TranscriptionLanguageChoice.AUTO },
-            transcriptText = lines.joinToString(" ") { it.text },
-            deviceLanguage = deviceLanguage(),
-        )
-
     companion object {
         private const val TAG = "JR:Summary"
+
+        /** Every summary is in English (FR-033, specs/002). */
+        const val SUMMARY_LANGUAGE = "en"
 
         /** CallVault's budgets: a chunk's JSON, and the merge of several. */
         const val CHUNK_TOKEN_BUDGET = 1_600

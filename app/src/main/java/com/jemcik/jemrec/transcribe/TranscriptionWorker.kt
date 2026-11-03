@@ -112,6 +112,8 @@ class TranscriptionWorker(context: Context, params: WorkerParameters) : Coroutin
                 if (automatic) TranscriptNotices.ready(app, recording, contact, outcome.lines)
                 // A summary follows when asked for and a model is here; it joins the same chain.
                 if (settings.summariseAfterTranscript && outcome.lines > 0) SummaryAfterTranscript.queue(app, recording, contact)
+                // A work call's transcript with no summary to follow reaches the Sales Engine as "failed".
+                com.jemcik.jemrec.crm.ContentHook.transcribed(app, recording, outcome.lines)
                 HeavyQueue.finished(KEY_LINES to outcome.lines)
             }
             // Stopped by the user ends it; stopped by Android (time's up for an
@@ -124,6 +126,7 @@ class TranscriptionWorker(context: Context, params: WorkerParameters) : Coroutin
             }
             is RunOutcome.Failed -> {
                 if (automatic) TranscriptNotices.failed(app, recording, contact, outcome.reason)
+                com.jemcik.jemrec.crm.ContentHook.transcriptionFailed(app, recording)
                 HeavyQueue.finished(KEY_ERROR to outcome.reason)
             }
         }

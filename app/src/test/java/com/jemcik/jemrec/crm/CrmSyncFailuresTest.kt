@@ -13,15 +13,6 @@ import org.junit.Test
 /** Calls wait and go once: §11's failures acted on (FR-040 .. FR-046). */
 class CrmSyncFailuresTest : CrmSyncTestBase() {
 
-    // The JDK's HttpURLConnection, which these tests run on, quietly sends a
-    // POST again when a connection drops; Android's retries the same way. Off
-    // here, so each dropped connection is one failure the queue sees. A repeat
-    // reaching the server is harmless: client_call_id makes it the same call (§6.3).
-    @org.junit.Before
-    fun noQuietRetries() {
-        System.setProperty("sun.net.http.retryPost", "false")
-    }
-
     /** A call past its lookup and its window: step 1 is due now. */
     private fun due(): Long {
         val id = call(phone = null)

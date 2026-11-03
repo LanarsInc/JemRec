@@ -114,14 +114,14 @@ and screen tests for new screens.
 **Goal**: step 2 after the summary, or failed.
 **Independent test**: on the mock or stand, a recorded one-deal call with models and "after each call" ends with `content_status: ready`, an English summary in the note.
 
-- [ ] T052 [US4] Summaries in English for every call: `JR/summary/SummaryLanguage.kt` resolves to `en` (list in its doc comment what it did before and why it changes, FR-033) and `JR/summary/SummaryPrompt.kt` says the transcript may be in another language and the summary is English, names and numbers as said (research R9); update `JRT/summary/` tests
+- [X] T052 [US4] Summaries in English for every call: `JR/summary/SummaryLanguage.kt` resolves to `en` (list in its doc comment what it did before and why it changes, FR-033) and `JR/summary/SummaryPrompt.kt` says the transcript may be in another language and the summary is English, names and numbers as said (research R9); update `JRT/summary/` tests
 - [ ] T053 [US4] Re-run the faithfulness samples on the A24 with English output (Norwegian, Ukrainian, English calls, `app/src/androidTest/.../SummaryFaithfulnessTest.kt`); record times and what was right or wrong in research R9; fix the prompt if action items invent tasks
-- [ ] T054 [P] [US4] `JR/crm/ContentText.kt`: transcript lines `Seller:` / `Customer:` / `Call:` without times; summary text from `CallSummary` (intent, summary, then Key points, Decisions, Action items, Key facts with `• `, empty ones left out); cut at 200,000 / 10,000 UTF-16 units on a line end or a code point, never inside a surrogate pair; language `no` -> `nb`, BCP 47 check (research R8, FR-034, FR-037)
-- [ ] T055 [US4] `JR/crm/ContentHook.kt`: after a summary is stored (`JR/summary/SummaryWorker.kt` / `JR/transcribe/SummaryAfterTranscript.kt`) build the content for the recording's work call, once (FR-035); transcript done but summaries off or no summary model -> failed (FR-031); transcription failed -> failed; recording deleted in `JR/capture/Trash.kt` and the after-call delete -> failed (FR-036)
-- [ ] T056 [US4] Content action in `JR/crm/CrmSync.kt`: needs only the server id (§8); 72-hour deadline from the call's start -> failed; `failed` then `ready` once; content of a `private` call is answered 200 and stored nowhere
-- [ ] T057 [US4] The "What reaches the CRM" warnings in `JR/ui/SalesEngineSettingsScreen.kt` read the speech model, summary model and summaries switch (FR-030a)
-- [ ] T058 [P] [US4] Tests: `JRT/crm/ContentTextTest.kt` (labels, no times, headings, empty lists, cut at a surrogate pair, `no`->`nb`), `JRT/crm/ContentHookTest.kt` (first only, each failed case, deadline)
-- [ ] T059 [US4] Commit "Sales Engine: transcripts and English summaries"
+- [X] T054 [P] [US4] `JR/crm/ContentText.kt`: transcript lines `Seller:` / `Customer:` / `Call:` without times; summary text from `CallSummary` (intent, summary, then Key points, Decisions, Action items, Key facts with `• `, empty ones left out); cut at 200,000 / 10,000 UTF-16 units on a line end or a code point, never inside a surrogate pair; language `no` -> `nb`, BCP 47 check (research R8, FR-034, FR-037)
+- [X] T055 [US4] `JR/crm/ContentHook.kt`: after a summary is stored (`JR/summary/SummaryWorker.kt` / `JR/transcribe/SummaryAfterTranscript.kt`) build the content for the recording's work call, once (FR-035); transcript done but summaries off or no summary model -> failed (FR-031); transcription failed -> failed; recording deleted in `JR/capture/Trash.kt` and the after-call delete -> failed (FR-036)
+- [X] T056 [US4] Content action in `JR/crm/CrmSync.kt`: needs only the server id (§8); 72-hour deadline from the call's start -> failed; `failed` then `ready` once; content of a `private` call is answered 200 and stored nowhere
+- [X] T057 [US4] The "What reaches the CRM" warnings in `JR/ui/SalesEngineSettingsScreen.kt` read the speech model, summary model and summaries switch (FR-030a)
+- [X] T058 [P] [US4] Tests: `JRT/crm/ContentTextTest.kt` (labels, no times, headings, empty lists, cut at a surrogate pair, `no`->`nb`), `JRT/crm/ContentHookTest.kt` (first only, each failed case, deadline)
+- [X] T059 [US4] Commit "Sales Engine: transcripts and English summaries"
 
 ## Phase 8: US5 - Outcome and next call (P3)
 
