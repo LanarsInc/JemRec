@@ -547,7 +547,9 @@ where its transcript stands: to follow, sent, or not sent. A card says when
 calls wait for you to choose their deal or lead; a tap opens the sheet. Once
 the phone has transcribed and summarised a call, by your setting under
 Transcripts, both go to it: the summary into the call's note on the deal. Never
-the recording.
+the recording. If its transcript could not be made - a summary that did not fit
+in memory, say - the line says **transcript not sent**, and **Send the
+transcript** on the call's sheet makes it again and sends it, once.
 
 Offline, calls wait and go once when the network is back. If the session ends,
 LANARS's notice changes, or the Sales Engine needs a newer app, a notification

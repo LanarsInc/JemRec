@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
 import com.jemcik.jemrec.BuildConfig
+import com.jemcik.jemrec.capture.Recordings
 import com.jemcik.jemrec.crm.CrmAccount
 import com.jemcik.jemrec.crm.CrmActions
 import com.jemcik.jemrec.crm.CrmState
@@ -23,8 +24,11 @@ import com.jemcik.jemrec.crm.api.Notice
 import com.jemcik.jemrec.crm.db.CrmDatabase
 import com.jemcik.jemrec.crm.db.WorkCallEntry
 import com.jemcik.jemrec.summary.SummaryModel
+import com.jemcik.jemrec.summary.SummaryWorker
 import com.jemcik.jemrec.transcribe.TranscribeSettings
+import com.jemcik.jemrec.transcribe.TranscriptionWorker
 import com.jemcik.jemrec.transcribe.model.ModelRepository
+import com.jemcik.jemrec.transcripts.TranscriptRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -194,6 +198,36 @@ class SalesEngineController(private val app: Application, private val scope: Cor
             }
         }
         _state.update { it.copy(sheet = CallSheetUi.of(c, loading = false)) }
+    }
+
+    /**
+     * The sheet's Send the transcript: the call's transcript and summary made again, queued behind
+     * any run under way; when the summary is stored, ContentHook sends it (§8 takes one real
+     * transcript after "failed"). Only the steps still missing are queued: a transcript there is
+     * summarised, and a transcription that queues its own summary (Settings) is not given a second.
+     */
+    fun resendTranscript() = scope.launch {
+        val sheet = _state.value.sheet ?: return@launch
+        val c = CrmDatabase.of(app).calls().byId(sheet.id) ?: return@launch
+        val name = c.recording ?: return@launch
+        val why = withContext(Dispatchers.IO) {
+            val recording = Recordings.list(app).firstOrNull { it.name == name }
+                ?: return@withContext "The recording is no longer on the phone: there is nothing to transcribe."
+            val model = SummaryWorker.chosenModel(app)
+            if (model == null || !ModelRepository.isInstalled(app, model)) {
+                return@withContext "Download a summary model in Settings → Transcripts first: the Sales Engine takes a transcript only with its summary."
+            }
+            val transcribed = TranscriptRepository.of(app).load(name)?.lines?.isNotEmpty() == true
+            if (!transcribed) TranscriptionWorker.enqueue(app, name, recording.uri, recording.caller)
+            if (transcribed || !TranscribeSettings.of(app).summariseAfterTranscript) SummaryWorker.enqueue(app, name, recording.caller)
+            null
+        }
+        _state.update { s ->
+            s.copy(sheet = s.sheet?.takeIf { it.id == sheet.id }?.copy(
+                canResend = why != null,
+                note = why ?: "Making the transcript and its summary on the phone; they go to the Sales Engine when done.",
+            ))
+        }
     }
 
     fun closeCall() {

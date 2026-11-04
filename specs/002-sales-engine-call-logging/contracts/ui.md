@@ -60,6 +60,11 @@ Opened from Change/Choose, or from a call's row. A bottom sheet:
   Call back, Not interested;
 - **Next call**: off, or date (Oslo), time (optional), subject;
 - **Log call**; for a waiting call it needs a deal or Other ticked.
+- **Send the transcript** when its transcript went as "failed" (or is
+  about to), the call has a recording and is under 30 days old: the phone
+  transcribes and summarises it again, queued behind any run, and the texts
+  go when the summary is stored (§8 takes one after "failed"). It says why
+  when it cannot: the recording is gone, or no summary model is here.
 - **Which lead?** for a `no_match` call: a search field (deals or companies,
   from 2 characters, searched 0.4 s after the last key, 60 a 10 minutes),
   its results, then the server's **Suggestions**, then **Other**; nothing

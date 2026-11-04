@@ -3,7 +3,9 @@ package com.jemcik.jemrec.ui
 import com.jemcik.jemrec.crm.WorkCallMachine.Content
 import com.jemcik.jemrec.crm.db.WorkCallEntry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -30,6 +32,19 @@ class CrmMarkTextTest {
         assertEquals("Not in the CRM · transcript sent", CallSheetUi.lineText(call("SENT", Content.SENT_READY)))
         assertEquals("Not in the CRM · transcript not sent", CallSheetUi.lineText(call("SENT", Content.SENT_FAILED)))
         assertEquals("Not in the CRM · transcript not sent", CallSheetUi.lineText(call("SENT", Content.FAILED_TO_SEND)))
+    }
+
+    /** §8: one real transcript may follow "failed"; not after one went, nor without a recording, nor past 30 days. */
+    @Test fun sendingAgainIsOfferedOnlyAfterFailed() {
+        val now = 10L * 24 * 60 * 60_000
+        assertTrue(CallSheetUi.canResend(call("SENT", Content.SENT_FAILED), now))
+        assertTrue(CallSheetUi.canResend(call("SENT", Content.FAILED_TO_SEND), now))
+        assertFalse(CallSheetUi.canResend(call("SENT", Content.SENT_READY), now))
+        assertFalse(CallSheetUi.canResend(call("SENT", Content.EXPECTED), now))
+        assertFalse(CallSheetUi.canResend(call("SENT", Content.DONE), now))
+        assertFalse(CallSheetUi.canResend(call("SENT", Content.SENT_FAILED).copy(recording = null), now))
+        assertFalse(CallSheetUi.canResend(call("WAITING", Content.SENT_FAILED), now))
+        assertFalse(CallSheetUi.canResend(call("SENT", Content.SENT_FAILED), 31L * 24 * 60 * 60_000))
     }
 
     @Test fun noRecordingSaysNothingOfATranscript() {

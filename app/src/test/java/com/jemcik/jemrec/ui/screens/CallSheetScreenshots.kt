@@ -118,6 +118,17 @@ class CallSheetScreenshots : ScreenTest() {
         snap("call-sheet-logged")
     }
 
+    /** Its transcript reached the CRM as "failed": the sheet offers to make it again and send it. */
+    @Test fun transcriptNotSent() {
+        draw(
+            oneDeal.copy(
+                where = "Not in the CRM · transcript not sent", canChoose = false, beforeSending = false, candidates = emptyList(),
+                canResend = true,
+            ),
+        )
+        snap("call-sheet-transcript-not-sent")
+    }
+
     @Config(qualifiers = "+h1400dp-night")
     @Test fun deckDark() {
         draw(oneDeal, LookChoice(Look.DECK))

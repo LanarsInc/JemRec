@@ -22,6 +22,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
@@ -41,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jemcik.jemrec.crm.CrmActions
 import com.jemcik.jemrec.crm.OsloTime
+import com.jemcik.jemrec.crm.WorkCallMachine
 import com.jemcik.jemrec.crm.WorkCallMachine.Content
 import com.jemcik.jemrec.crm.WorkCallMachine.Local
 import com.jemcik.jemrec.crm.api.ApiModels
@@ -88,6 +90,11 @@ data class CallSheetUi(
      * and any open deal found by searching may be picked (§7, §10).
      */
     val whichLead: Boolean = false,
+    /**
+     * Its transcript reached the CRM as "failed" (or is about to), and §8 still takes one real
+     * transcript after that: the sheet offers to make it again and send it.
+     */
+    val canResend: Boolean = false,
 ) {
     val missedIncoming: Boolean get() = !outgoing && !answered
 
@@ -139,6 +146,7 @@ data class CallSheetUi(
                 outcome = Outcome.entries.firstOrNull { it.name == c.outcome } ?: Outcome.REACHED,
                 next = NextCall.fromJson(c.nextJson?.let(::JSONObject)),
                 whichLead = pending && server.pendingReason == PendingReason.NO_MATCH,
+                canResend = canResend(c),
                 note = when {
                     logged -> "A logged call is changed or deleted on its deal in the Sales Engine's web app."
                     c.lastError?.startsWith("logged") == true -> "Logged meanwhile: change it in the web app."
@@ -186,6 +194,14 @@ data class CallSheetUi(
             }
         }
 
+        /**
+         * Pure: a real transcript may still follow a "failed" one (§8, once), for a call with a
+         * recording on the server, and not once the queue gives a call up (30 days).
+         */
+        fun canResend(c: WorkCallEntry, nowMs: Long = System.currentTimeMillis()): Boolean =
+            Local.of(c.localState) == Local.SENT && c.recording != null && !WorkCallMachine.tooOld(c, nowMs) &&
+                Content.of(c.contentState).let { it == Content.FAILED_TO_SEND || it == Content.SENT_FAILED }
+
         /** The call's line under its row and on its transcript: the call, then its texts. */
         fun lineText(c: WorkCallEntry): String = listOfNotNull(markText(c), contentText(c)).joinToString(" · ")
 
@@ -198,7 +214,13 @@ data class CallSheetUi(
 internal fun CallSheetHost(vm: MainViewModel) {
     val ui by vm.salesEngine.state.collectAsStateWithLifecycle()
     val sheet = ui.sheet ?: return
-    CallSheet(sheet, ui.search, onChoose = vm.salesEngine::choose, onSearch = vm.salesEngine::search, onClose = vm.salesEngine::closeCall)
+    CallSheet(
+        sheet, ui.search,
+        onChoose = vm.salesEngine::choose,
+        onSearch = vm.salesEngine::search,
+        onResend = vm.salesEngine::resendTranscript,
+        onClose = vm.salesEngine::closeCall,
+    )
 }
 
 /** The deal search of the "Which lead?" picker (§10), as the controller has it now. */
@@ -224,9 +246,16 @@ private const val OTHER = -1
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun CallSheet(ui: CallSheetUi, search: DealSearchUi, onChoose: (CrmActions.Choice) -> Unit, onSearch: (String) -> Unit, onClose: () -> Unit) {
+internal fun CallSheet(
+    ui: CallSheetUi,
+    search: DealSearchUi,
+    onChoose: (CrmActions.Choice) -> Unit,
+    onSearch: (String) -> Unit,
+    onResend: () -> Unit,
+    onClose: () -> Unit,
+) {
     ModalBottomSheet(onDismissRequest = onClose) {
-        CallSheetContent(ui, onChoose, search = search, onSearch = onSearch)
+        CallSheetContent(ui, onChoose, search = search, onSearch = onSearch, onResend = onResend)
     }
 }
 
@@ -238,6 +267,7 @@ internal fun CallSheetContent(
     modifier: Modifier = Modifier,
     search: DealSearchUi = DealSearchUi(),
     onSearch: (String) -> Unit = {},
+    onResend: () -> Unit = {},
 ) {
     val haptics = LocalHapticFeedback.current
     var deal by remember(ui.id, ui.loading) { mutableStateOf(ui.preselected) }
@@ -266,6 +296,14 @@ internal fun CallSheetContent(
         Text("$kind · $at$length", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(ui.where, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         ui.note?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        if (ui.canResend) {
+            Text(
+                "Its transcript did not reach the Sales Engine. The phone can make it and its summary again, and send them.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(onClick = { haptics.tap(); onResend() }) { Text("Send the transcript") }
+        }
 
         if (ui.canChoose) {
             HorizontalDivider()
