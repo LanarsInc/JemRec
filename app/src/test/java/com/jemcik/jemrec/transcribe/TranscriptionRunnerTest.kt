@@ -69,6 +69,7 @@ class TranscriptionRunnerTest {
             sideLevels = { levels },
             durationMs = { 60_000 },
             wasAborted = { aborted },
+            forgetAbort = { aborted = false },
             setupMs = { 2_000 },
             clock = { clockMs },
             now = { 42 },
@@ -165,9 +166,15 @@ class TranscriptionRunnerTest {
     }
 
     @Test fun aStoppedRunSavesNothing() = runBlocking {
-        aborted = true
-        assertEquals(RunOutcome.Stopped, runner(apart, output = ::sideLines).run(request()))
+        val outcome = runner(apart) { channels -> aborted = true; sideLines(channels) }.run(request())
+        assertEquals(RunOutcome.Stopped, outcome)
         assertNull(repo.load("a.ogg"))
+    }
+
+    /** Cancel during the voice step left the abort set; the next run, language pinned, stopped at once (A24, 2026-11-04). */
+    @Test fun anAbortLeftFromAnEarlierRunDoesNotStopThisOne() = runBlocking {
+        aborted = true
+        assertEquals(RunOutcome.Done(2), runner(apart, output = ::sideLines).run(request(language = "en")))
     }
 
     @Test fun aFailureIsReportedAndSavesNothing() = runBlocking {

@@ -169,6 +169,16 @@ object TranscriptionEngine {
     fun wasAborted(): Boolean = abortRequested.get()
 
     /**
+     * A run begins: an abort asked for before it was meant for an earlier one. The flag is also
+     * cleared as whisper starts, but a run with its language pinned checks it before whisper ever
+     * does - and Cancel during the voice step sets it after whisper has finished, so every later
+     * pinned run stopped at once ("Stopped; nothing saved", five times on the A24, 2026-11-04).
+     */
+    fun forgetAbort() {
+        abortRequested.set(false)
+    }
+
+    /**
      * Clears the abort flag without starting a run.
      *
      * Production never needs this — [transcribe] clears it as each run begins — but a test that

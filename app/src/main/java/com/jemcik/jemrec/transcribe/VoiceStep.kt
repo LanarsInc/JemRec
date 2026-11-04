@@ -195,6 +195,9 @@ object VoiceStep {
         val cache = MixCache.of(context)
         val cached = if (targetChunkMs == ChunkPlan.TARGET_CHUNK_MS) cache.pieces(uri) else null
         val chunks = mutableListOf<VoiceLink.Chunk>()
+        // A chunk is one native run of up to two minutes on the A24: Stop is passed into it, not
+        // only checked between chunks (a 274 s call is one chunk; Cancel did nothing, 2026-11-04).
+        val watch = StopWatch(ptr, shouldStop)
         try {
             if (cached != null) for (piece in cached) {
                 if (shouldStop()) {
@@ -203,7 +206,7 @@ object VoiceStep {
                 }
                 val audio = cache.read(piece)
                 if (audio.isEmpty()) continue
-                chunks += tellChunk(ptr, AudioDecoder.DecodedRange(audio, piece.startMs), keepFromMs = piece.keepFromMs)
+                chunks += tellChunk(ptr, AudioDecoder.DecodedRange(audio, piece.startMs), keepFromMs = piece.keepFromMs, shouldStop)
             } else for (chunk in plan) {
                 if (shouldStop()) {
                     Log.i(TAG, "Stopped; the lines stay unnamed")
@@ -218,10 +221,16 @@ object VoiceStep {
                     shouldStop = shouldStop,
                 )
                 if (slice.audio.isEmpty()) continue
-                chunks += tellChunk(ptr, slice, keepFromMs = if (singlePass) 0L else chunk.keepFromMs)
+                chunks += tellChunk(ptr, slice, keepFromMs = if (singlePass) 0L else chunk.keepFromMs, shouldStop)
             }
         } finally {
+            watch.close()
             VoiceNative.close(ptr)
+        }
+        // After the last chunk too: a stopped run's turns are cut short, and its names are not saved.
+        if (shouldStop()) {
+            Log.i(TAG, "Stopped; the lines stay unnamed")
+            return null
         }
 
         val call = VoiceLink.link(chunks)
@@ -237,12 +246,12 @@ object VoiceStep {
     }
 
     /** One chunk's turns in call time, from [keepFromMs] on, and each voice's embedding. */
-    private fun tellChunk(ptr: Long, slice: AudioDecoder.DecodedRange, keepFromMs: Long): VoiceLink.Chunk {
+    private fun tellChunk(ptr: Long, slice: AudioDecoder.DecodedRange, keepFromMs: Long, shouldStop: () -> Boolean): VoiceLink.Chunk {
         val raw = VoiceNative.turns(ptr, slice.audio)
         val local = (raw.indices step 3).map { VoiceTurn(raw[it].toLong(), raw[it + 1].toLong(), raw[it + 2]) }
         val embeddings = local.map { it.voice }.distinct().mapNotNull { voice ->
             val pcm = speechOf(slice.audio, local.filter { it.voice == voice }, EMBED_MS)
-            if (pcm.size < MIN_EMBED_MS * SAMPLES_PER_MS) null
+            if (pcm.size < MIN_EMBED_MS * SAMPLES_PER_MS || shouldStop()) null
             else VoiceNative.embed(ptr, pcm).takeIf { it.isNotEmpty() }?.let { voice to it }
         }.toMap()
         val turns = local.mapNotNull { t ->
@@ -251,6 +260,34 @@ object VoiceStep {
             if (end > start) VoiceTurn(start, end, t.voice) else null
         }
         return VoiceLink.Chunk(turns, embeddings)
+    }
+
+    /**
+     * Asks [shouldStop] every [POLL_MS] while a native run is under way and passes a yes to it
+     * (VoiceNative.stop). A thread, as callVoices is plain blocking code; [close] joins it, so the
+     * handle is never touched after it is freed.
+     */
+    private class StopWatch(private val ptr: Long, private val shouldStop: () -> Boolean) : AutoCloseable {
+        @Volatile private var done = false
+        private val thread = Thread({
+            while (!done) {
+                if (shouldStop()) {
+                    VoiceNative.stop(ptr, true)
+                    return@Thread
+                }
+                try { Thread.sleep(POLL_MS) } catch (_: InterruptedException) { return@Thread }
+            }
+        }, "voices-stop").apply { isDaemon = true; start() }
+
+        override fun close() {
+            done = true
+            thread.interrupt()
+            thread.join()
+        }
+
+        private companion object {
+            const val POLL_MS = 250L
+        }
     }
 
     /** The samples of [turns], one after the other, up to [maxMs]. */

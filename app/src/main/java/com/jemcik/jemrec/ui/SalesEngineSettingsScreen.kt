@@ -202,7 +202,7 @@ internal fun SalesEngineSettingsContent(
                 row {
                     SettingsRow(
                         title = "LANARS's test stand",
-                        summary = BuildConfig.SALES_ENGINE_URL.ifBlank { "No address in this build" }.removePrefix("https://").substringBefore('/'),
+                        summary = ui.serverHost.ifBlank { "No address in this build" },
                         icon = Icons.Filled.Info,
                     )
                 }

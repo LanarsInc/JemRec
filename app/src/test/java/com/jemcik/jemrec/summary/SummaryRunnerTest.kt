@@ -54,7 +54,11 @@ class SummaryRunnerTest {
         clock = { 0 },
         now = { 7 },
         deviceLanguage = { "en" },
+        pause = { ms -> pausedMs += ms; afterPause() },
     )
+
+    private var pausedMs = 0L
+    private var afterPause: () -> Unit = {}
 
     private suspend fun transcript(language: String = "no") = repo.save(
         "a.ogg",
@@ -140,8 +144,29 @@ class SummaryRunnerTest {
         free = 1_000_000_000L
         val outcome = runner().run("a.ogg", null, SummaryModel.QWEN3_1_7B_Q4_K_M, "/m")
         assertTrue(outcome is SummaryOutcome.NoRoom)
+        assertEquals(SummaryRunner.ROOM_WAIT_MS, pausedMs)
         assertTrue(prompts.isEmpty())
         assertNull(repo.summary("a.ogg"))
+    }
+
+    /** Right after the voice step the memory comes back within seconds (A24, 2026-11-04): the summary waits for it. */
+    @Test fun memoryFreedWhileWaitingIsUsed() = runBlocking {
+        transcript()
+        free = 1_334_000_000L
+        afterPause = { if (pausedMs >= 2 * SummaryRunner.ROOM_POLL_MS) free = 2_295_000_000L }
+        val outcome = runner().run("a.ogg", null, SummaryModel.QWEN3_1_7B_Q4_K_M, "/m")
+        assertTrue(outcome is SummaryOutcome.Done)
+        assertEquals(2 * SummaryRunner.ROOM_POLL_MS, pausedMs)
+    }
+
+    @Test fun cancelWhileWaitingForMemoryStops() = runBlocking {
+        transcript()
+        free = 1_000_000_000L
+        var stop = false
+        afterPause = { stop = true }
+        val outcome = runner().run("a.ogg", null, SummaryModel.QWEN3_1_7B_Q4_K_M, "/m", shouldStop = { stop })
+        assertEquals(SummaryOutcome.Stopped, outcome)
+        assertTrue(prompts.isEmpty())
     }
 
     @Test fun noTranscriptNoSummary() = runBlocking {

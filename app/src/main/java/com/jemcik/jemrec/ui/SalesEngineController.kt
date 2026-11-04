@@ -41,6 +41,11 @@ import kotlinx.coroutines.launch
 /** What Settings > Sales Engine shows. */
 data class SalesEngineUi(
     val state: CrmState = CrmState.NOT_CONNECTED,
+    /**
+     * The server's host, shown on a stand build; empty when the build has none. In the state, not
+     * read by the screen: the screen tests drew whatever local.properties held (2026-11-04).
+     */
+    val serverHost: String = "",
     val name: String? = null,
     val email: String? = null,
     val busy: Boolean = false,
@@ -117,6 +122,7 @@ class SalesEngineController(private val app: Application, private val scope: Cor
                 phoneStateAllowed = WorkLine.canList(app),
                 callLogAllowed = callLog,
                 contentWarning = contentWarning(),
+                serverHost = BuildConfig.SALES_ENGINE_URL.removePrefix("https://").substringBefore('/'),
             )
         }
     }

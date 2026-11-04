@@ -402,6 +402,7 @@ private fun Status(ui: TranscriptUi, vm: MainViewModel) {
         is JobState.Running -> Column(body, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 when {
+                    ui.stopping -> "Stopping…"
                     // The lines are below already; their voices come next (VoiceStep).
                     ui.tellingVoices -> "Telling the two voices apart…"
                     job.percent == null -> "Getting ready…"
@@ -409,14 +410,20 @@ private fun Status(ui: TranscriptUi, vm: MainViewModel) {
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
-            if (job.percent == null || ui.tellingVoices) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (job.percent == null || ui.tellingVoices || ui.stopping) LinearProgressIndicator(Modifier.fillMaxWidth())
             else LinearProgressIndicator(progress = { job.percent / 100f }, modifier = Modifier.fillMaxWidth())
             Text(
-                "It goes on with the screen off. You can leave this screen.",
+                when {
+                    // The voice step comes after the save; whisper stopped saves nothing (RunOutcome.Stopped).
+                    ui.stopping && ui.tellingVoices -> "The lines already shown are kept, without names."
+                    ui.stopping -> "Nothing of this run is saved."
+                    else -> "It goes on with the screen off. You can leave this screen."
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            OutlinedButton(onClick = { haptics.tap(); vm.transcripts.cancel() }) { Text("Cancel") }
+            // Disabled once tapped: the tap is taken, and a second one would say nothing more.
+            OutlinedButton(onClick = { haptics.tap(); vm.transcripts.cancel() }, enabled = !ui.stopping) { Text("Cancel") }
         }
         is JobState.Failed -> Column(body, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("The transcription did not finish: ${job.reason}", color = MaterialTheme.colorScheme.error)

@@ -104,6 +104,11 @@ data class TranscriptUi(
     val jumpToMs: Long? = null,
     /** This recording's voices are being told apart now (VoiceStep), its lines already shown. */
     val tellingVoices: Boolean = false,
+    /**
+     * Cancel was tapped and the work has not ended yet. The run notices within a second or so,
+     * but it ends only when the step under way lets it; until then the screen says so.
+     */
+    val stopping: Boolean = false,
     /** The owner's voice print is known, so later one-mix calls can say You. */
     val printKnown: Boolean = false,
 )
@@ -219,7 +224,10 @@ class TranscriptsController(
             },
             scope.launch {
                 WorkManager.getInstance(app).getWorkInfosByTagFlow(TranscriptionWorker.tagFor(recording.name))
-                    .collect { infos -> _state.update { it.copy(job = jobOf(infos)) } }
+                    .collect { infos ->
+                        val job = jobOf(infos)
+                        _state.update { it.copy(job = job, stopping = it.stopping && (job is JobState.Running || job == JobState.Queued)) }
+                    }
             },
             scope.launch(Dispatchers.IO) { refreshModel() },
             scope.launch {
@@ -364,6 +372,7 @@ class TranscriptsController(
     fun cancel() {
         val recording = _state.value.recording ?: return
         TranscriptionWorker.cancel(app, recording.name)
+        _state.update { it.copy(stopping = true) }
     }
 
     /** This recording's own language, or null to go back to Settings'. */

@@ -10,6 +10,7 @@ import com.jemcik.jemrec.transcribe.TranscriptionLanguageChoice
 import com.jemcik.jemrec.transcripts.Transcript
 import com.jemcik.jemrec.transcripts.TranscriptRepository
 import com.jemcik.jemrec.transcripts.db.CallSummaryEntry
+import kotlinx.coroutines.delay
 import java.util.Locale
 
 /** One prompt in, the model's text out: the engine in the app, a stand-in in the tests. */
@@ -52,6 +53,8 @@ class SummaryRunner(
     private val clock: () -> Long = { SystemClock.elapsedRealtime() },
     private val now: () -> Long = { System.currentTimeMillis() },
     private val deviceLanguage: () -> String = { Locale.getDefault().language },
+    /** Waits between looks at free memory ([ROOM_POLL_MS]). */
+    private val pause: suspend (Long) -> Unit = { delay(it) },
 ) {
 
     suspend fun run(
@@ -65,8 +68,21 @@ class SummaryRunner(
         val transcript = repository.load(recording)
         if (transcript == null || transcript.lines.isEmpty()) return SummaryOutcome.NoTranscript
 
-        // Checked before the load, not discovered by Android killing the app halfway.
-        val free = freeMemory()
+        // Checked before the load, not discovered by Android killing the app halfway. And waited
+        // for: a summary queued behind a transcription starts the moment the voice step ends, and
+        // the memory that step used is not free again at once. Measured on the A24, 2026-11-04: a
+        // 274 s call's voices peaked at 2560 MB, and 0.15 s later 1334 MB was free of the 1792 MB
+        // Qwen3 1.7B needs, so a work call's texts reached the CRM as "failed"; 2295 MB was
+        // free once the phone had settled.
+        var free = freeMemory()
+        var waitedMs = 0L
+        while (free < model.minFreeBytes && waitedMs < ROOM_WAIT_MS) {
+            if (shouldStop()) return SummaryOutcome.Stopped
+            pause(ROOM_POLL_MS)
+            waitedMs += ROOM_POLL_MS
+            free = freeMemory()
+        }
+        if (waitedMs > 0) Log.i(TAG, "Waited ${waitedMs / 1000}s for memory: ${free / 1_000_000} MB free")
         if (free < model.minFreeBytes) {
             Log.w(TAG, "Not enough free memory for ${model.id}: ${free / 1_000_000} MB free, ${model.minFreeBytes / 1_000_000} MB needed")
             return SummaryOutcome.NoRoom(model.minFreeBytes, free)
@@ -140,6 +156,10 @@ class SummaryRunner(
 
     companion object {
         private const val TAG = "JR:Summary"
+
+        /** How long a summary waits for free memory before it gives up, and how often it looks. */
+        const val ROOM_WAIT_MS = 2 * 60_000L
+        const val ROOM_POLL_MS = 5_000L
 
         /** Every summary is in English (FR-033, specs/002). */
         const val SUMMARY_LANGUAGE = "en"

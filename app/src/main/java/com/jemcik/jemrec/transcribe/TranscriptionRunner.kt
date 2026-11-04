@@ -95,12 +95,15 @@ class TranscriptionRunner(
      */
     private val learnVoice: (suspend (Uri, List<TranscriptSegment>, Double) -> Unit)? = null,
     private val wasAborted: () -> Boolean = { TranscriptionEngine.wasAborted() },
+    /** Called as a run starts, so an abort left from an earlier run cannot stop this one. */
+    private val forgetAbort: () -> Unit = { TranscriptionEngine.forgetAbort() },
     private val setupMs: () -> Long = { TranscriptionEngine.lastSetupMs },
     private val clock: () -> Long = { SystemClock.elapsedRealtime() },
     private val now: () -> Long = { System.currentTimeMillis() },
 ) {
 
     suspend fun run(request: RunRequest, shouldStop: () -> Boolean = { false }): RunOutcome {
+        forgetAbort()
         val audioMs = durationMs(request.uri)
         val levels = if (request.sides == Sides.AUTO) runCatching { sideLevels(request.uri) }.getOrNull() else null
         val sides = if (levels == null) {

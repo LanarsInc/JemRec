@@ -8,9 +8,9 @@ package com.jemcik.jemrec.transcribe
  * Audio is 16 kHz mono float in [-1, 1], as whisper gets it. Measured in
  * R16 on a Galaxy A24 (2026-10-30): a 252 s call in 76-101 s, 349 MB peak.
  *
- * One handle is used from one thread at a time, under the heavy lock; a run
- * cannot be stopped inside (sherpa-onnx ignores its progress callback's
- * answer), so callers hand it at most one 5-minute chunk at a time.
+ * One handle is used from one thread at a time, under the heavy lock, except
+ * [stop], which another thread calls to end a [turns] run at its next
+ * embedding (voicejr.cpp says how).
  */
 object VoiceNative {
     init { System.loadLibrary("voicejr") }
@@ -31,6 +31,9 @@ object VoiceNative {
      * takes at most about 120 s at once (R16): callers give it 60 s or less.
      */
     external fun embed(ptr: Long, pcm: FloatArray): FloatArray
+
+    /** True: [turns] on this handle ends early and returns empty, until called again with false. Any thread. */
+    external fun stop(ptr: Long, stop: Boolean)
 
     /** Releases a handle from [open]. Safe to call with 0. */
     external fun close(ptr: Long)

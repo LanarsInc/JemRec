@@ -112,8 +112,11 @@ class TranscriptionWorker(context: Context, params: WorkerParameters) : Coroutin
         when (outcome) {
             is RunOutcome.Done -> {
                 if (automatic) TranscriptNotices.ready(app, recording, contact, outcome.lines)
-                // A summary follows when asked for and a model is here; it joins the same chain.
-                if (settings.summariseAfterTranscript && outcome.lines > 0) SummaryAfterTranscript.queue(app, recording, contact)
+                // A summary follows when asked for and a model is here; it joins the same chain. Not
+                // after Cancel: a tap while the voices are told apart keeps the lines already saved,
+                // unnamed, and ends the work there; the summary can be asked for on the screen. A
+                // work call's texts then wait for it until their deadline (ContentHook).
+                if (settings.summariseAfterTranscript && outcome.lines > 0 && !cancelled) SummaryAfterTranscript.queue(app, recording, contact)
                 // A work call's transcript with no summary to follow reaches the Sales Engine as "failed".
                 com.jemcik.jemrec.crm.ContentHook.transcribed(app, recording, outcome.lines)
                 HeavyQueue.finished(KEY_LINES to outcome.lines)

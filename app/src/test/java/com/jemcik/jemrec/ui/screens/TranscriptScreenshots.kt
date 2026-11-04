@@ -134,6 +134,19 @@ class TranscriptScreenshots : ScreenTest() {
         snap("transcript-telling-voices")
     }
 
+    /** Cancel tapped while the voices are told apart: it says so at once, and cannot be tapped twice. */
+    @Test fun stoppingTheVoices() {
+        val mixed = lines.map { it.copy(speaker = Speaker.NONE) }
+        draw(TranscriptUi(
+            model = ModelState.Ready("Whisper small"),
+            transcript = Transcript(recording.name, facts.copy(split = false, modelId = "small-q5_1", voiceSource = VoiceSource.NONE), mixed),
+            job = JobState.Running(100),
+            tellingVoices = true,
+            stopping = true,
+        ))
+        snap("transcript-stopping")
+    }
+
     // The Summary tab.
 
     private val done = TranscriptUi(

@@ -10,14 +10,19 @@
 // and for each voice's mean. Two loads of a 40 MB model, which the A24 holds (R16: 349 MB peak for
 // the diariser alone on a 252 s call).
 //
-// Stop: sherpa-onnx reports progress but ignores the callback's answer, so a run cannot be cut short
-// here. VoiceStep hands it one chunk of at most 5 minutes at a time and checks for Stop between
-// them: at R16's RTF of 0.30-0.40 on the A24, at most about two minutes after a tap.
+// Stop: sherpa-onnx reports progress but ignores the callback's answer, so the callback throws
+// instead. It is called after each embedding the diariser computes, outside onnxruntime, and what
+// unwinds between it and turns() holds only vectors and Eigen matrices; the C API's result struct,
+// allocated before Process, is the one thing left behind (a few bytes per Stop). The embeddings are
+// most of a run, so Stop lands within one of them. Before this a tap on Cancel waited for the whole
+// chunk: 142 s on a 274 s call on the A24 (2026-11-04), and the run went on to save the names.
+// VoiceStep still checks for Stop between chunks and around embed().
 //
 // Thread-safety: one handle is used from one thread at a time; VoiceStep holds the heavy lock.
 
 #include <jni.h>
 #include <android/log.h>
+#include <atomic>
 #include <cmath>
 #include <cstring>
 #include <string>
@@ -34,7 +39,16 @@ constexpr int32_t kSampleRate = 16000;
 struct Voices {
     const SherpaOnnxOfflineSpeakerDiarization *diariser = nullptr;
     const SherpaOnnxSpeakerEmbeddingExtractor *extractor = nullptr;
+    // Set from another thread by stop(); read by the progress callback.
+    std::atomic<bool> stop{false};
 };
+
+struct Stopped {};
+
+int32_t onProgress(int32_t, int32_t, void *arg) {
+    if (static_cast<Voices *>(arg)->stop.load()) throw Stopped();
+    return 0;
+}
 
 inline Voices *of(jlong p) { return reinterpret_cast<Voices *>(p); }
 
@@ -105,8 +119,13 @@ Java_com_jemcik_jemrec_transcribe_VoiceNative_turns(
     std::vector<float> samples(static_cast<size_t>(n));
     env->GetFloatArrayRegion(pcm, 0, n, samples.data());
 
-    const SherpaOnnxOfflineSpeakerDiarizationResult *r =
-            SherpaOnnxOfflineSpeakerDiarizationProcess(v->diariser, samples.data(), n);
+    const SherpaOnnxOfflineSpeakerDiarizationResult *r = nullptr;
+    try {
+        r = SherpaOnnxOfflineSpeakerDiarizationProcessWithCallback(v->diariser, samples.data(), n, onProgress, v);
+    } catch (const Stopped &) {
+        LOGW("diarisation stopped");
+        return env->NewIntArray(0);
+    }
     if (!r) {
         LOGW("diarisation returned nothing for %d samples", n);
         return env->NewIntArray(0);
@@ -164,6 +183,13 @@ Java_com_jemcik_jemrec_transcribe_VoiceNative_embed(
     }
     SherpaOnnxDestroyOnlineStream(stream);
     return result;
+}
+
+// From any thread: the run under way on this handle ends at its next embedding, and turns() returns
+// empty until reset with false.
+extern "C" JNIEXPORT void JNICALL
+Java_com_jemcik_jemrec_transcribe_VoiceNative_stop(JNIEnv *, jobject, jlong ptr, jboolean stop) {
+    if (Voices *v = of(ptr)) v->stop.store(stop == JNI_TRUE);
 }
 
 extern "C" JNIEXPORT void JNICALL
