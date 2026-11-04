@@ -2096,9 +2096,11 @@ SETUP = [
           "asks **Which lead?**: pick one of the suggestions, search your open "
           "deals by title or company, or choose **Other**. The Sales Engine "
           "saves the number on the deal you pick."),
-    ("p", "In the **Calls** tab each work call says where it went - on a deal, "
-          "not in the CRM, Other - and a card says when calls wait for you to "
-          "choose their deal or lead; a tap opens the sheet. Once the phone has transcribed and "
+    ("p", "Under a work call, in the **Calls** and **Recordings** tabs and on its "
+          "transcript, a line says where it went - on a deal, not in the CRM, "
+          "Other - and where its transcript stands: to follow, sent, or not sent. "
+          "A card says when calls wait for you to choose their deal or lead; a "
+          "tap opens the sheet. Once the phone has transcribed and "
           "summarised a call, by your setting under Transcripts, both go to it: "
           "the summary into the call's note on the deal. Never the recording."),
     ("p", "Offline, calls wait and go once when the network is back. If the "

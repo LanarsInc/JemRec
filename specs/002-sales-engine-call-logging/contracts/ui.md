@@ -66,13 +66,18 @@ Opened from Change/Choose, or from a call's row. A bottom sheet:
   ticked at first. A deal picked from the search stays shown while the
   search changes. A refused search says why and is not retried.
 
-## Calls tab
+## Calls tab, Recordings tab, transcript
 
 A work call's row gets a line under it: "Sales Engine · On Eksempel AS –
 nettside", "Choose a deal" or "Which lead?" (in the error colour), "Not in
-the CRM", "Other: not on a deal", "Not sent ...". Over the list, a card says how many
-calls wait for a deal. Tapping either opens the call sheet. (A card, not
-the chip first planned: it says what to do.)
+the CRM", "Other: not on a deal", "Not sent ...". Once the call reached the
+server, its transcript's state follows: "· transcript to follow", "· sending
+the transcript", "· transcript sent", "· transcript not sent" (none for a
+call with no recording). The same line is under the row in the Recordings
+tab and under the call's time on its transcript (added 2026-11-04: a seller
+could not tell whether a call's texts had gone). Over the Calls list, a card
+says how many calls wait for a deal. Tapping either opens the call sheet. (A
+card, not the chip first planned: it says what to do.)
 
 ## Prompts that need the seller
 

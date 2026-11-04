@@ -1,5 +1,6 @@
 package com.jemcik.jemrec.ui.screens
 
+import androidx.compose.ui.test.onAllNodesWithText
 import com.jemcik.jemrec.transcribe.Speaker
 import com.jemcik.jemrec.transcribe.TranscriptSegment
 import com.jemcik.jemrec.transcribe.model.SpeechModel
@@ -145,6 +146,29 @@ class TranscriptScreenshots : ScreenTest() {
             stopping = true,
         ))
         snap("transcript-stopping")
+    }
+
+    /** A work call: its Sales Engine line under its time, the transcript's state included. */
+    @Test fun workCall() {
+        val app = org.robolectric.RuntimeEnvironment.getApplication()
+        val calls = com.jemcik.jemrec.crm.db.CrmDatabase.of(app).calls()
+        kotlinx.coroutines.runBlocking {
+            calls.deleteAll()
+            calls.insert(com.jemcik.jemrec.crm.db.WorkCallEntry(
+                clientCallId = "c", callLogId = 1, userId = 1, outgoing = false, answered = true, phone = "1", presentation = "ALLOWED",
+                countryIso = null, startedAtMs = 0, durationSeconds = 158, endedAtMs = 1, recording = recording.name, outcome = "REACHED",
+                localState = "SENT", dueAtMs = 0, contentState = "SENT_READY", serverId = 1,
+                serverJson = """{"call":{"id":1,"client_call_id":"c","status":"not_in_crm","content_status":"ready","candidates":[],"candidates_total":0}}""",
+            ))
+        }
+        try {
+            draw(done.copy(tab = TranscriptTab.TRANSCRIPT))
+            // The line comes from the database, off the main thread: waited for, not raced.
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("Sales Engine", substring = true).fetchSemanticsNodes().isNotEmpty() }
+            snap("transcript-work-call")
+        } finally {
+            kotlinx.coroutines.runBlocking { calls.deleteAll() }
+        }
     }
 
     // The Summary tab.

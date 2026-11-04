@@ -36,6 +36,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jemcik.jemrec.crm.db.WorkCallEntry
 import com.jemcik.jemrec.summary.TranscriptTimestamp
 import com.jemcik.jemrec.transcripts.export.TranscriptFormat
 import com.jemcik.jemrec.transcribe.LanguageNames
@@ -60,12 +61,21 @@ import java.util.Locale
 @Composable
 fun TranscriptScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Modifier) {
     val ui by vm.transcripts.state.collectAsStateWithLifecycle()
-    TranscriptContent(ui, state.playingName, vm, modifier)
+    val workCalls by vm.salesEngine.workCalls.collectAsStateWithLifecycle()
+    val workCall = ui.recording?.name?.let { name -> workCalls.firstOrNull { it.recording == name } }
+    TranscriptContent(ui, state.playingName, vm, modifier, workCall)
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun TranscriptContent(ui: TranscriptUi, playingName: String?, vm: MainViewModel, modifier: Modifier = Modifier) {
+internal fun TranscriptContent(
+    ui: TranscriptUi,
+    playingName: String?,
+    vm: MainViewModel,
+    modifier: Modifier = Modifier,
+    /** The call's Sales Engine entry, when it is a work call: its line goes under the call's time. */
+    workCall: WorkCallEntry? = null,
+) {
     val haptics = LocalHapticFeedback.current
     val clipboard = LocalClipboardManager.current
     val recording = ui.recording ?: return
@@ -89,6 +99,7 @@ internal fun TranscriptContent(ui: TranscriptUi, playingName: String?, vm: MainV
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                workCall?.let { CrmMark(it, vm.salesEngine::openCall, padding = PaddingValues(top = 4.dp)) }
             }
         }
         item {

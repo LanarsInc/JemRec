@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jemcik.jemrec.crm.CrmActions
 import com.jemcik.jemrec.crm.OsloTime
+import com.jemcik.jemrec.crm.WorkCallMachine.Content
 import com.jemcik.jemrec.crm.WorkCallMachine.Local
 import com.jemcik.jemrec.crm.api.ApiModels
 import com.jemcik.jemrec.crm.api.CallStatus
@@ -128,7 +130,7 @@ data class CallSheetUi(
                 startedAtMs = c.startedAtMs,
                 durationSeconds = c.durationSeconds,
                 loading = loading,
-                where = markText(c),
+                where = lineText(c),
                 canChoose = (before || pending) && !loading,
                 beforeSending = before,
                 candidates = candidates,
@@ -166,6 +168,26 @@ data class CallSheetUi(
                 }
             }
         }
+
+        /**
+         * Where the call's transcript and summary stand (§8), once the call itself reached the
+         * server; null before that, and for a call with no recording. Without it a seller could
+         * not tell whether a call's texts had gone (asked on the A24, 2026-11-04).
+         */
+        fun contentText(c: WorkCallEntry): String? {
+            if (Local.of(c.localState) != Local.SENT) return null
+            return when (Content.of(c.contentState)) {
+                Content.NOT_EXPECTED -> null
+                Content.EXPECTED -> "transcript to follow"
+                Content.READY_TO_SEND -> "sending the transcript"
+                Content.SENT_READY -> "transcript sent"
+                // "failed" sent or to send: the CRM knows no transcript is coming (FR-031).
+                Content.FAILED_TO_SEND, Content.SENT_FAILED, Content.DONE -> "transcript not sent"
+            }
+        }
+
+        /** The call's line under its row and on its transcript: the call, then its texts. */
+        fun lineText(c: WorkCallEntry): String = listOfNotNull(markText(c), contentText(c)).joinToString(" · ")
 
         fun needsSeller(c: WorkCallEntry): Boolean = isPending(c)
     }
@@ -412,21 +434,28 @@ private fun DealRow(selected: Boolean, title: String, lines: String, status: Str
     }
 }
 
-/** A work call's state under its row in the Calls tab; a tap opens its sheet. */
+/**
+ * A work call's state under its row in the Calls and Recordings tabs, and on its transcript; a tap
+ * opens its sheet. [padding] lines it up with what it is under: a row's text, past its avatar.
+ */
 @Composable
-internal fun CrmMark(c: WorkCallEntry, onOpen: (Long) -> Unit) {
+internal fun CrmMark(
+    c: WorkCallEntry,
+    onOpen: (Long) -> Unit,
+    padding: PaddingValues = PaddingValues(start = 72.dp, end = 16.dp, top = 2.dp, bottom = 8.dp),
+) {
     val haptics = LocalHapticFeedback.current
     val attention = CallSheetUi.needsSeller(c)
     Text(
-        "Sales Engine · ${CallSheetUi.markText(c)}",
+        "Sales Engine · ${CallSheetUi.lineText(c)}",
         style = MaterialTheme.typography.labelMedium,
         color = if (attention) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-        maxLines = 1,
+        maxLines = 2,
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier
             .fillMaxWidth()
             .clickable { haptics.tap(); onOpen(c.id) }
-            .padding(start = 72.dp, end = 16.dp, top = 2.dp, bottom = 8.dp),
+            .padding(padding),
     )
 }
 
