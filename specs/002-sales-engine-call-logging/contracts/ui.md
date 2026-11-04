@@ -23,6 +23,11 @@ The screen, top to bottom:
    And a warning when transcripts will not reach it: "No speech model:
    the CRM gets calls without a summary", "Summaries are off: ...".
 5. Needs the call-log permission: asked here when it is missing.
+6. **Calls** (once there are work calls; added 2026-11-04): "All sent", or
+   "2 waiting to be sent · 1 not sent · 1 transcript not sent" (in the
+   error colour when something was given up), with why the first retry
+   waits and when it tries again; **Retry now** while a call waits out a
+   failed try (never the 2-minute hold, nor a server's Retry-After).
 
 ## The notice screen
 
@@ -43,6 +48,10 @@ Channel "Sales Engine". One per work call, replaced as it changes:
 | after sending | "Logged on Eksempel AS – nettside" | | auto-dismissed |
 | waiting for a deal | "Choose a deal" | "Not logged yet" | **Choose** |
 | waiting for a lead (`no_match`) | "Which lead?" | "Pick the deal for this call, or search for it" | **Choose** |
+| transcript going as "failed", still sendable | "Transcript not sent" | "The Sales Engine has the call without it. Tap to make it again and send it." | **Send** (opens the sheet) |
+
+The last is not shown for a call with no speech or a deleted recording, and
+goes when the transcript is on its way after all.
 
 No Private since the API of 2026-11-03. With notifications blocked, calls go
 all the same.
@@ -75,7 +84,9 @@ Opened from Change/Choose, or from a call's row. A bottom sheet:
 
 A work call's row gets a line under it: "Sales Engine · On Eksempel AS –
 nettside", "Choose a deal" or "Which lead?" (in the error colour), "Not in
-the CRM", "Other: not on a deal", "Not sent ...". Once the call reached the
+the CRM", "Other: not on a deal", "Not sent (older than 30 days)". While a
+failed try waits: "Not sent yet: no connection, or the Sales Engine is busy;
+trying again at 15:40". Once the call reached the
 server, its transcript's state follows: "· transcript to follow", "· sending
 the transcript", "· transcript sent", "· transcript not sent" (none for a
 call with no recording). The same line is under the row in the Recordings

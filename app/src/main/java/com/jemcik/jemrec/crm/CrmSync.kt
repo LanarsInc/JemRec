@@ -49,6 +49,8 @@ class CrmSync(
     interface Events {
         /** A call's state changed in a way the seller sees (the notification follows it). */
         fun changed(call: WorkCallEntry) {}
+        /** A call's transcript went as "failed" at its deadline. */
+        fun contentFailed(call: WorkCallEntry) {}
         /** Sending stopped until the seller acts. */
         fun needsSeller(state: SessionStore.State, noticeOutdated: Boolean) {}
 
@@ -99,6 +101,8 @@ class CrmSync(
             }
             calls.update(after)
             if (after.localState != c.localState || after.serverJson != c.serverJson || after.lookupJson != c.lookupJson) events.changed(after)
+            // 72 hours with no transcript made (transcripts off, say): "failed" goes, and the seller is told.
+            if (action == Action.FAIL_CONTENT) events.contentFailed(after)
             c = after
         }
         return now()

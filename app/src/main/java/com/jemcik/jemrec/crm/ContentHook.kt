@@ -31,7 +31,7 @@ object ContentHook {
     fun transcribed(context: Context, recording: String, lines: Int) = later {
         val summaryComes = lines > 0 && TranscribeSettings.of(context).summariseAfterTranscript &&
             SummaryWorker.chosenModel(context)?.let { ModelRepository.isInstalled(context, it) } == true
-        if (!summaryComes) markFailed(context, recording, if (lines == 0) "no speech" else "no summary")
+        if (!summaryComes) markFailed(context, recording, if (lines == 0) NO_SPEECH else "no summary")
     }
 
     fun transcriptionFailed(context: Context, recording: String) = later { markFailed(context, recording, "transcription failed") }
@@ -49,12 +49,13 @@ object ContentHook {
             ?: return@later markFailed(context, recording, "empty transcript")
         ready(call, Bodies.ready(content))?.let {
             calls.update(it)
+            CrmNotifications.cancelContentFailed(context, it.id)
             CrmSyncWorker.now(context)
         }
     }
 
     /** The recording went to the trash before its texts reached the CRM (FR-036). */
-    fun recordingDeleted(context: Context, recording: String) = later { markFailed(context, recording, "recording deleted") }
+    fun recordingDeleted(context: Context, recording: String) = later { markFailed(context, recording, DELETED) }
 
     private suspend fun markFailed(context: Context, recording: String, why: String) {
         val calls = CrmDatabase.of(context).calls()
@@ -62,6 +63,8 @@ object ContentHook {
         failed(call)?.let {
             Log.i("JemRec", "crm: no content for a work call: $why")
             calls.update(it)
+            // Said when making it again could help: not for a call with no speech, nor one deleted.
+            if (why != NO_SPEECH && why != DELETED) CrmNotifications.contentFailed(context, it)
             CrmSyncWorker.now(context)
         }
     }
@@ -78,6 +81,9 @@ object ContentHook {
         Content.EXPECTED -> c.copy(contentState = Content.FAILED_TO_SEND.name, contentDueAtMs = 0)
         else -> null
     }
+
+    private const val NO_SPEECH = "no speech"
+    private const val DELETED = "recording deleted"
 
     private fun later(block: suspend () -> Unit) {
         CoroutineScope(Dispatchers.IO).launch {

@@ -1,5 +1,6 @@
 package com.jemcik.jemrec.ui.screens
 
+import androidx.compose.ui.test.onAllNodesWithText
 import com.jemcik.jemrec.crm.CrmState
 import com.jemcik.jemrec.crm.WorkLine
 import com.jemcik.jemrec.crm.api.Notice
@@ -65,6 +66,36 @@ class SalesEngineScreenshots : ScreenTest() {
     @Test fun connected() {
         draw(connected)
         snap("sales-engine-connected")
+    }
+
+    /** The queue under Calls: what waits, why, what was given up; Retry now while a try failed. */
+    @Config(qualifiers = "+h1400dp")
+    @Test fun queue() {
+        val app = org.robolectric.RuntimeEnvironment.getApplication()
+        val calls = com.jemcik.jemrec.crm.db.CrmDatabase.of(app).calls()
+        val now = System.currentTimeMillis()
+        fun call(log: Long, local: String, content: String) = com.jemcik.jemrec.crm.db.WorkCallEntry(
+            clientCallId = "c$log", callLogId = log, userId = 1, outgoing = true, answered = true, phone = "1", presentation = "ALLOWED",
+            countryIso = null, startedAtMs = now - 3_600_000, durationSeconds = 60, endedAtMs = now, recording = "r$log.ogg",
+            outcome = "REACHED", localState = local, dueAtMs = now, contentState = content, serverId = log.toInt(),
+        )
+        kotlinx.coroutines.runBlocking {
+            calls.deleteAll()
+            // A fixed time, so the picture does not change with the clock: 2030-01-02 09:30 UTC.
+            calls.insert(call(1, "WAITING", "EXPECTED").copy(attempts = 2, lastError = "retrying", dueAtMs = 1_893_576_600_000L))
+            calls.insert(call(2, "SENT", "SENT_FAILED"))
+            calls.insert(call(3, "SENT", "SENT_READY"))
+        }
+        val zone = java.util.TimeZone.getDefault()
+        java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"))
+        try {
+            draw(connected)
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("Retry now").fetchSemanticsNodes().isNotEmpty() }
+            snap("sales-engine-queue")
+        } finally {
+            java.util.TimeZone.setDefault(zone)
+            kotlinx.coroutines.runBlocking { calls.deleteAll() }
+        }
     }
 
     @Config(qualifiers = "+h1400dp")

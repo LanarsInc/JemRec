@@ -15,6 +15,7 @@ import com.jemcik.jemrec.crm.CrmSync
 import com.jemcik.jemrec.crm.CrmSyncWorker
 import com.jemcik.jemrec.crm.GoogleSignIn
 import com.jemcik.jemrec.crm.SessionStore
+import com.jemcik.jemrec.crm.WorkCallMachine
 import com.jemcik.jemrec.crm.WorkLine
 import com.jemcik.jemrec.crm.api.ApiFailure
 import com.jemcik.jemrec.crm.api.ApiModels
@@ -228,6 +229,14 @@ class SalesEngineController(private val app: Application, private val scope: Cor
                 note = why ?: "Making the transcript and its summary on the phone; they go to the Sales Engine when done.",
             ))
         }
+    }
+
+    /** Settings' Retry now: the calls waiting out a failed try go now (WorkCallMachine.retryNow). */
+    fun retryNow() = scope.launch {
+        val calls = CrmDatabase.of(app).calls()
+        val now = System.currentTimeMillis()
+        calls.all().mapNotNull { WorkCallMachine.retryNow(it, now) }.forEach { calls.update(it) }
+        CrmSyncWorker.now(app)
     }
 
     fun closeCall() {

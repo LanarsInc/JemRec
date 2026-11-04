@@ -156,12 +156,13 @@ data class CallSheetUi(
         }
 
         /** A work call's state in a few words, for its row in the Calls tab and the sheet. */
-        fun markText(c: WorkCallEntry): String {
+        fun markText(c: WorkCallEntry, time: (Long) -> String = ::clockTime): String {
             val server = c.serverJson?.let { ApiModels.call(JSONObject(it)) }
             return when (Local.of(c.localState)) {
-                Local.NEW, Local.WAITING -> if (c.chosenByUser == true) "Sending to the Sales Engine…" else "Logging to the Sales Engine in 2 min"
+                Local.NEW, Local.WAITING -> retryText(c.lastError, c.dueAtMs, time)?.let { "Not sent yet: $it" }
+                    ?: if (c.chosenByUser == true) "Sending to the Sales Engine…" else "Logging to the Sales Engine in 2 min"
                 Local.INTERNAL -> "A colleague: not sent"
-                Local.NOT_SENT -> "Not sent to the Sales Engine${c.lastError?.let { " ($it)" } ?: ""}"
+                Local.NOT_SENT -> "Not sent to the Sales Engine${c.lastError?.let { " (${notSentWords(it)})" } ?: ""}"
                 Local.SENT -> when (server?.status) {
                     CallStatus.LOGGED -> "On ${server.dealTitle}"
                     CallStatus.PENDING -> if (server.pendingReason == PendingReason.NO_MATCH) "Which lead?" else "Choose a deal"
@@ -182,28 +183,52 @@ data class CallSheetUi(
          * server; null before that, and for a call with no recording. Without it a seller could
          * not tell whether a call's texts had gone (asked on the A24, 2026-11-04).
          */
-        fun contentText(c: WorkCallEntry): String? {
+        fun contentText(c: WorkCallEntry, time: (Long) -> String = ::clockTime): String? {
             if (Local.of(c.localState) != Local.SENT) return null
             return when (Content.of(c.contentState)) {
                 Content.NOT_EXPECTED -> null
                 Content.EXPECTED -> "transcript to follow"
-                Content.READY_TO_SEND -> "sending the transcript"
+                Content.READY_TO_SEND -> retryText(c.lastError, c.dueAtMs, time)?.let { "transcript not sent yet: $it" } ?: "sending the transcript"
                 Content.SENT_READY -> "transcript sent"
                 // "failed" sent or to send: the CRM knows no transcript is coming (FR-031).
                 Content.FAILED_TO_SEND, Content.SENT_FAILED, Content.DONE -> "transcript not sent"
             }
         }
 
+        /** Pure: Send the transcript is offered (WorkCallMachine.canResend). */
+        fun canResend(c: WorkCallEntry, nowMs: Long = System.currentTimeMillis()): Boolean = WorkCallMachine.canResend(c, nowMs)
+
         /**
-         * Pure: a real transcript may still follow a "failed" one (§8, once), for a call with a
-         * recording on the server, and not once the queue gives a call up (30 days).
+         * Why the queue is waiting to try again, in plain words, with when; null when it is not
+         * (CrmSync.failed's reasons). The line said "Sending…" through hours of retries, and a
+         * call not sent showed the failure's class name.
          */
-        fun canResend(c: WorkCallEntry, nowMs: Long = System.currentTimeMillis()): Boolean =
-            Local.of(c.localState) == Local.SENT && c.recording != null && !WorkCallMachine.tooOld(c, nowMs) &&
-                Content.of(c.contentState).let { it == Content.FAILED_TO_SEND || it == Content.SENT_FAILED }
+        fun retryText(lastError: String?, dueAtMs: Long, time: (Long) -> String = ::clockTime): String? {
+            val at = time(dueAtMs)
+            return when (lastError) {
+                null, "next refused" -> null
+                "retrying" -> "no connection, or the Sales Engine is busy; trying again at $at"
+                "rate limited" -> "too many calls for now; trying again at $at"
+                "server older than the app" -> "the Sales Engine is being updated; trying again at $at"
+                "phone clock ahead" -> "the phone's clock is ahead; set the time automatically"
+                else -> if (lastError.startsWith("logged")) null else "trying again at $at"
+            }
+        }
+
+        /** A call the queue gave up on: why, in plain words (CrmSync's reasons). */
+        fun notSentWords(lastError: String): String = when (lastError) {
+            "too old" -> "older than 30 days"
+            "refused" -> "the Sales Engine refused it"
+            "duplicate" -> "already sent from another phone"
+            "gone from the server" -> "deleted in the Sales Engine"
+            else -> "the Sales Engine refused it: $lastError"
+        }
+
+        fun clockTime(ms: Long): String = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(ms))
 
         /** The call's line under its row and on its transcript: the call, then its texts. */
-        fun lineText(c: WorkCallEntry): String = listOfNotNull(markText(c), contentText(c)).joinToString(" · ")
+        fun lineText(c: WorkCallEntry, time: (Long) -> String = ::clockTime): String =
+            listOfNotNull(markText(c, time), contentText(c, time)).joinToString(" · ")
 
         fun needsSeller(c: WorkCallEntry): Boolean = isPending(c)
     }

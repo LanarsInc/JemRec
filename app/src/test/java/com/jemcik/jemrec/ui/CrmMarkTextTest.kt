@@ -55,4 +55,49 @@ class CrmMarkTextTest {
         assertNull(CallSheetUi.contentText(call("WAITING", Content.EXPECTED)))
         assertEquals("Logging to the Sales Engine in 2 min", CallSheetUi.lineText(call("WAITING", Content.EXPECTED)))
     }
+
+    private val at: (Long) -> String = { "15:40" }
+
+    /** A retry is said with why and when, not as "Sending…" for hours. */
+    @Test fun aRetryIsSaidPlainly() {
+        val waiting = call("WAITING", Content.EXPECTED).copy(attempts = 2, lastError = "retrying")
+        assertEquals(
+            "Not sent yet: no connection, or the Sales Engine is busy; trying again at 15:40",
+            CallSheetUi.lineText(waiting, at),
+        )
+        val content = call("SENT", Content.READY_TO_SEND).copy(attempts = 1, lastError = "rate limited")
+        assertEquals("Not in the CRM · transcript not sent yet: too many calls for now; trying again at 15:40", CallSheetUi.lineText(content, at))
+    }
+
+    @Test fun aCallGivenUpOnSaysWhyInWords() {
+        assertEquals("Not sent to the Sales Engine (older than 30 days)", CallSheetUi.markText(call("NOT_SENT", Content.DONE).copy(lastError = "too old")))
+        assertEquals("Not sent to the Sales Engine (already sent from another phone)", CallSheetUi.markText(call("NOT_SENT", Content.DONE).copy(lastError = "duplicate")))
+    }
+
+    @Test fun theQueueIsSummedUp() {
+        val now = 10L * 24 * 60 * 60_000
+        val calls = listOf(
+            call("SENT", Content.SENT_READY),
+            call("WAITING", Content.EXPECTED).copy(attempts = 1, lastError = "retrying", dueAtMs = now + 60_000),
+            call("SENT", Content.SENT_FAILED),
+            call("NOT_SENT", Content.DONE).copy(lastError = "refused"),
+        )
+        val q = SalesEngineQueue.of(calls, now, at)!!
+        assertEquals(1, q.waiting)
+        assertEquals(1, q.retrying)
+        assertEquals(1, q.notSent)
+        assertEquals(1, q.transcriptsNotSent)
+        assertEquals("1 waiting to be sent · 1 not sent · 1 transcript not sent\nNo connection, or the Sales Engine is busy; trying again at 15:40", q.summary)
+        assertEquals("All sent", SalesEngineQueue.of(listOf(call("SENT", Content.SENT_READY)), now, at)!!.summary)
+        assertNull(SalesEngineQueue.of(emptyList(), now, at))
+    }
+
+    /** Retry now hurries a backoff, never the 2-minute hold nor a server's Retry-After. */
+    @Test fun retryNowOnlyHurriesABackoff() {
+        val now = 10L * 24 * 60 * 60_000
+        val backoff = call("WAITING", Content.EXPECTED).copy(attempts = 1, lastError = "retrying", dueAtMs = now + 60_000)
+        assertEquals(now, com.jemcik.jemrec.crm.WorkCallMachine.retryNow(backoff, now)!!.dueAtMs)
+        assertNull(com.jemcik.jemrec.crm.WorkCallMachine.retryNow(backoff.copy(attempts = 0, lastError = null), now))
+        assertNull(com.jemcik.jemrec.crm.WorkCallMachine.retryNow(backoff.copy(lastError = "rate limited"), now))
+    }
 }

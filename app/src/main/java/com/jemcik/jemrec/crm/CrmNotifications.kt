@@ -27,11 +27,13 @@ object CrmNotifications {
     private const val CHANNEL_ID = "sales_engine"
     private const val PROMPT_ID = 4_399
     private const val CALL_ID_BASE = 4_400
+    private const val CONTENT_ID_BASE = 14_400
 
     fun events(context: Context): CrmSync.Events {
         val app = context.applicationContext
         return object : CrmSync.Events {
             override fun changed(call: WorkCallEntry) = show(app, call)
+            override fun contentFailed(call: WorkCallEntry) = contentFailed(app, call)
             override fun needsSeller(state: SessionStore.State, noticeOutdated: Boolean) = prompt(app, state, noticeOutdated)
         }
     }
@@ -91,6 +93,33 @@ object CrmNotifications {
         }
         manager.notify(id, builder.build())
     }
+
+    /**
+     * A work call's transcript is going to the CRM as "failed" and could still be sent (§8 takes
+     * one after it): said, as nothing else would tell the seller (asked on the A24, 2026-11-04).
+     * The tap opens the call's sheet, where Send the transcript is.
+     */
+    fun contentFailed(context: Context, c: WorkCallEntry) {
+        if (!allowed(context) || !WorkCallMachine.canResend(c, System.currentTimeMillis())) return
+        ensureChannel(context)
+        val open = open(context, DeepLink.Kind.CRM_CALL, c.id.toString(), c.id.toInt() + 2)
+        context.getSystemService(NotificationManager::class.java).notify(
+            CONTENT_ID_BASE + (c.id % 10_000).toInt(),
+            Notification.Builder(context, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.stat_notify_error)
+                .setContentTitle("Transcript not sent")
+                .setContentText("The Sales Engine has the call without it. Tap to make it again and send it.")
+                .setContentIntent(open)
+                .addAction(action(context, "Send", open))
+                .setAutoCancel(true)
+                .setCategory(Notification.CATEGORY_STATUS)
+                .build(),
+        )
+    }
+
+    /** The transcript is on its way after all. */
+    fun cancelContentFailed(context: Context, id: Long) =
+        context.getSystemService(NotificationManager::class.java).cancel(CONTENT_ID_BASE + (id % 10_000).toInt())
 
     /** "Sign in again", "Read the new notice", "Update": each opens Settings > Sales Engine. */
     fun prompt(context: Context, state: SessionStore.State, noticeOutdated: Boolean) {

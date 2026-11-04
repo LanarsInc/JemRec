@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,6 +49,8 @@ fun SalesEngineSettingsScreen(vm: MainViewModel, modifier: Modifier = Modifier) 
         onDispose { c.closeNotice() }
     }
     val ui by c.state.collectAsStateWithLifecycle()
+    val workCalls by c.workCalls.collectAsStateWithLifecycle()
+    val queue = remember(workCalls) { SalesEngineQueue.of(workCalls, System.currentTimeMillis()) }
     val activity = LocalActivity.current
     val permissions = rememberPermissionRequest { c.refresh() }
     if (ui.reading) {
@@ -62,6 +66,8 @@ fun SalesEngineSettingsScreen(vm: MainViewModel, modifier: Modifier = Modifier) 
             onAskPhone = { permissions.launch(arrayOf(Manifest.permission.READ_PHONE_STATE)) },
             onAskCallLog = { permissions.launch(arrayOf(Manifest.permission.READ_CALL_LOG, Manifest.permission.READ_CONTACTS)) },
             modifier = modifier,
+            queue = queue,
+            onRetryNow = c::retryNow,
         )
     }
 }
@@ -76,6 +82,9 @@ internal fun SalesEngineSettingsContent(
     onAskPhone: () -> Unit,
     onAskCallLog: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The work calls' queue; null when there are none. */
+    queue: SalesEngineQueue? = null,
+    onRetryNow: () -> Unit = {},
 ) {
     val signedIn = ui.name != null && ui.state != CrmState.NOT_CONNECTED && ui.state != CrmState.BLOCKED
     Column(modifier) {
@@ -173,6 +182,29 @@ internal fun SalesEngineSettingsContent(
                             summaryColor = MaterialTheme.colorScheme.error,
                             onClick = onAskCallLog,
                         )
+                    }
+                }
+            }
+
+            queue?.let { q ->
+                SettingsGroup("Calls") {
+                    row {
+                        SettingsRow(
+                            title = "Work calls",
+                            summary = q.summary,
+                            icon = Icons.Filled.Call,
+                            summaryColor = if (q.notSent + q.transcriptsNotSent > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (q.retrying > 0) {
+                        row {
+                            SettingsRow(
+                                title = "Retry now",
+                                summary = if (q.retrying == 1) "1 call waits to try again" else "${q.retrying} calls wait to try again",
+                                icon = Icons.Filled.Refresh,
+                                onClick = onRetryNow,
+                            )
+                        }
                     }
                 }
             }

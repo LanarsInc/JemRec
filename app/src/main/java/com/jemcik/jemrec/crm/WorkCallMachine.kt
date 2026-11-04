@@ -79,6 +79,24 @@ object WorkCallMachine {
     /** §6: `started_at` at most 30 days old. A little less, so the request is not refused on the way. */
     fun tooOld(c: WorkCallEntry, nowMs: Long): Boolean = nowMs - c.startedAtMs > MAX_AGE_MS
 
+    /**
+     * Pure: a real transcript may still follow a "failed" one (§8, once), for a call with a
+     * recording on the server, and not once the queue gives a call up (30 days).
+     */
+    fun canResend(c: WorkCallEntry, nowMs: Long): Boolean =
+        Local.of(c.localState) == Local.SENT && c.recording != null && !tooOld(c, nowMs) &&
+            Content.of(c.contentState).let { it == Content.FAILED_TO_SEND || it == Content.SENT_FAILED }
+
+    /**
+     * Pure: Retry now, from Settings: a call waiting out a backoff (a failed try, so not the
+     * 2-minute hold, and not a server's Retry-After) is due now. Null when it is not waiting so.
+     */
+    fun retryNow(c: WorkCallEntry, nowMs: Long): WorkCallEntry? {
+        if (c.attempts == 0 || c.lastError == "rate limited") return null
+        val (_, due) = next(c) ?: return null
+        return if (due > nowMs) c.copy(dueAtMs = nowMs, contentDueAtMs = minOf(c.contentDueAtMs, nowMs)) else null
+    }
+
     /** 1, 2, 4 ... 60 minutes (research R6). */
     fun backoffMs(attempts: Int): Long = (60_000L shl attempts.coerceIn(0, 6)).coerceAtMost(60 * 60_000L)
 
