@@ -68,6 +68,22 @@ class SummaryRunner(
         val transcript = repository.load(recording)
         if (transcript == null || transcript.lines.isEmpty()) return SummaryOutcome.NoTranscript
 
+        // A call of a few words has nothing a model can summarise, and a small one invents what is
+        // missing: said as it is, in English, with no model and no memory (2026-11-04).
+        val words = transcript.lines.sumOf { line -> line.text.split(Regex("\\s+")).count { it.any(Char::isLetterOrDigit) } }
+        if (words < SHORT_CALL_WORDS) {
+            val short = CallSummary(
+                intent = "Short call",
+                summary = "Too short to summarise: $words word${if (words == 1) "" else "s"} were said. The transcript has them.",
+                keyPoints = emptyList(), decisions = emptyList(), actionItems = emptyList(), keyFacts = emptyList(),
+            )
+            repository.saveSummary(
+                CallSummaryEntry(recording, NO_MODEL, SUMMARY_LANGUAGE, short.toJson(), short.searchableText(), 0, now()),
+            )
+            Log.i(TAG, "Short call ($words words): no model run")
+            return SummaryOutcome.Done(short)
+        }
+
         // Checked before the load, not discovered by Android killing the app halfway. And waited
         // for: a summary queued behind a transcription starts the moment the voice step ends, and
         // the memory that step used is not free again at once. Measured on the A24, 2026-11-04: a
@@ -160,6 +176,12 @@ class SummaryRunner(
         /** How long a summary waits for free memory before it gives up, and how often it looks. */
         const val ROOM_WAIT_MS = 2 * 60_000L
         const val ROOM_POLL_MS = 5_000L
+
+        /** Fewer words than this are not given to a model (a "hello? I'll call you back" call). */
+        const val SHORT_CALL_WORDS = 15
+
+        /** The model id stored with such a call's summary. */
+        const val NO_MODEL = "none"
 
         /** Every summary is in English (FR-033, specs/002). */
         const val SUMMARY_LANGUAGE = "en"

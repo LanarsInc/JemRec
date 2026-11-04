@@ -551,10 +551,15 @@ the recording. If its transcript could not be made - a summary that did not fit
 in memory, say - the line says **transcript not sent**, and **Send the
 transcript** on the call's sheet makes it again and sends it, once.
 
-Offline, calls wait and go once when the network is back. If the session ends,
-LANARS's notice changes, or the Sales Engine needs a newer app, a notification
-says so and calls wait until it is done. **Sign out** stops it: calls made
-while signed out are never sent.
+Offline, calls wait and go once when the network is back; the line under a call
+says why it waits and when it tries again. Under **Calls** in Settings → Sales
+Engine you see what is still to go, what was not sent, and **Retry now**. If
+the session ends, LANARS's notice changes, or the Sales Engine needs a newer
+app, a notification says so and calls wait until it is done. **Sign out** stops
+it: calls made while signed out are never sent.
+
+A call of a few words gets no summary made by a model, only **Short call**; a
+call to a recorded menu is summarised as an **Automated message**.
 
 ## Three looks
 
@@ -752,6 +757,7 @@ And when the app is closed, in notifications:
 | **JemRec was stopped in the background** | This phone stopped JemRec in the background, so a call could go unrecorded. Its button opens the phone's own screen for it, and the notification says what to do there (on an Honor: **App launch**, **Manage manually**). Only on phones that stop apps that way — see *Stopped in the background*. |
 | **JemRec was held back in the background** | The phone froze JemRec while it was restarting the recorder after a cable, for the minutes it says. The same button and the same fix. |
 | A deal's name, or **Choose a deal**, with **Change** or **Choose** | A work call about to go to the Sales Engine, in two minutes. Then **Logged on** the deal, briefly, or **Choose a deal** or **Which lead?** while it waits for you. Only once you sign in to the Sales Engine. |
+| **Transcript not sent**, with **Send** | A work call's transcript could not be made, so the Sales Engine has the call without it. **Send** opens the call, to make it again and send it. |
 | **Sign in to the Sales Engine again**, **Read the Sales Engine's new notice**, **Update JemRec to keep logging calls** | Work calls wait until you do; the notification opens Settings → Sales Engine. |
 
 ## Settings

@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jemcik.jemrec.crm.db.WorkCallEntry
+import com.jemcik.jemrec.summary.SummaryRunner
 import com.jemcik.jemrec.summary.TranscriptTimestamp
 import com.jemcik.jemrec.transcripts.export.TranscriptFormat
 import com.jemcik.jemrec.transcribe.LanguageNames
@@ -278,7 +279,8 @@ private fun SummaryPart(ui: TranscriptUi, vm: MainViewModel) {
                 Points("To do", summary.actionItems, vm)
                 Points("Facts", summary.keyFacts, vm)
                 Text(
-                    listOfNotNull(ui.summaryModelId, ui.summaryWallMs?.let { "took ${spoken(it)}" }).joinToString(", ") +
+                    if (ui.summaryModelId == SummaryRunner.NO_MODEL) "Written without a model: the call is too short to summarise."
+                    else listOfNotNull(ui.summaryModelId, ui.summaryWallMs?.let { "took ${spoken(it)}" }).joinToString(", ") +
                         ". Made on the phone from the transcript; check what matters against it.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

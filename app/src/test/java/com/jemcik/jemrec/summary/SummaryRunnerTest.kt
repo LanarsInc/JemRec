@@ -66,8 +66,30 @@ class SummaryRunnerTest {
         listOf(
             TranscriptSegment(1_000, 4_000, "Hei, gjelder det leveransen?", Speaker.YOU),
             TranscriptSegment(5_000, 9_000, "Ja, den kommer på fredag mellom ni og elleve.", Speaker.THEM),
+            TranscriptSegment(10_000, 12_000, "Flott, takk skal du ha.", Speaker.YOU),
         ),
     )
+
+    /** A few words are not given to a model, which would invent the rest (2026-11-04). */
+    @Test fun aShortCallIsNotGivenToTheModel() = runBlocking {
+        repo.save(
+            "a.ogg",
+            TranscriptFacts("nb-small-q5_0", "no", true, 3_000, 3_000, 900, 6, 1),
+            listOf(TranscriptSegment(0, 2_000, "Hallo? Jeg ringer deg tilbake.", Speaker.THEM)),
+        )
+        free = 1_000_000_000L
+        val outcome = runner().run("a.ogg", null, SummaryModel.QWEN3_1_7B_Q4_K_M, "/m")
+        assertTrue(outcome is SummaryOutcome.Done)
+        assertEquals("Short call", (outcome as SummaryOutcome.Done).summary.intent)
+        assertTrue(prompts.isEmpty())
+        assertEquals(SummaryRunner.NO_MODEL, repo.summary("a.ogg")?.modelId)
+    }
+
+    @Test fun thePromptSaysWhatToDoWithARecordedMenu() = runBlocking {
+        transcript()
+        runner().run("a.ogg", null, SummaryModel.QWEN3_1_7B_Q4_K_M, "/m")
+        assertTrue(prompts.single().contains("Automated message:"))
+    }
 
     /** In English since 1.0, whatever the call's language (FR-033, specs/002): the Sales Engine takes English. */
     @Test fun aNorwegianCallIsSummarisedInEnglishAndKept() = runBlocking {
@@ -101,7 +123,7 @@ class SummaryRunnerTest {
             TranscriptFacts("small-q5_1", "no", false, 20_000, 30_000, 900, 6, 1),
             listOf(
                 TranscriptSegment(1_000, 4_000, "Hei, gjelder det leveransen?", Speaker.VOICE1),
-                TranscriptSegment(5_000, 9_000, "Ja, den kommer på fredag.", Speaker.VOICE2),
+                TranscriptSegment(5_000, 9_000, "Ja, den kommer på fredag mellom ni og elleve om morgenen.", Speaker.VOICE2),
             ),
         )
         runner().run("a.ogg", "Kari", SummaryModel.QWEN3_1_7B_Q4_K_M, "/m")

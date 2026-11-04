@@ -2106,10 +2106,16 @@ SETUP = [
           "If its transcript could not be made - a summary that did not fit in "
           "memory, say - the line says **transcript not sent**, and **Send the "
           "transcript** on the call's sheet makes it again and sends it, once."),
-    ("p", "Offline, calls wait and go once when the network is back. If the "
+    ("p", "Offline, calls wait and go once when the network is back; the line "
+          "under a call says why it waits and when it tries again. Under **Calls** "
+          "in Settings → Sales Engine you see what is still to go, what was not "
+          "sent, and **Retry now**. If the "
           "session ends, LANARS's notice changes, or the Sales Engine needs a "
           "newer app, a notification says so and calls wait until it is done. "
           "**Sign out** stops it: calls made while signed out are never sent."),
+    ("p", "A call of a few words gets no summary made by a model, only "
+          "**Short call**; a call to a recorded menu is summarised as an "
+          "**Automated message**."),
     ("h2", "Three looks"),
     ("p", "**Settings → Theme** changes how JemRec looks, never what it does. "
           "**Memo**, the default, is calm and simple, with one big record button; "
@@ -2338,6 +2344,9 @@ SETUP = [
          "about to go to the Sales Engine, in two minutes. "
          "Then **Logged on** the deal, briefly, or **Choose a deal** or **Which "
          "lead?** while it waits for you. Only once you sign in to the Sales Engine."],
+        ["**Transcript not sent**, with **Send**", "A work call's transcript could "
+         "not be made, so the Sales Engine has the call without it. **Send** opens "
+         "the call, to make it again and send it."],
         ["**Sign in to the Sales Engine again**, **Read the Sales Engine's new "
          "notice**, **Update JemRec to keep logging calls**", "Work calls wait until "
          "you do; the notification opens Settings → Sales Engine."],
