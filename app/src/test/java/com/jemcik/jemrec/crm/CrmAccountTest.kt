@@ -127,8 +127,8 @@ class CrmAccountTest {
     fun `the notice - agreed, and a changed version is told apart`() = runBlocking {
         bed.answer(201, "session-201")
         account.signIn("t")
-        bed.answerJson(200, """{"data":{"version":"2026-11-02","acknowledged_at":"2026-11-03T08:01:12.000Z"}}""")
-        assertNull(account.acknowledge("2026-11-02"))
+        bed.answerJson(200, """{"data":{"version":"2026-11-03","acknowledged_at":"2026-11-03T08:01:12.000Z"}}""")
+        assertNull(account.acknowledge("2026-11-03"))
         assertTrue(bed.store.noticeOk)
         bed.answer(409, "error-notice-conflict")
         assertEquals(ApiFailure.NoticeChanged, account.acknowledge("2026-10-01"))

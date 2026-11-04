@@ -80,7 +80,12 @@ enum class CallStatus(val wire: String) {
     val isFinal: Boolean get() = this != PENDING
 }
 
-enum class PendingReason { SEVERAL_OPEN_DEALS, ONLY_CLOSED_DEALS, DEAL_NOT_CANDIDATE }
+/**
+ * Why a call waits for a pick (§6.2). NO_MATCH (API of 2026-11-03): a seller
+ * with a weekly call goal called a number with no deal; its candidates are
+ * suggestions, and any open deal may be picked (§7).
+ */
+enum class PendingReason { SEVERAL_OPEN_DEALS, ONLY_CLOSED_DEALS, DEAL_NOT_CANDIDATE, NO_MATCH }
 
 enum class ContentStatus { EXPECTED, NONE, READY, FAILED }
 
@@ -189,12 +194,16 @@ object ApiModels {
             pendingReason = if (c.isNull("pending_reason")) null else when (c.optString("pending_reason")) {
                 "only_closed_deals" -> PendingReason.ONLY_CLOSED_DEALS
                 "deal_not_candidate" -> PendingReason.DEAL_NOT_CANDIDATE
+                "no_match" -> PendingReason.NO_MATCH
                 else -> PendingReason.SEVERAL_OPEN_DEALS
             },
             candidates = c.optJSONArray("candidates").objects().map(::candidate),
             candidatesTotal = c.optInt("candidates_total", 0),
         )
     }
+
+    /** `POST /calls/search`'s answer (§10): open deals, best match first. */
+    fun deals(data: JSONObject): List<Candidate> = data.optJSONArray("deals").objects().map(::candidate)
 
     /** Back to JSON, for keeping the last answer on the work call. */
     fun callJson(s: CallState): JSONObject = JSONObject().put(

@@ -58,7 +58,7 @@ class CallIntakeTest {
         assertEquals(Local.NEW.name, shown.localState)
         assertEquals(0L, shown.dueAtMs)
         assertEquals(Local.WAITING.name, hidden.localState)
-        assertEquals(hidden.endedAtMs + WorkCallMachine.PRIVATE_WINDOW_MS, hidden.dueAtMs)
+        assertEquals(hidden.endedAtMs + WorkCallMachine.HOLD_MS, hidden.dueAtMs)
     }
 
     @Test

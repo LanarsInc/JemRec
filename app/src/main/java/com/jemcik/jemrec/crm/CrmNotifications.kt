@@ -4,24 +4,20 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
 import com.jemcik.jemrec.DeepLink
 import com.jemcik.jemrec.crm.WorkCallMachine.Local
 import com.jemcik.jemrec.crm.api.ApiModels
 import com.jemcik.jemrec.crm.api.CallStatus
-import com.jemcik.jemrec.crm.db.CrmDatabase
+import com.jemcik.jemrec.crm.api.PendingReason
 import com.jemcik.jemrec.crm.db.WorkCallEntry
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 /**
  * The Sales Engine's notifications (contracts/ui.md): one per work call,
- * replaced as the call moves - with Private for the two minutes before it is
- * sent (FR-020) - and the prompts that need the seller.
+ * replaced as the call moves - with Change or Choose for the two minutes it is
+ * held before it is sent (FR-020), and Choose or "Which lead?" while it waits
+ * for a pick - and the prompts that need the seller.
  *
  * Its own channel, so the after-call recording notification (AfterCall) and
  * this one can each be switched off without the other.
@@ -31,8 +27,6 @@ object CrmNotifications {
     private const val CHANNEL_ID = "sales_engine"
     private const val PROMPT_ID = 4_399
     private const val CALL_ID_BASE = 4_400
-    const val ACTION_PRIVATE = "com.jemcik.jemrec.crm.PRIVATE"
-    const val EXTRA_CALL = "call"
 
     fun events(context: Context): CrmSync.Events {
         val app = context.applicationContext
@@ -45,7 +39,7 @@ object CrmNotifications {
     fun ensureChannel(context: Context) {
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Sales Engine", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "After a work call: its deal, Private, and what reached LANARS's CRM"
+                description = "After a work call: its deal, and what reached LANARS's CRM"
                 setSound(null, null)
                 enableVibration(false)
                 setShowBadge(false)
@@ -83,15 +77,13 @@ object CrmNotifications {
                         .setContentTitle("Call to the Sales Engine")
                         .setContentText(if (c.phone == null) "Hidden number · sending $inMinutes" else "Sending $inMinutes")
                 }
-                builder.addAction(action(context, "Private", privateIntent(context, c.id)))
                 builder.setTimeoutAfter((c.dueAtMs - System.currentTimeMillis()).coerceAtLeast(0) + 5 * 60_000)
             }
-            Local.PRIVATE -> builder.setContentTitle("Kept private").setContentText("Nothing more about this call is sent").setTimeoutAfter(6_000)
             Local.SENT -> when (server?.status) {
                 CallStatus.LOGGED -> builder.setContentTitle("Logged on ${server.dealTitle}").setTimeoutAfter(10_000)
                 CallStatus.PENDING -> builder
-                    .setContentTitle("Choose a deal")
-                    .setContentText("Not logged yet")
+                    .setContentTitle(if (server.pendingReason == PendingReason.NO_MATCH) "Which lead?" else "Choose a deal")
+                    .setContentText(if (server.pendingReason == PendingReason.NO_MATCH) "Pick the deal for this call, or search for it" else "Not logged yet")
                     .addAction(action(context, "Choose", open(context, DeepLink.Kind.CRM_CALL, c.id.toString(), c.id.toInt() + 1)))
                 else -> return manager.cancel(id)
             }
@@ -137,34 +129,5 @@ object CrmNotifications {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
-    private fun privateIntent(context: Context, callId: Long): PendingIntent =
-        PendingIntent.getBroadcast(
-            context,
-            REQUEST_BASE + 1 + callId.toInt() * 2,
-            Intent(context, CrmPrivateReceiver::class.java).setAction(ACTION_PRIVATE).putExtra(EXTRA_CALL, callId).setIdentifier("crm-private-$callId"),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-
     private const val REQUEST_BASE = 7700
-}
-
-/**
- * Private, from the notification. Not exported: reached only through this
- * app's own immutable PendingIntent, so the call it names is one this app put
- * in the notification.
- */
-class CrmPrivateReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != CrmNotifications.ACTION_PRIVATE) return
-        val id = intent.getLongExtra(CrmNotifications.EXTRA_CALL, -1)
-        val app = context.applicationContext
-        val pending = goAsync()
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                CrmActions.makePrivate(app, id)
-            } finally {
-                pending.finish()
-            }
-        }
-    }
 }

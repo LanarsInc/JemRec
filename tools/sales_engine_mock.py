@@ -17,7 +17,10 @@ any token).
 What a lookup answers depends on the number's last digit, as the document's
 invented numbers do: ...1 one open deal plus a lost one, ...2 two open deals,
 ...3 a deal with no organisation, ...0 a colleague, anything else not in the
-CRM. Step 1 answers in kind: logged, pending, not in the CRM, hidden, internal.
+CRM. Step 1 answers in kind: logged, pending, not in the CRM, hidden, internal;
+an outgoing call to a number ending in 9 answers as for a seller with a weekly
+goal: pending, `no_match`, with suggestions, and any deal may then be picked.
+POST /calls/search finds the document's deals by title or company.
 GET /requests returns what was received; DELETE /requests forgets it.
 
 Standard library only.
@@ -74,6 +77,8 @@ def call_for(body):
             answer = fixture("call-logged")
         elif d == "2":
             answer = fixture("call-pending")
+        elif d == "9" and body.get("direction") == "outgoing":
+            answer = fixture("call-no-match")
         else:
             answer = fixture("call-not-in-crm")
     c = answer["data"]["call"]
@@ -134,12 +139,21 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, fixture("me"))
         if method == "POST" and p == "/calls/lookup":
             return self.reply(200, lookup_for(body.get("phone")))
+        if method == "POST" and p == "/calls/search":
+            q = (body or {}).get("q", "").strip()
+            if not 2 <= len(q) <= 100:
+                return self.reply(400, {"error": "invalid_input", "detail": "q: 2 to 100 characters"})
+            deals = [d for d in fixture("search")["data"]["deals"] + fixture("call-no-match")["data"]["call"]["candidates"]
+                     if q.lower() in d["title"].lower() or q.lower() in (d["org_name"] or "").lower()]
+            seen = set()
+            deals = [d for d in deals if not (d["deal_id"] in seen or seen.add(d["deal_id"]))]
+            return self.reply(200, {"data": {"deals": deals[:10]}})
         if method == "POST" and p == "/calls":
             known = body["client_call_id"] in calls
             answer = call_for(body)
             calls[body["client_call_id"]] = answer["data"]["call"]
             return self.reply(200 if known else 201, answer)
-        m = re.fullmatch(r"/calls/(\d+)(/deal|/content|/private)?", p)
+        m = re.fullmatch(r"/calls/(\d+)(/deal|/content)?", p)
         if m:
             cid = int(m.group(1))
             stored = next((c for c in calls.values() if c["id"] == cid), None)
@@ -153,12 +167,8 @@ class Handler(BaseHTTPRequestHandler):
                     stored.update(status="logged", deal={"id": body["deal_id"], "title": "Picked deal"},
                                   activity_id=1000793, candidates=[], candidates_total=0, pending_reason=None)
             elif what == "/content":
-                if stored["status"] not in ("private", "deleted"):
+                if stored["status"] != "deleted":
                     stored["content_status"] = body["content_status"]
-            elif what == "/private":
-                if stored["status"] == "logged":
-                    return self.reply(409, fixture("error-duplicate-logged"))
-                stored.update(status="private", content_status="none")
             return self.reply(200, {"data": {"call": stored}})
         return self.reply(405, fixture("error-method"))
 

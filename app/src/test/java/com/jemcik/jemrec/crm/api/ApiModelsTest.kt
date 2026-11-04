@@ -26,7 +26,7 @@ class ApiModelsTest {
         assertEquals(Instants.parse("2027-01-31T09:00:00.000Z"), s.expiresAtMs)
         assertEquals(30, s.idleTimeoutDays)
         assertEquals(UserInfo(1000001, "Test Seller", "android-test@example.no"), s.user)
-        assertEquals("2026-11-02", s.noticeVersion)
+        assertEquals("2026-11-03", s.noticeVersion)
         assertFalse(s.noticeAcknowledged)
         assertEquals("1.4.0", s.minAppVersion)
     }
@@ -40,7 +40,7 @@ class ApiModelsTest {
     @Test
     fun `the notice keeps every kind of text`() {
         val n = ApiModels.notice(CrmFixtures.data("notice"))
-        assertEquals("2026-11-02", n.version)
+        assertEquals("2026-11-03", n.version)
         assertEquals(2, n.sections.size)
         assertEquals(2, n.sections[0].items.size)
         assertEquals(listOf("An invented paragraph."), n.sections[1].paragraphs)
@@ -94,11 +94,16 @@ class ApiModelsTest {
         val internal = ApiModels.call(CrmFixtures.data("call-internal"))
         assertNull(internal.id)
         assertEquals(CallStatus.INTERNAL, internal.status)
-        assertEquals(CallStatus.PRIVATE, ApiModels.call(CrmFixtures.data("call-private-repeat")).status)
+        // Older calls only since 2026-11-03, but still a status the server can answer.
+        val older = CrmFixtures.data("call-not-in-crm").apply { getJSONObject("call").put("status", "private") }
+        assertEquals(CallStatus.PRIVATE, ApiModels.call(older).status)
+        val noMatch = ApiModels.call(CrmFixtures.data("call-no-match"))
+        assertEquals(PendingReason.NO_MATCH, noMatch.pendingReason)
+        assertEquals(listOf(1000459, 1000456), noMatch.candidates.map { it.dealId })
+        assertEquals(CallStatus.LOGGED, ApiModels.call(CrmFixtures.data("deal-found-logged")).status)
         assertEquals(PendingReason.DEAL_NOT_CANDIDATE, ApiModels.call(CrmFixtures.data("deal-not-candidate")).pendingReason)
         assertEquals(ContentStatus.READY, ApiModels.call(CrmFixtures.data("content-ready")).contentStatus)
         assertEquals(ContentStatus.FAILED, ApiModels.call(CrmFixtures.data("content-failed")).contentStatus)
-        assertEquals(CallStatus.PRIVATE, ApiModels.call(CrmFixtures.data("private")).status)
     }
 
     @Test

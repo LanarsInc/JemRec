@@ -55,7 +55,7 @@ One call on the work line, from the call log.
 | next | Next? (JSON) | date, time, subject, in Oslo time |
 | localState | see below | |
 | step1Body | String? | built once, resent unchanged (§6.3) |
-| sendAfter | Instant | end of the Private window, or a retry time |
+| sendAfter | Instant | end of the 2-minute hold, or a retry time |
 | serverId | Int? | `call.id` |
 | server | CallState? (JSON) | the last call object the server sent |
 | contentState | see below | |
@@ -65,15 +65,18 @@ One call on the work line, from the call log.
 
 ### Local state of a call
 
+Private and Make private went with the API of 2026-11-03; `crm.db` version 2
+drops their column (a version-1 row in the PRIVATE state reads as not sent;
+only debug installs had any). A `pending` call with `pending_reason`
+`no_match` takes any open deal in its pick, found by `POST /calls/search`.
+
 ```
-NEW -> LOOKED_UP -> WAITING (Private window)
-  NEW/LOOKED_UP/WAITING --Private--> PRIVATE (final, nothing sent)
+NEW -> LOOKED_UP -> WAITING (2-minute hold)
   LOOKED_UP --internal--> INTERNAL (final, nothing more sent)
   WAITING --window ends or seller confirms--> SENDING
   SENDING --2xx--> SENT  (server state from then on)
   SENDING --too old / refused--> NOT_SENT (final, visible)
   SENT --seller picks--> PICK_SENDING --> SENT
-  SENT --Make private--> PRIVATE_SENDING --> SENT (server: private)
   any --another person signs in / blocked--> DROPPED (deleted)
 ```
 

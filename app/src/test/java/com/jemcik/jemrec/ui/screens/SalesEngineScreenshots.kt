@@ -90,7 +90,7 @@ class SalesEngineScreenshots : ScreenTest() {
             connected.copy(
                 reading = true,
                 notice = Notice(
-                    version = "2026-11-02",
+                    version = "2026-11-03",
                     acknowledged = false,
                     title = "Call logging in LANARS Sales Engine",
                     intro = "After a call on your work line, this app sends the call to the Sales Engine, LANARS's CRM, so it shows on the right deal. Read this before the app sends anything.",

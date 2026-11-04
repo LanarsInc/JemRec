@@ -18,6 +18,7 @@ import com.jemcik.jemrec.crm.WorkLine
 import com.jemcik.jemrec.crm.api.ApiFailure
 import com.jemcik.jemrec.crm.api.ApiModels
 import com.jemcik.jemrec.crm.api.ApiResult
+import com.jemcik.jemrec.crm.api.Bodies
 import com.jemcik.jemrec.crm.api.Notice
 import com.jemcik.jemrec.crm.db.CrmDatabase
 import com.jemcik.jemrec.crm.db.WorkCallEntry
@@ -26,6 +27,8 @@ import com.jemcik.jemrec.transcribe.TranscribeSettings
 import com.jemcik.jemrec.transcribe.model.ModelRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
@@ -55,6 +58,8 @@ data class SalesEngineUi(
     val contentWarning: String? = null,
     /** The work call whose sheet is open (CallSheet), from its notification or row. */
     val sheet: CallSheetUi? = null,
+    /** The open sheet's deal search, for a call waiting for its lead. */
+    val search: DealSearchUi = DealSearchUi(),
 )
 
 /**
@@ -168,11 +173,12 @@ class SalesEngineController(private val app: Application, private val scope: Cor
         }
     }
 
-    /** Opens a work call's sheet: its deal, Private, outcome and next call. */
+    /** Opens a work call's sheet: its deal, outcome and next call. */
     fun openCall(id: Long) = scope.launch {
         val calls = CrmDatabase.of(app).calls()
         var c = calls.byId(id) ?: return@launch
-        _state.update { it.copy(sheet = CallSheetUi.of(c, loading = true)) }
+        searchJob?.cancel()
+        _state.update { it.copy(sheet = CallSheetUi.of(c, loading = true), search = DealSearchUi()) }
         // §7: a call that waited shows the deals as they are now.
         if (CallSheetUi.isPending(c) && c.serverId != null) {
             val fresh = withContext(Dispatchers.IO) { CrmSync.client(app).getCall(c.serverId!!) }
@@ -184,18 +190,47 @@ class SalesEngineController(private val app: Application, private val scope: Cor
         _state.update { it.copy(sheet = CallSheetUi.of(c, loading = false)) }
     }
 
-    fun closeCall() = _state.update { it.copy(sheet = null) }
+    fun closeCall() {
+        searchJob?.cancel()
+        _state.update { it.copy(sheet = null, search = DealSearchUi()) }
+    }
+
+    private var searchJob: Job? = null
+
+    /**
+     * The "Which lead?" search (§10), run once the seller stops typing: the
+     * limit is 60 searches in 10 minutes, so not one per letter. A failed
+     * search is shown, never retried by itself (§11: search, like lookup).
+     */
+    fun search(query: String) {
+        searchJob?.cancel()
+        val q = query.trim()
+        if (q.length < Bodies.MIN_SEARCH) {
+            _state.update { it.copy(search = DealSearchUi(query = query)) }
+            return
+        }
+        _state.update { it.copy(search = it.search.copy(query = query, searching = true, message = null)) }
+        searchJob = scope.launch {
+            delay(SEARCH_DELAY_MS)
+            val r = withContext(Dispatchers.IO) { CrmSync.client(app).search(q) }
+            val result = when (r) {
+                is ApiResult.Ok -> DealSearchUi(query, r.value, message = if (r.value.isEmpty()) "No open deal matches \"$q\"." else null)
+                is ApiResult.Failed -> DealSearchUi(query, emptyList(), message = searchFailure(r.failure))
+            }
+            _state.update { if (it.search.query == query) it.copy(search = result) else it }
+        }
+    }
+
+    private fun searchFailure(f: ApiFailure): String = when (f) {
+        is ApiFailure.RetryAfter -> "Too many searches for now: try again in ${(f.seconds + 59) / 60} min, or pick a suggestion."
+        ApiFailure.NoticeRequired -> "Read the Sales Engine's new notice first, in Settings."
+        else -> failureLine(f).takeUnless { f == ApiFailure.Retry } ?: "The search did not go through. Check the network and try again."
+    }
 
     /** The seller's choice from the sheet: sent at once (CrmActions). */
     fun choose(choice: CrmActions.Choice) = scope.launch {
         val id = _state.value.sheet?.id ?: return@launch
         CrmActions.choose(app, id, choice)
-        closeCall()
-    }
-
-    fun makePrivate() = scope.launch {
-        val id = _state.value.sheet?.id ?: return@launch
-        CrmActions.makePrivate(app, id)
         closeCall()
     }
 
@@ -240,6 +275,10 @@ class SalesEngineController(private val app: Application, private val scope: Cor
         !TranscribeSettings.of(app).summariseAfterTranscript -> "Summaries are off: the Sales Engine gets calls without a transcript or summary."
         SummaryModel.entries.none { ModelRepository.isInstalled(app, it) } -> "No summary model on the phone: the Sales Engine gets calls without a transcript or summary."
         else -> null
+    }
+
+    private companion object {
+        const val SEARCH_DELAY_MS = 400L
     }
 
     /** Set by the screen tests: the state shown is theirs, and nothing on the phone is read over it. */

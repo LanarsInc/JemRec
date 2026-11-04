@@ -16,7 +16,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** A call waiting for a deal, the seller's pick, and Make private (§7, §10). */
+/** A call waiting for a deal or a lead, and the seller's pick (§7). */
 class CrmSyncPickTest : CrmSyncTestBase() {
 
     private fun status(id: Long) = ApiModels.call(JSONObject(get(id).serverJson!!)).status
@@ -68,7 +68,7 @@ class CrmSyncPickTest : CrmSyncTestBase() {
     }
 
     @Test
-    fun `Don't log`() {
+    fun `Other`() {
         val id = pending()
         pick(id, DealChoice.NONE, null, NextCall("2026-11-06"))
         bed.answer(200, "deal-declined")
@@ -89,37 +89,75 @@ class CrmSyncPickTest : CrmSyncTestBase() {
     }
 
     @Test
-    fun `Make private on a call not in the CRM`() {
-        val id = call()
-        bed.answer(200, "lookup-none")
-        run()
-        minutes(2)
-        bed.answer(201, "call-not-in-crm")
-        run()
-        bed.requests()
-        assertEquals("Make private", CallSheetUi.of(get(id), false).privateLabel)
-        runBlocking { bed.db.calls().update(CrmActions.privateOf(get(id))!!) }
-        bed.answer(200, "private")
-        run()
-        assertEquals("POST /calls/5015/private", bed.requests().single().first)
-        assertEquals(CallStatus.PRIVATE, status(id))
-        assertFalse(get(id).privateAsked)
-    }
-
-    @Test
-    fun `a logged call cannot be made private here`() {
+    fun `a logged call cannot be chosen again here`() {
         val id = call()
         bed.answer(200, "lookup-deal")
         run()
         minutes(2)
         bed.answer(201, "call-logged")
         run()
-        assertNull(CrmActions.privateOf(get(id)))
         val sheet = CallSheetUi.of(get(id), false)
-        assertNull(sheet.privateLabel)
         assertFalse(sheet.canChoose)
         assertTrue(sheet.note!!.contains("web app"))
         assertEquals(Local.SENT.name, get(id).localState)
+    }
+
+    /** A weekly-goal seller's call to a number with no deal: pending as no_match (§6.1). */
+    private fun noMatch(): Long {
+        val id = call(phone = "+47 400 00 009")
+        bed.answer(200, "lookup-none")
+        run()
+        minutes(2)
+        bed.answer(201, "call-no-match")
+        run()
+        bed.requests()
+        return id
+    }
+
+    @Test
+    fun `no_match - Which lead, with suggestions and none ticked`() {
+        val id = noMatch()
+        val sheet = CallSheetUi.of(get(id), false)
+        assertTrue(sheet.whichLead)
+        assertTrue(sheet.canChoose)
+        assertNull(sheet.preselected)
+        assertEquals(listOf(1000459, 1000456), sheet.candidates.map { it.dealId })
+        assertEquals("Which lead?", CallSheetUi.markText(get(id)))
+        assertTrue(CallSheetUi.needsSeller(get(id)))
+    }
+
+    @Test
+    fun `no_match - a deal found by search is picked and logged`() {
+        val id = noMatch()
+        // 1000458 is not among the suggestions: any open deal may be picked (§7).
+        pick(id, DealChoice.DEAL, 1000458)
+        bed.answer(200, "deal-found-logged")
+        run()
+        val (path, body) = bed.requests().single()
+        assertEquals("POST /calls/5015/deal", path)
+        assertTrue(CrmFixtures.same(CrmFixtures.json("deal-found-request"), JSONObject(body)))
+        assertEquals(CallStatus.LOGGED, status(id))
+    }
+
+    @Test
+    fun `no_match - a lead the server cannot take leaves it waiting with fresh suggestions`() {
+        val id = noMatch()
+        pick(id, DealChoice.DEAL, 1000458)
+        bed.answer(200, "call-no-match")
+        run()
+        assertEquals(CallStatus.PENDING, status(id))
+        assertTrue(CallSheetUi.of(get(id), false).whichLead)
+        assertNull(get(id).pickChoice)
+    }
+
+    @Test
+    fun `no_match - Other`() {
+        val id = noMatch()
+        pick(id, DealChoice.NONE, null)
+        bed.answer(200, "deal-declined")
+        run()
+        assertEquals("""{"deal_choice":"none"}""", bed.requests().single().second)
+        assertEquals("Other: not on a deal", CallSheetUi.markText(get(id)))
     }
 
     @Test
@@ -130,6 +168,5 @@ class CrmSyncPickTest : CrmSyncTestBase() {
         val sheet = CallSheetUi.of(get(id), false)
         assertTrue(sheet.beforeSending)
         assertEquals(1000456, sheet.preselected)
-        assertEquals("Private", sheet.privateLabel)
     }
 }

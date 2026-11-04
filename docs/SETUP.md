@@ -530,17 +530,22 @@ permission, asked there.
 
 After each call on the work SIM a notification says where it is going: the
 deal, **Choose a deal** when the number has several, or that the Sales Engine
-decides. **Private** within two minutes keeps the call out altogether;
-otherwise it goes. **Change** or **Choose** opens the call's sheet: its deal or
-**Don't log**, how it went, and a next call on the deal, in Norwegian time.
-Missed calls are logged too, with a call-back the Sales Engine plans.
+decides; two minutes later it goes. It is a work phone: every call on the work
+SIM is sent. **Change** or **Choose** opens the call's sheet: its deal or
+**Other** (kept outside the CRM), how it went, and a next call on the deal, in
+Norwegian time. Missed calls are logged too, with a call-back the Sales Engine
+plans.
+
+If LANARS gave you a weekly call goal, a call to a number on no deal asks
+**Which lead?**: pick one of the suggestions, search your open deals by title
+or company, or choose **Other**. The Sales Engine saves the number on the deal
+you pick.
 
 In the **Calls** tab each work call says where it went - on a deal, not in the
-CRM, private - and a card says when calls wait for you to choose their deal; a
-tap opens the sheet, where a call not on a deal can still be made private. Once
-the phone has transcribed and summarised a call, by your setting under
-Transcripts, both go to it: the summary into the call's note on the deal. Never
-the recording.
+CRM, Other - and a card says when calls wait for you to choose their deal or
+lead; a tap opens the sheet. Once the phone has transcribed and summarised a
+call, by your setting under Transcripts, both go to it: the summary into the
+call's note on the deal. Never the recording.
 
 Offline, calls wait and go once when the network is back. If the session ends,
 LANARS's notice changes, or the Sales Engine needs a newer app, a notification
@@ -742,7 +747,7 @@ And when the app is closed, in notifications:
 | The caller, with pause and a seek bar | A recording you played, going on with the screen off. On the lock screen it says only **Call recording**. It goes when the recording is stopped. |
 | **JemRec was stopped in the background** | This phone stopped JemRec in the background, so a call could go unrecorded. Its button opens the phone's own screen for it, and the notification says what to do there (on an Honor: **App launch**, **Manage manually**). Only on phones that stop apps that way — see *Stopped in the background*. |
 | **JemRec was held back in the background** | The phone froze JemRec while it was restarting the recorder after a cable, for the minutes it says. The same button and the same fix. |
-| A deal's name, or **Choose a deal**, with **Private** | A work call about to go to the Sales Engine; Private within two minutes keeps it out. Then **Logged on** the deal, briefly, or **Choose a deal** while it waits for you. Only once you sign in to the Sales Engine. |
+| A deal's name, or **Choose a deal**, with **Change** or **Choose** | A work call about to go to the Sales Engine, in two minutes. Then **Logged on** the deal, briefly, or **Choose a deal** or **Which lead?** while it waits for you. Only once you sign in to the Sales Engine. |
 | **Sign in to the Sales Engine again**, **Read the Sales Engine's new notice**, **Update JemRec to keep logging calls** | Work calls wait until you do; the notification opens Settings → Sales Engine. |
 
 ## Settings

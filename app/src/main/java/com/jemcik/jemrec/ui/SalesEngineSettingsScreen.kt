@@ -212,7 +212,7 @@ internal fun SalesEngineSettingsContent(
         SettingsFooter(
             "After each call on the work line, its number, time and length go to LANARS's Sales Engine, so the call shows on the right deal.",
             "Its transcript and a summary in English follow when the phone has made them. The recording never leaves the phone.",
-            "After a call you have two minutes to tap Private; then nothing more about it is sent.",
+            "It is a work phone: every call on the work line is sent. Make personal calls on another phone.",
         )
     }
 }

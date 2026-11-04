@@ -4,12 +4,21 @@
 
 **Created**: 2026-11-03
 
-**Status**: Draft
+**Status**: Draft, revised 2026-11-04 for the API of 2026-11-03
+
+**Revision 2026-11-04**: LANARS's API of 2026-11-03 removed Private and Make
+private ("it is a work phone": every call on the work line is sent), renamed
+"Don't log" to **Other**, and added `pending_reason: "no_match"` (a seller
+with a weekly call goal called a number with no deal: they pick a lead among
+suggestions or by searching open deals) with a deal search endpoint. The
+2-minute hold after a call stays, now only for changing the deal, outcome or
+next call. Version is 1.1.0 (the voice labels of spec 003 shipped first).
 
 **Input**: Log work-line calls in the LANARS Sales Engine CRM from the app,
 following the Sales Engine API for the Android call app (document dated
-2026-11-02, kept beside this spec in
-[reference/sales-engine-api-2026-11-02.md](reference/sales-engine-api-2026-11-02.md),
+2026-11-03, kept beside this spec in
+[reference/sales-engine-api-2026-11-03.md](reference/sales-engine-api-2026-11-03.md);
+the first one, of 2026-11-02, is beside it,
 "the API" below, its sections as §n). The user signs in with their lanars.com
 or lanars.no Google account, acknowledges LANARS's notice and chooses the work
 line. After each call on it, the call goes to the right deal, then its
@@ -56,7 +65,7 @@ connected".
 
 After a call on the work line ends, the app checks the number against the CRM.
 When exactly one open deal fits, the call is logged on it without the seller
-doing anything, unless they tap Private in time. A number not in the CRM is
+doing anything, unless they pick another one in time. A number not in the CRM is
 kept outside it; a colleague's number sends nothing more. Missed and
 unanswered calls are logged too.
 
@@ -85,25 +94,29 @@ time and length.
 
 ---
 
-### User Story 3 - Choose the deal, or keep a call private (Priority: P2)
+### User Story 3 - Choose the deal (Priority: P2)
 
-Right after a work call, the seller can tap **Private** so that nothing more
-is sent. When the number is on several open deals, they pick one or choose
-"Don't log". A call whose deal is still open to choose waits in a list, where
-the seller can pick later; the list shows the deals as they are now.
+When the number is on several open deals, the seller picks one or chooses
+**Other**. A seller with a weekly call goal who called a number with no deal
+is asked "Which lead?": they pick one of the suggestions, search open deals
+by title or company, or choose Other. A call whose deal is still open to
+choose waits in a list, where the seller can pick later; the list shows the
+deals as they are now. There is no Private: it is a work phone, and every
+call on the work line is sent (API of 2026-11-03).
 
-**Why this priority**: without it, calls with several deals never reach a
-deal, and the seller has no way to keep a personal call out.
+**Why this priority**: without it, calls with several deals, or a goal
+seller's calls to new numbers, never reach a deal.
 
 **Independent Test**: on the stand, call a number on two open deals; pick
-the second; the call appears on that deal. Call it again and tap Private;
-nothing about that call reaches the server after the lookup.
+the second; the call appears on that deal. As a stand user with a weekly
+goal, call a number not in the CRM; search a deal by company name and pick
+it; the call appears on that deal and the number is saved on it.
 
 **Acceptance Scenarios**:
 
 1. **Given** a call on several open deals, **When** it ends, **Then** the
    seller is shown the candidates with the suggested one preselected, plus
-   "Don't log", and nothing is logged until they tap.
+   Other, and nothing is logged on a deal until they tap.
 2. **Given** the seller ignores the choice, **Then** the call is sent as
    undecided and waits in the pending list; **When** they open it later,
    **Then** the deals shown are fetched afresh.
@@ -111,10 +124,12 @@ nothing about that call reaches the server after the lookup.
    told and shown the current candidates again.
 4. **Given** more deals exist than are shown, **Then** the app says so and
    that the call can be logged in the web app.
-5. **Given** a call already sent but not logged on a deal, **When** the seller
-   chooses Make private, **Then** the server drops its number, summary and
-   transcript; a call already logged on a deal says it is edited in the web
-   app instead.
+5. **Given** a call the server answered `pending` with `no_match`, **Then**
+   the seller is asked "Which lead?" with the suggestions, a search field and
+   Other; **When** they type at least 2 characters, **Then** open deals whose
+   title or company match are listed; any of them can be picked.
+6. **Given** the picked lead can no longer take the call, **Then** it is
+   still waiting and the fresh suggestions are shown.
 
 ---
 
@@ -215,8 +230,8 @@ network on; all three reach the stand once each, within minutes.
   made: "failed" is sent, or no transcript expected when known in time.
 - Call waiting and conference calls on the work line: each call is its own
   entry.
-- The seller taps Private after step 1 already went: the call is made private
-  on the server (Story 3, scenario 5).
+- The deal search is over its limit: the picker says so and keeps the
+  suggestions; nothing is retried by itself.
 - The server answers with something that is not its JSON (a captive portal,
   a gateway page): treated as no network, never as signed out.
 - The notice changes while calls wait: they wait until it is agreed to.
@@ -276,34 +291,38 @@ network on; all three reach the stand once each, within minutes.
 
 **After the call**
 
-- **FR-020**: After a work call ends, the app MUST look the number up and then
-  give the seller a chance to tap Private before anything else is sent: a
-  notification after the call, with Private and, when several deals fit, the
-  deal choice; the call is sent 2 minutes after it ended unless the seller
-  acted sooner (decided 2026-11-03). The notice promises this chance (§3), so
-  the call is never sent before it.
-- **FR-021**: A call the seller made Private before it was sent MUST have
-  nothing more sent.
+- **FR-020**: After a work call ends, the app MUST look the number up and
+  hold the call 2 minutes, with a notification showing the CRM's answer and,
+  when several deals fit, the deal choice; the call is sent when the seller
+  confirms or picks, or when the hold ends (decided 2026-11-03; kept
+  2026-11-04 without Private). With notifications blocked the call is still
+  sent, with the server deciding (§13).
+- **FR-021**: Every call on the work line MUST be sent: there is no Private,
+  Make private or always-private number (API of 2026-11-03).
 - **FR-022**: When the lookup gives one open deal, the call MUST be sent to it
   unless the seller changes it; with several, the seller MUST be shown the
-  candidates (suggested one preselected) and "Don't log", and nothing is
+  candidates (suggested one preselected) and Other, and nothing is
   logged on a deal without their tap; with none, the call MUST be sent for the
   server to decide.
 - **FR-023**: A failed lookup MUST NOT be retried; the call is then sent for
   the server to decide.
 - **FR-024**: Calls waiting for a deal MUST be listed in the app, and the
-  seller MUST be able to pick a deal or "Don't log" there at any time; the
+  seller MUST be able to pick a deal or Other there at any time; the
   candidates MUST be fetched afresh before they are shown.
 - **FR-025**: The seller MUST be able to choose the call's outcome; without a
   choice an answered call is "reached" and any other "no answer".
 - **FR-026**: The seller MUST be able to plan a next call (date, optional
   time, subject) for a call that is not a missed incoming one, in Norwegian
   time.
-- **FR-027**: The seller MUST be able to make private a sent call that is not
-  logged on a deal.
+- **FR-027**: A call answered `pending` with `no_match` MUST be offered as
+  "Which lead?": the server's suggestions, a search of open deals by title or
+  company (at least 2 characters, searched after the seller stops typing),
+  and Other; any open deal may be picked. A notification MUST ask for it when
+  the answer comes. A search over its limit is not retried.
 - **FR-028**: Each call MUST show its state in the app: waiting to send, sent
-  (logged on which deal, not in CRM, waiting for a deal, declined, private,
-  hidden), content sent or failed.
+  (logged on which deal, not in CRM, waiting for a deal or a lead, other,
+  hidden), content sent or failed. A call the server still reports as
+  `private` (none can exist from this app) shows as kept outside the CRM.
 
 **Transcript and summary**
 
@@ -356,8 +375,9 @@ network on; all three reach the stand once each, within minutes.
   MUST be marked as not sent, visibly.
 - **FR-046**: Calls made after the seller signed out on purpose MUST never be
   sent; calls made while a session ended by itself wait for the next sign-in.
-- **FR-047**: The first release with this feature MUST be version 1.0.0, so
-  the minimum version LANARS sets compares against it.
+- **FR-047**: The first release with this feature is version 1.1.0 (it was
+  1.0.0 until the voice labels of spec 003 shipped before it), so the minimum
+  version LANARS sets compares against it.
 
 ### Key Entities
 
@@ -386,8 +406,8 @@ network on; all three reach the stand once each, within minutes.
 - **SC-004**: Calls made offline all reach the CRM, once each, within 10
   minutes of the network returning (none lost, none twice, across 20 test
   calls).
-- **SC-005**: No call on another SIM, from a messenger, from before setup, or
-  marked Private reaches the server; no audio ever leaves the phone (checked
+- **SC-005**: No call on another SIM, from a messenger, or from before setup
+  reaches the server; no audio ever leaves the phone (checked
   on every send in the test runs).
 - **SC-006**: For every recorded work call, the CRM has either its transcript
   and English summary or a "failed" within 72 hours.
@@ -396,7 +416,7 @@ network on; all three reach the stand once each, within minutes.
 
 ## Assumptions
 
-- The API document of 2026-11-02 is the contract; where this spec and it
+- The API document of 2026-11-03 is the contract; where this spec and it
   differ, it wins. A mock server is built from its examples until the stand
   is available.
 - LANARS registers `com.lanars.jemrec` with the shared debug key and the
@@ -412,14 +432,15 @@ network on; all three reach the stand once each, within minutes.
   Which calls are recorded stays the seller's choice; an unrecorded call is
   still logged, with no transcript expected.
 - Transcript labels are "Seller" and "Customer" where the two sides are told
-  apart, and one neutral label ("Call") where they are not.
+  apart, "Speaker 1" and "Speaker 2" where the voices are told apart but the
+  seller's is not known (spec 003), and "Call" where they are not.
 - English summaries come from the same on-phone model as today's summaries.
   Their quality is checked on the Galaxy A24 against known calls, as the
   summaries' were: Qwen3 1.7B, left to write English for a Norwegian call,
   once filled its action items with tasks nobody gave (ARCHITECTURE,
   "Summaries"), so the English prompt is measured, not assumed.
-- Telling the two voices apart in a call recorded as one mix is its own
-  feature (research R16 of spec 001); until it lands such a call's lines carry
-  one neutral label.
+- Resending a call's content after it was transcribed again (LANARS promised
+  a `revision` field, 1-3, within 30 days, 2026-11-04) waits until the API
+  document describes it; until then FR-035 holds.
 - Removing the F-Droid parts of the project (listing, site, release workflow)
   is separate work, not part of this feature.

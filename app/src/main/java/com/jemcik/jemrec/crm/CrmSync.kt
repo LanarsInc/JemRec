@@ -94,7 +94,6 @@ class CrmSync(
                 Action.LOOKUP -> lookup(c)
                 Action.STEP_ONE -> stepOne(c)
                 Action.PICK -> pick(c)
-                Action.MAKE_PRIVATE -> makePrivate(c)
                 Action.CONTENT -> content(c)
                 Action.FAIL_CONTENT -> c.copy(contentState = Content.FAILED_TO_SEND.name, contentBody = null).let { content(it) }
             }
@@ -108,9 +107,9 @@ class CrmSync(
     // --- the steps ---
 
     private fun lookup(c: WorkCallEntry): WorkCallEntry {
-        // The Private window runs from the end of the call; a seller who already
+        // The hold runs from the end of the call; a seller who already
         // confirmed does not wait it out.
-        val windowEnd = if (c.chosenByUser == true) c.dueAtMs else maxOf(c.dueAtMs, c.endedAtMs + WorkCallMachine.PRIVATE_WINDOW_MS)
+        val windowEnd = if (c.chosenByUser == true) c.dueAtMs else maxOf(c.dueAtMs, c.endedAtMs + WorkCallMachine.HOLD_MS)
         val waiting = c.copy(localState = Local.WAITING.name, dueAtMs = windowEnd)
         // §5: never a hidden number; a lookup that fails is not retried.
         val phone = c.phone ?: return waiting
@@ -170,19 +169,6 @@ class CrmSync(
                 ApiFailure.DropNext -> c.copy(pickNextJson = null)
                 ApiFailure.Adopt -> refetch(c.copy(pickChoice = null, pickDealId = null, pickNextJson = null))
                 is ApiFailure.Bug -> c.copy(pickChoice = null, pickDealId = null, pickNextJson = null, lastError = (r.failure as ApiFailure.Bug).detail)
-                else -> failed(c, r.failure)
-            }
-        }
-    }
-
-    private fun makePrivate(c: WorkCallEntry): WorkCallEntry {
-        val id = c.serverId ?: return c.copy(privateAsked = false)
-        return when (val r = client.makePrivate(id)) {
-            is ApiResult.Ok -> adopt(c.copy(privateAsked = false), r.value)
-            is ApiResult.Failed -> when (r.failure) {
-                // §10: a logged call is edited or deleted in the web app.
-                ApiFailure.Adopt -> refetch(c.copy(privateAsked = false, lastError = "logged: edit it in the web app"))
-                is ApiFailure.Bug -> c.copy(privateAsked = false, lastError = (r.failure as ApiFailure.Bug).detail)
                 else -> failed(c, r.failure)
             }
         }

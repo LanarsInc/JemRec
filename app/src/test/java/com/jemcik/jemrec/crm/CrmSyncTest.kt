@@ -33,7 +33,7 @@ abstract class CrmSyncTestBase {
     @Before
     fun signedIn() {
         bed.store.saveTestToken("0123456789abcdef0123456789abcdef01234567", 1000001, "Test Seller")
-        bed.store.noticeAcknowledged("2026-11-02", bed.nowMs)
+        bed.store.noticeAcknowledged("2026-11-03", bed.nowMs)
     }
 
     @After
@@ -56,7 +56,7 @@ abstract class CrmSyncTestBase {
                 startedAtMs = start, durationSeconds = if (answered) 184 else 0, endedAtMs = start + 184_000,
                 recording = recording, outcome = if (answered) "REACHED" else "NO_ANSWER",
                 localState = (if (phone == null) Local.WAITING else Local.NEW).name,
-                dueAtMs = if (phone == null) start + 184_000 + WorkCallMachine.PRIVATE_WINDOW_MS else 0,
+                dueAtMs = if (phone == null) start + 184_000 + WorkCallMachine.HOLD_MS else 0,
                 contentState = (if (recording != null) Content.EXPECTED else Content.NOT_EXPECTED).name,
             ),
         )
@@ -81,7 +81,7 @@ class CrmSyncTest : CrmSyncTestBase() {
         assertEquals(listOf("POST /calls/lookup"), bed.requests().map { it.first })
         val waiting = get(id)
         assertEquals(Local.WAITING.name, waiting.localState)
-        assertEquals(waiting.endedAtMs + WorkCallMachine.PRIVATE_WINDOW_MS, next)
+        assertEquals(waiting.endedAtMs + WorkCallMachine.HOLD_MS, next)
 
         minutes(2)
         bed.answer(201, "call-logged")
@@ -139,15 +139,17 @@ class CrmSyncTest : CrmSyncTestBase() {
     }
 
     @org.junit.Test
-    fun `Private before the window ends - nothing more is sent`() {
-        val id = call()
-        bed.answer(200, "lookup-deal")
+    fun `notifications blocked - the hold ends and the call goes anyway`() {
+        // §13 since 2026-11-03: there is no Private, and nothing waits for a tap.
+        val id = call(phone = "+47 400 00 002")
+        bed.answer(200, "lookup-none")
         run()
-        runBlocking { bed.db.calls().update(CrmActions.privateOf(get(id))!!) }
-        minutes(5)
+        minutes(2)
+        bed.answer(201, "call-not-in-crm")
         run()
-        assertEquals(listOf("POST /calls/lookup"), bed.requests().map { it.first })
-        assertEquals(Local.PRIVATE.name, get(id).localState)
+        assertEquals("POST /calls", bed.requests().last().first)
+        assertEquals("auto", JSONObject(get(id).stepOneBody!!).getString("deal_choice"))
+        assertEquals(Local.SENT.name, get(id).localState)
     }
 
     @org.junit.Test

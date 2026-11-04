@@ -152,6 +152,22 @@ and screen tests for new screens.
 
 ---
 
+## Phase 11: The API of 2026-11-03 (revised 2026-11-04)
+
+LANARS's new document: no Private, Other for "Don't log", `no_match` and the
+deal search. Spec, research R7, R14, R15 and the contracts say what and why.
+
+- [X] T075 Spec, plan, research, data model, contracts and quickstart revised; the new document in `reference/`
+- [X] T076 Private gone: the notification's button and `CrmPrivateReceiver` (manifest too), `CrmActions.makePrivate`, `Local.PRIVATE`, `Action.MAKE_PRIVATE`, `SalesEngineClient.makePrivate`; the hold kept as `WorkCallMachine.HOLD_MS`; `crm.db` version 2 drops `privateAsked` (auto-migration, `JRT/crm/db/CrmMigrationTest.kt`)
+- [X] T077 Other in place of Don't log in `JR/ui/CallSheet.kt`; marks "Other: not on a deal", "Kept outside the CRM" for an older private call; Settings footer says it is a work phone
+- [X] T078 `PendingReason.NO_MATCH`; `SalesEngineClient.search` (`POST /calls/search`, `Bodies.search`, `ApiModels.deals`, `Endpoint.SEARCH`); the sheet's "Which lead?" mode with a debounced search (`SalesEngineController.search`), suggestions, Other, nothing ticked; "Which lead?" notification and mark
+- [X] T079 Fixtures from the new document (`call-no-match`, `deal-found-*`, `search*`, notice 2026-11-03; Make private's removed); tests: pick for `no_match` (found deal, refused, Other), search body and client, blocked notifications; screenshot `call-sheet-which-lead`
+- [X] T080 `tools/sales_engine_mock.py`: `/calls/search`, numbers ending in 9 answer `no_match`, no `/private`
+- [X] T081 README, `tools/build_site.py` (manual, notifications table, FAQ, privacy) and ARCHITECTURE without Private, with Which lead?; site regenerated
+- [ ] T082 Resend content with `revision` once LANARS describes it (research R15)
+
+---
+
 ## Dependencies
 
 - Setup (T001-T005) -> Foundation (T006-T017) -> every story.
@@ -171,6 +187,6 @@ and screen tests for new screens.
 ## Implementation strategy
 
 MVP = US1 + US2: a seller connects, and calls to one-deal numbers land on
-their deal by themselves. Then US3 (choice and Private), US6 (robustness),
+their deal by themselves. Then US3 (choice; Private until 2026-11-04), US6 (robustness),
 US4 (content), US5. The stand is not needed until T074: the mock and a
 debug token carry everything before it.

@@ -3,6 +3,7 @@ package com.jemcik.jemrec.crm.api
 import com.jemcik.jemrec.crm.CrmFixtures
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -64,6 +65,15 @@ class SalesEngineClientTest {
     }
 
     @Test
+    fun `the deal search - its request and the deals, best match first`() {
+        answer(200, "search")
+        val deals = (client.search("Eksempel") as ApiResult.Ok).value
+        assertEquals(listOf(1000458, 1000456), deals.map { it.dealId })
+        val r = server.takeRequest()
+        assertTrue(CrmFixtures.same(CrmFixtures.json("search-request"), JSONObject(r.body.readUtf8())))
+    }
+
+    @Test
     fun `201 and 200 on step 1`() {
         answer(201, "call-logged")
         assertTrue((client.postCall(CrmFixtures.text("call-request")) as ApiResult.Ok).created)
@@ -78,7 +88,7 @@ class SalesEngineClientTest {
         answer(200, "deal-logged"); client.pickDeal(5013, Bodies.pick(DealChoice.NONE, null, null))
         answer(200, "content-ready"); client.postContent(5012, Bodies.failed())
         answer(200, "get-call"); client.getCall(5013)
-        answer(200, "private"); client.makePrivate(5015)
+        answer(200, "search"); client.search("Eksempel")
         answer(200, "notice"); client.notice()
         answer(200, "me"); client.me()
         server.enqueue(MockResponse().setResponseCode(200).setBody("""{"data":{"signed_out":true}}"""))
@@ -87,7 +97,7 @@ class SalesEngineClientTest {
         assertEquals(
             listOf(
                 "POST /api/v1/calls/5013/deal", "POST /api/v1/calls/5012/content", "GET /api/v1/calls/5013",
-                "POST /api/v1/calls/5015/private", "GET /api/v1/mobile/notice", "GET /api/v1/me", "DELETE /api/v1/mobile/session",
+                "POST /api/v1/calls/search", "GET /api/v1/mobile/notice", "GET /api/v1/me", "DELETE /api/v1/mobile/session",
             ),
             seen,
         )

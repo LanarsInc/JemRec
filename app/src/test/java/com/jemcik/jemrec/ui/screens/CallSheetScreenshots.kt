@@ -10,6 +10,7 @@ import com.jemcik.jemrec.crm.api.NextCall
 import com.jemcik.jemrec.crm.api.Outcome
 import com.jemcik.jemrec.ui.CallSheetContent
 import com.jemcik.jemrec.ui.CallSheetUi
+import com.jemcik.jemrec.ui.DealSearchUi
 import com.jemcik.jemrec.ui.theme.Look
 import com.jemcik.jemrec.ui.theme.LookChoice
 import org.junit.Test
@@ -32,10 +33,10 @@ import org.robolectric.RobolectricTestRunner
 @Config(sdk = [36], qualifiers = ScreenTest.PHONE)
 class CallSheetScreenshots : ScreenTest() {
 
-    private fun draw(ui: CallSheetUi, look: LookChoice = LookChoice()) {
+    private fun draw(ui: CallSheetUi, look: LookChoice = LookChoice(), search: DealSearchUi = DealSearchUi()) {
         show(look = look) {
             Box(Modifier.background(MaterialTheme.colorScheme.surfaceContainerLow)) {
-                CallSheetContent(ui, onChoose = {}, onPrivate = {})
+                CallSheetContent(ui, onChoose = {}, search = search)
             }
         }
         compose.waitForIdle()
@@ -53,7 +54,7 @@ class CallSheetScreenshots : ScreenTest() {
             deal(1000457, "Eksempel AS – app", "Eksempel AS", "Proposal sent (fixed price)", status = DealStatus.LOST),
         ),
         candidatesTotal = 2, preselected = 1000456, outcome = Outcome.REACHED, next = null,
-        privateLabel = "Private", note = null,
+        note = null,
     )
 
     @Config(qualifiers = "+h1400dp")
@@ -82,15 +83,36 @@ class CallSheetScreenshots : ScreenTest() {
 
     @Config(qualifiers = "+h1400dp")
     @Test fun waitingForDeal() {
-        draw(oneDeal.copy(where = "Choose a deal", beforeSending = false, privateLabel = "Make private", preselected = null))
+        draw(oneDeal.copy(where = "Choose a deal", beforeSending = false, preselected = null))
         snap("call-sheet-pending")
+    }
+
+    @Config(qualifiers = "+h1400dp")
+    @Test fun whichLead() {
+        draw(
+            oneDeal.copy(
+                phone = "+47 400 00 009", where = "Which lead?", beforeSending = false, whichLead = true, preselected = 1000458,
+                candidates = listOf(
+                    deal(1000459, "Nettside for Test Person C", null, "Contact attempted"),
+                    deal(1000456, "Eksempel AS – nettside", "Eksempel AS", "Contact attempted", due = true),
+                ),
+            ),
+            search = DealSearchUi(
+                query = "Eksempel",
+                deals = listOf(
+                    deal(1000458, "Eksempel AS – support", "Eksempel AS", "In conversation", owner = "Other Seller"),
+                    deal(1000456, "Eksempel AS – nettside", "Eksempel AS", "Contact attempted", due = true),
+                ),
+            ),
+        )
+        snap("call-sheet-which-lead")
     }
 
     @Test fun logged() {
         draw(
             oneDeal.copy(
                 where = "On Eksempel AS – nettside", canChoose = false, beforeSending = false, candidates = emptyList(),
-                privateLabel = null, note = "A logged call is changed or deleted on its deal in the Sales Engine's web app.",
+                note = "A logged call is changed or deleted on its deal in the Sales Engine's web app.",
             ),
         )
         snap("call-sheet-logged")

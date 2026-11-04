@@ -15,7 +15,7 @@
       "role": "member"
     },
     "notice": {
-      "version": "2026-11-02",
+      "version": "2026-11-03",
       "acknowledged": false
     },
     "min_app_version": "1.4.0"

@@ -1,0 +1,43 @@
+{
+  "data": {
+    "call": {
+      "id": 5015,
+      "client_call_id": "9f3a4b5c-6d7e-4f80-8b92-334455667788",
+      "status": "pending",
+      "deal": null,
+      "activity_id": null,
+      "completed_planned_call": false,
+      "next_activity_id": null,
+      "callback_activity_id": null,
+      "content_status": "expected",
+      "pending_reason": "no_match",
+      "candidates": [
+        {
+          "deal_id": 1000459,
+          "title": "Nettside for Test Person C",
+          "org_name": null,
+          "status": "open",
+          "stage_name": "Contact attempted",
+          "owner": {
+            "id": 1000001,
+            "name": "Test Seller"
+          },
+          "has_due_call": false
+        },
+        {
+          "deal_id": 1000456,
+          "title": "Eksempel AS – nettside",
+          "org_name": "Eksempel AS",
+          "status": "open",
+          "stage_name": "Contact attempted",
+          "owner": {
+            "id": 1000001,
+            "name": "Test Seller"
+          },
+          "has_due_call": true
+        }
+      ],
+      "candidates_total": 2
+    }
+  }
+}

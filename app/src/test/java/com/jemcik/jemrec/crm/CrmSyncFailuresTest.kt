@@ -139,9 +139,10 @@ class CrmSyncFailuresTest : CrmSyncTestBase() {
         bed.answer(200, "lookup-none")
         run()
         minutes(2)
-        bed.answer(201, "call-not-in-crm")
+        bed.answer(201, "call-pending")
         run()
-        kotlinx.coroutines.runBlocking { bed.db.calls().update(CrmActions.privateOf(get(id))!!) }
+        // A pick for it, and the server has lost it meanwhile.
+        kotlinx.coroutines.runBlocking { bed.db.calls().update(CrmActions.chosen(get(id), CrmActions.Choice(com.jemcik.jemrec.crm.api.DealChoice.NONE, null, com.jemcik.jemrec.crm.api.Outcome.REACHED, null), bed.nowMs)!!) }
         bed.answer(404, "error-call-not-found")
         run()
         assertEquals(Local.NOT_SENT.name, get(id).localState)

@@ -1566,13 +1566,24 @@ transcript.
 app looks for it for half a minute after every call's end, when it opens, and
 from the keep-alive job. It checks the number against the CRM (never a hidden
 one), and a notification says what it found - the deal, *choose a deal*, or
-nothing - with **Private** for two minutes. Then the call goes: to the single
-open deal by itself, otherwise for the server to decide, which keeps a call
-with several open deals waiting until the seller chooses. A colleague's
-number sends nothing after the check. The call's sheet - from the
-notification or its line in the Calls tab - takes the deal, *Don't log*, the
-outcome and a next call (in Oslo's dates, whatever the phone's zone), and
-*Make private* for a call not on a deal.
+nothing - and holds the call two minutes, for the seller to change the deal.
+Then the call goes: to the single open deal by itself, otherwise for the
+server to decide, which keeps a call with several open deals waiting until
+the seller chooses. There is no Private: LANARS took it out of the API on
+2026-11-03 ("it is a work phone"), so every call on the work line goes, with
+notifications blocked too. A colleague's number sends nothing after the
+check. The call's sheet - from the notification or its line in the Calls tab
+- takes the deal, *Other* (kept outside the CRM), the outcome and a next call
+(in Oslo's dates, whatever the phone's zone).
+
+**Which lead?** For a seller LANARS gave a weekly call goal, an outgoing call
+to a number with no deal comes back waiting, `no_match`, with a few
+suggestions: the deals they opened in the last 12 hours and the top of their
+"Call next" list. The sheet asks *Which lead?*, with the suggestions, a
+search of every open deal by title or company, and *Other*; the server then
+saves the number on the deal picked. The app does not know who has a goal: it
+acts on the answer. The search runs once the seller stops typing (the limit
+is 60 in 10 minutes) and, like the lookup, is never retried by itself.
 
 **The transcript and summary.** Made on the phone as before, by the seller's
 own setting; once the summary is stored, both go: the transcript in the
@@ -1582,8 +1593,8 @@ since 1.0, on the phone too - as plain text with bullets. A transcript with no
 summary to follow, a failed one, a recording put in the trash, or nothing
 within 72 hours of the call sends *failed*. Never the recording.
 
-**When the network is not there.** Taking calls needs none, so Private shows
-in a dead zone too; sending waits for it, one request at a time, in a queue of
+**When the network is not there.** Taking calls needs none, so the
+notification shows in a dead zone too; sending waits for it, one request at a time, in a queue of
 its own (`crm.db`) outside the transcription chain, which must never fail. A
 call keeps one id across retries, restarts and sign-ins, and its first body is
 resent unchanged, so the server never logs it twice. Each refusal the API

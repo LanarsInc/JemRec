@@ -18,7 +18,7 @@ the phone sets itself up.
 [![Android](https://img.shields.io/badge/Android-12%2B%20(API%2031)-3DDC84)](#phones-and-android-versions)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.3.21-7F52FF)](https://kotlinlang.org)
 [![Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4)](https://developer.android.com/jetpack/compose)
-[![Tests](https://img.shields.io/badge/tests-1513-success)](docs/DEVELOPMENT.md#tests)
+[![Tests](https://img.shields.io/badge/tests-1521-success)](docs/DEVELOPMENT.md#tests)
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/memo/home-dark.png"><img src="docs/screenshots/memo/home.png" width="26%" alt="Memo: the recordings list"></picture>
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/deck/home-dark.png"><img src="docs/screenshots/deck/home.png" width="26%" alt="Deck: the recordings list"></picture>
@@ -161,7 +161,7 @@ are in [How JemRec works](docs/ARCHITECTURE.md#after-a-restart).
 | **Answering machine** | Off until you switch it on. Answers a phone call you have not taken after 5 to 30 seconds - after two rings when Do Not Disturb would silence the caller - plays the greeting you recorded and keeps the message, by the same rules as recording. Take the call or hang up from its notification while they speak. It stands down for a day after you call an emergency number. A test call tells you whether it works on your phone. → [more](docs/ARCHITECTURE.md#the-answering-machine) |
 | **Open your banking app** | Some banking apps won't open while Developer options or debugging is on. Turning JemRec off can hide Developer options too, or switch all debugging off; turning it on puts back what it switched off - away from Wi-Fi too, with *Start without Wi-Fi*. Settings → When JemRec is off. → [more](docs/ARCHITECTURE.md#off-and-debugging-with-it) |
 | **Read a call, and its summary** | Transcribed on the phone - the call never leaves it - in 17 languages, each side's found by itself, Norwegian with a model made for it; each line marked You or Them where the call's two sides are apart; where a phone call comes out as one mix, its two voices told apart on the phone - You and Them once it knows your voice, Voice 1 and Voice 2 until then - and a tap plays from there. A summary in English beside it, whatever the call's language: why the call happened, what was decided, what to do. After each call by default, overnight on the charger, or only when you ask; search the words said, copy, or export as text or subtitles. → [more](docs/ARCHITECTURE.md#transcripts-and-summaries) |
-| **Log work calls in the Sales Engine** | For LANARS's sellers: sign in with your lanars.com or lanars.no account, agree to LANARS's notice, choose the work SIM. After each call on it the call goes to the right deal in the Sales Engine by itself - or you choose the deal, or tap Private within two minutes and nothing about it is sent. Missed calls too. Its transcript and an English summary follow once the phone has made them; the recording never leaves the phone. → [more](docs/ARCHITECTURE.md#the-sales-engine) |
+| **Log work calls in the Sales Engine** | For LANARS's sellers: sign in with your lanars.com or lanars.no account, agree to LANARS's notice, choose the work SIM. After each call on it the call goes to the right deal in the Sales Engine by itself, or you choose the deal - or, for a new number, the lead, searching your open deals. It is a work phone: every call on the work SIM is sent. Missed calls too. Its transcript and an English summary follow once the phone has made them; the recording never leaves the phone. → [more](docs/ARCHITECTURE.md#the-sales-engine) |
 | **Three looks** | Memo, calm and simple; Deck, a pocket recorder with an LCD and a REC key; Multitrack, a sound editor with a colour for each caller. Each light, dark or as the phone, in Settings → Theme. → [more](docs/ARCHITECTURE.md#three-looks) |
 
 Recordings are Opus files in the phone's standard `Recordings/JemRec` folder,
@@ -256,9 +256,9 @@ Honor - so the answering machine's settings hold its own checks and a test call.
 - **Work calls go to LANARS's Sales Engine, once you sign in to it** - and
   only those: calls on the work SIM you choose, from after you signed in. Each
   one's number, direction, time and length, then its transcript and an English
-  summary; never the recording. Tap Private in the two minutes after a call
-  and nothing about it is sent; a colleague's number sends nothing after the
-  check. Signed out, nothing is sent at all.
+  summary; never the recording. It is a work phone, so every call on that SIM
+  is sent; a colleague's number sends nothing after the check. Signed out,
+  nothing is sent at all.
   → [The Sales Engine](docs/ARCHITECTURE.md#the-sales-engine)
 - **Calls and contacts only if you allow them** - to name callers, keep calls
   by who they were with, and notice a call that went unrecorded. Everything
@@ -321,8 +321,8 @@ how it went. Once the phone has transcribed and summarised it: the transcript,
 in the call's language, and a summary in English. Never the recording.
 
 Nothing from another SIM, a messenger, a colleague's number after the check,
-a call you made Private, or a call from before you signed in or while you were
-signed out. Before anything is sent, the number is checked against the CRM to
+or a call from before you signed in or while you were signed out. There is no
+Private: the work SIM is for work calls. Before anything is sent, the number is checked against the CRM to
 find its deal; LANARS's notice says the check stores nothing.
 
 </details>
@@ -533,7 +533,7 @@ SDK with platforms 37 and 36, build-tools 36.0.0, NDK 28.2.13676358 and CMake
 
     git submodule update --init  # whisper.cpp and llama.cpp
     ./gradlew assembleDebug      # build
-    ./gradlew test               # 1513 tests, screenshots of the screens included
+    ./gradlew test               # 1521 tests, screenshots of the screens included
 
 | | |
 | --- | --- |

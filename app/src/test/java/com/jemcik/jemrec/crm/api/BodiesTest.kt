@@ -2,6 +2,7 @@ package com.jemcik.jemrec.crm.api
 
 import com.jemcik.jemrec.crm.CrmFixtures
 import org.json.JSONObject
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -26,6 +27,12 @@ class BodiesTest {
         start: String, seconds: Int, outcome: Outcome, choice: DealChoice, dealId: Int? = null, byUser: Boolean? = null,
         next: NextCall? = null, transcript: Boolean,
     ) = CallFacts(id, outgoing, answered, phone, presentation, country, Instants.parse(start), seconds, outcome, choice, dealId, byUser, next, transcript)
+
+    @Test
+    fun `the deal search, trimmed and at most 100 characters`() {
+        assertSame("search-request", Bodies.search("  Eksempel "))
+        assertEquals(100, JSONObject(Bodies.search("x".repeat(150))).getString("q").length)
+    }
 
     @Test
     fun `step 1, logged with a next call`() = assertSame(
@@ -82,7 +89,7 @@ class BodiesTest {
             ),
         )
         assertSame("lookup-request", Bodies.lookup("400 00 001", "no"))
-        assertTrue(JSONObject(Bodies.acknowledge("2026-11-02")).getString("version") == "2026-11-02")
+        assertTrue(JSONObject(Bodies.acknowledge("2026-11-03")).getString("version") == "2026-11-03")
         val withoutNext = JSONObject(Bodies.withoutNext(CrmFixtures.text("call-request")))
         assertFalse(withoutNext.has("next"))
     }

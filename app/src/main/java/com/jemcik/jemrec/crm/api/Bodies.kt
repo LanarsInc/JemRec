@@ -81,6 +81,12 @@ object Bodies {
     fun lookup(phone: String, countryIso: String?): String =
         JSONObject().put("phone", phone.take(64)).also { o -> countryIso?.let { o.put("country_iso", it) } }.toString()
 
+    /** §10: 2-100 characters after trimming; the caller checks the lower bound. */
+    fun search(q: String): String = JSONObject().put("q", q.trim().take(MAX_SEARCH)).toString()
+
+    const val MIN_SEARCH = 2
+    const val MAX_SEARCH = 100
+
     fun call(f: CallFacts): String {
         // A number is sent only when the call log shows it (§6: not `allowed`
         // means `phone` is ignored, and the API says it must then be null).

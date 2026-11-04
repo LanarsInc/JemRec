@@ -7,8 +7,8 @@
 ## Summary
 
 After each phone call on the seller's work SIM, the app looks the number up
-in LANARS's Sales Engine, gives the seller two minutes to keep the call
-private or choose the deal, and sends the call's facts; once the call's
+in LANARS's Sales Engine, holds the call two minutes for the seller to
+change the deal, and sends the call's facts; once the call's
 transcript and its (now always English) summary are made on the phone, it
 sends them too, or "failed". Calls come from the call log, so missed and
 unrecorded calls are logged as well. Sign-in is Sign in with Google
@@ -37,7 +37,7 @@ the phone (Sign in with Google)
 **Project Type**: mobile app; `shellserver/` untouched
 
 **Performance Goals**: SC-002 (on the deal within 5 min, of which 2 are the
-Private window), SC-004 (offline calls within 10 min of the network)
+2-minute hold), SC-004 (offline calls within 10 min of the network)
 
 **Constraints**: nothing before the notice is agreed; only the work line;
 never audio; one request at a time; the heavy work chain untouched
@@ -80,7 +80,8 @@ specs/002-sales-engine-call-logging/
 ├── contracts/
 │   ├── api-client.md
 │   └── ui.md
-├── reference/sales-engine-api-2026-11-02.md
+├── reference/sales-engine-api-2026-11-02.md   # the first; replaced by
+│   reference/sales-engine-api-2026-11-03.md   # the contract since 2026-11-04
 ├── checklists/requirements.md
 └── tasks.md             # /speckit-tasks
 ```
@@ -140,8 +141,10 @@ send content), a recording deleted (to send "failed").
 4. **US2 Logged by itself** (P1): call-log sweep, work-line filter, lookup,
    decision, after-call notification with the 2-minute window, step 1,
    missed calls, hidden numbers, colleagues.
-5. **US3 Choose or keep private** (P2): call sheet, picker, pending chip in
-   the Calls tab, fresh candidates, Make private.
+5. **US3 Choose the deal** (P2): call sheet, picker, pending chip in
+   the Calls tab, fresh candidates; since 2026-11-04 Other, and "Which
+   lead?" with the deal search for `no_match`. Private and Make private are
+   gone (API of 2026-11-03).
 6. **US6 Nothing lost** (P2): retries, `retry-after`, 426, 401, blocked,
    another person, deliberate sign-out, 30 days. (Before US4: content rides
    on the same queue.)

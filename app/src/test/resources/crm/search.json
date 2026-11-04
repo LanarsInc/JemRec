@@ -1,0 +1,30 @@
+{
+  "data": {
+    "deals": [
+      {
+        "deal_id": 1000458,
+        "title": "Eksempel AS – support",
+        "org_name": "Eksempel AS",
+        "status": "open",
+        "stage_name": "In conversation",
+        "owner": {
+          "id": 1000002,
+          "name": "Other Seller"
+        },
+        "has_due_call": false
+      },
+      {
+        "deal_id": 1000456,
+        "title": "Eksempel AS – nettside",
+        "org_name": "Eksempel AS",
+        "status": "open",
+        "stage_name": "Contact attempted",
+        "owner": {
+          "id": 1000001,
+          "name": "Test Seller"
+        },
+        "has_due_call": true
+      }
+    ]
+  }
+}

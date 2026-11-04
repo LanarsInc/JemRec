@@ -12,7 +12,7 @@ sealed interface ApiFailure {
     /** 404 "unknown endpoint": the server is older than this app. Hold, try much later. */
     data object ServerTooOld : ApiFailure
 
-    /** 429 on anything but a lookup: wait this long. */
+    /** 429 on anything but a lookup: wait this long (a search is not retried by itself, only shown). */
     data class RetryAfter(val seconds: Long) : ApiFailure
 
     /** A lookup that failed for any reason, 429 included: never retried (§5). */
@@ -60,7 +60,7 @@ sealed interface ApiFailure {
     enum class Reason { NO_USER, WRONG_DOMAIN, INACTIVE, ACCOUNT_MISMATCH, OTHER }
 }
 
-enum class Endpoint { EXCHANGE, SIGN_OUT, NOTICE, ACKNOWLEDGE, ME, LOOKUP, CALL, PICK, CONTENT, GET_CALL, PRIVATE }
+enum class Endpoint { EXCHANGE, SIGN_OUT, NOTICE, ACKNOWLEDGE, ME, LOOKUP, SEARCH, CALL, PICK, CONTENT, GET_CALL }
 
 object ApiErrors {
 
@@ -115,7 +115,7 @@ object ApiErrors {
     }
 
     /** The paths with a call id in them, where a 404 means that call. */
-    private val CALL_PATHS = setOf(Endpoint.PICK, Endpoint.CONTENT, Endpoint.GET_CALL, Endpoint.PRIVATE)
+    private val CALL_PATHS = setOf(Endpoint.PICK, Endpoint.CONTENT, Endpoint.GET_CALL)
 
     /** A 429 without the header it promises: the 10-minute window is the longest wait it could mean. */
     private const val DEFAULT_RETRY_AFTER_S = 600L

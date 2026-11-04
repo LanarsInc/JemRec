@@ -1,6 +1,7 @@
 # Research: Logging work calls in the Sales Engine
 
-The API is [reference/sales-engine-api-2026-11-02.md](reference/sales-engine-api-2026-11-02.md),
+The API is [reference/sales-engine-api-2026-11-03.md](reference/sales-engine-api-2026-11-03.md)
+(it replaced the one of 2026-11-02 beside it; R7 and R14 say what changed),
 cited as §n. Decisions made with the user are in the spec (2026-11-03); this
 file is the how.
 
@@ -116,7 +117,7 @@ file is the how.
   `CoroutineWorker`, unique work `crm-sync` (policy `KEEP`), network
   constraint, runs every due action in order, one request at a time, and
   ends by scheduling itself (`crm-sync-later`, `REPLACE`) for the earliest
-  next due time: the 2-minute Private window, a `retry-after`, a backoff.
+  next due time: the 2-minute hold, a `retry-after`, a backoff.
 - **Not in the heavy chain**: transcription and summaries are one chain that
   nothing may fail (ARCHITECTURE, "When"). Sync is separate and may retry.
 - **Errors** follow §11 exactly, as a pure function from (endpoint, status,
@@ -134,19 +135,24 @@ file is the how.
 
 - **Decision**: one notification per work call on a new channel "Sales
   Engine", posted after the lookup (or at once if offline), showing the CRM's
-  answer: "Eksempel AS – nettside" with **Private** and **Change**; with
-  several open deals "2 deals - choose" with **Private** and **Choose**; not
-  in CRM "Not in the CRM" with **Private**. Choose/Change open a small
-  activity (like `RecordPromptActivity`) with the candidates (preselected
-  `suggested_deal_id`), "Don't log", the outcome and the next call. The call
-  is sent 2 minutes after it ended, or at once when the seller confirms.
+  answer: "Eksempel AS – nettside" with **Change**; with several open deals
+  "2 deals - choose" with **Choose**; not in CRM "Not in the CRM". Choose /
+  Change open the call's sheet with the candidates (preselected
+  `suggested_deal_id`), **Other** (`none`, "Don't log" until 2026-11-03),
+  the outcome and the next call. The call is sent 2 minutes after it ended,
+  or at once when the seller confirms.
 - **Rationale**: a notification can carry at most three actions, and
   candidates are up to five, so the choice is a screen. The existing
   after-call notification (save/delete) stays; the CRM's is separate so
   either can be off.
-- **Private** before step 1: the call is marked private locally and nothing
-  more is sent (§13). After step 1 the same button calls `/private` (§10),
-  which works for anything not `logged`.
+- **Revised 2026-11-04**: the API of 2026-11-03 dropped Private and Make
+  private ("it is a work phone"; `/private` now answers 404, which would hold
+  the whole queue as "server too old"). Removed: the button and its
+  receiver, the local PRIVATE state, the queued Make private and its column
+  (`crm.db` version 2, an auto-migration that drops it). The 2 minutes stay
+  as a hold for changing the deal, outcome or next call. With notifications
+  blocked the call goes with `auto` when the hold ends, as before (§13 now
+  says so).
 
 ## R8. What step 2 sends
 
@@ -219,3 +225,29 @@ file is the how.
 
 - `1.0.0` (`versionCode` 10000) is set with the feature's release, last
   (FR-047). The server compares dotted numbers and ignores `-debug` (§12).
+
+## R14. Which lead? (API of 2026-11-03)
+
+- **What it is**: a seller with a weekly call goal (LANARS's setting, which
+  the app cannot see) who makes an outgoing call to a number with no deal gets
+  `pending`, `pending_reason: "no_match"`, with up to 5 suggestions. Any open
+  deal may be picked (§7); `POST /calls/search` finds them by title or
+  company (§10).
+- **Decision**: the existing pending flow, with the sheet in a "Which lead?"
+  mode: a search field, its results, the suggestions, Other. Nothing is
+  ticked at first: suggestions are guesses, not the number's deals. A pick
+  the server cannot take answers `no_match` again with fresh suggestions,
+  and the sheet shows them. The notification says "Which lead?".
+- **Search**: from 2 characters, sent 400 ms after the last key, since the
+  limit is 60 a 10 minutes and 600 a day; never retried by itself (§11:
+  search, like lookup); a 429 says when to try again. Results are not kept.
+- **Not done**: search for other pending reasons (the server takes only a
+  candidate there, §6.1), or linking a `not_in_crm` call (final; asked of
+  LANARS 2026-11-04).
+
+## R15. Resending content (promised, not yet in the API)
+
+LANARS said on 2026-11-04 that `POST /calls/{id}/content` will take a
+`revision` (1-3), up to 3 times within 30 days of the call. The document does
+not have it yet, and unknown fields are refused with 400, so the app keeps
+FR-035 (first content only) until it is described and deployed.

@@ -1,7 +1,6 @@
 package com.jemcik.jemrec.crm
 
 import android.content.Context
-import com.jemcik.jemrec.crm.WorkCallMachine.Content
 import com.jemcik.jemrec.crm.WorkCallMachine.Local
 import com.jemcik.jemrec.crm.api.ApiModels
 import com.jemcik.jemrec.crm.api.CallStatus
@@ -14,39 +13,15 @@ import com.jemcik.jemrec.crm.db.WorkCallEntry
 import org.json.JSONObject
 
 /**
- * What the seller does to a work call - Private, a deal, an outcome, a next
+ * What the seller does to a work call - a deal or Other, an outcome, a next
  * call - from the notification or the call sheet. Each is stored on the call
- * and left to the queue to send (CrmSync).
+ * and left to the queue to send (CrmSync). There is no Private: the API of
+ * 2026-11-03 dropped it, every call on the work line is sent.
  */
 object CrmActions {
 
     /** The seller's choice for a call, from the sheet. */
     data class Choice(val choice: DealChoice, val dealId: Int?, val outcome: Outcome, val next: NextCall?)
-
-    /**
-     * Private: before step 1, nothing more is sent (§13); after it, the server
-     * is asked to drop the call's number and texts (§10), which it does for
-     * any call not logged on a deal.
-     */
-    suspend fun makePrivate(context: Context, id: Long) {
-        val calls = CrmDatabase.of(context).calls()
-        val c = calls.byId(id) ?: return
-        val updated = privateOf(c) ?: return
-        calls.update(updated)
-        CrmNotifications.show(context, updated)
-        if (updated.privateAsked) CrmSyncWorker.now(context)
-    }
-
-    /** Pure: the call after Private, or null when it cannot be made private here. */
-    fun privateOf(c: WorkCallEntry): WorkCallEntry? = when (Local.of(c.localState)) {
-        Local.NEW, Local.WAITING -> c.copy(localState = Local.PRIVATE.name, contentState = Content.DONE.name, stepOneBody = null)
-        Local.SENT -> {
-            val status = c.serverJson?.let { ApiModels.call(JSONObject(it)).status }
-            if (status == CallStatus.LOGGED || status == CallStatus.PRIVATE) null
-            else c.copy(privateAsked = true, dueAtMs = 0)
-        }
-        else -> null
-    }
 
     /** The seller's choice, sent at once: before step 1 it is step 1; after, a pick (§7). */
     suspend fun choose(context: Context, id: Long, choice: Choice, nowMs: Long = System.currentTimeMillis()) {

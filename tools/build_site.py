@@ -2087,15 +2087,18 @@ SETUP = [
           "SIMs needs the phone's own permission, asked there."),
     ("p", "After each call on the work SIM a notification says where it is going: "
           "the deal, **Choose a deal** when the number has several, or that the "
-          "Sales Engine decides. **Private** within two minutes keeps the call out "
-          "altogether; otherwise it goes. **Change** or **Choose** opens the "
-          "call's sheet: its deal or **Don't log**, how it went, and a next call "
-          "on the deal, in Norwegian time. Missed calls are logged too, with a "
-          "call-back the Sales Engine plans."),
+          "Sales Engine decides; two minutes later it goes. It is a work phone: "
+          "every call on the work SIM is sent. **Change** or **Choose** opens the "
+          "call's sheet: its deal or **Other** (kept outside the CRM), how it went, "
+          "and a next call on the deal, in Norwegian time. Missed calls are logged "
+          "too, with a call-back the Sales Engine plans."),
+    ("p", "If LANARS gave you a weekly call goal, a call to a number on no deal "
+          "asks **Which lead?**: pick one of the suggestions, search your open "
+          "deals by title or company, or choose **Other**. The Sales Engine "
+          "saves the number on the deal you pick."),
     ("p", "In the **Calls** tab each work call says where it went - on a deal, "
-          "not in the CRM, private - and a card says when calls wait for you to "
-          "choose their deal; a tap opens the sheet, where a call not on a deal "
-          "can still be made private. Once the phone has transcribed and "
+          "not in the CRM, Other - and a card says when calls wait for you to "
+          "choose their deal or lead; a tap opens the sheet. Once the phone has transcribed and "
           "summarised a call, by your setting under Transcripts, both go to it: "
           "the summary into the call's note on the deal. Never the recording."),
     ("p", "Offline, calls wait and go once when the network is back. If the "
@@ -2326,10 +2329,10 @@ SETUP = [
         ["**JemRec was held back in the background**", "The phone froze JemRec "
          "while it was restarting the recorder after a cable, for the minutes it "
          "says. The same button and the same fix."],
-        ["A deal's name, or **Choose a deal**, with **Private**", "A work call "
-         "about to go to the Sales Engine; Private within two minutes keeps it out. "
-         "Then **Logged on** the deal, briefly, or **Choose a deal** while it "
-         "waits for you. Only once you sign in to the Sales Engine."],
+        ["A deal's name, or **Choose a deal**, with **Change** or **Choose**", "A work call "
+         "about to go to the Sales Engine, in two minutes. "
+         "Then **Logged on** the deal, briefly, or **Choose a deal** or **Which "
+         "lead?** while it waits for you. Only once you sign in to the Sales Engine."],
         ["**Sign in to the Sales Engine again**, **Read the Sales Engine's new "
          "notice**, **Update JemRec to keep logging calls**", "Work calls wait until "
          "you do; the notification opens Settings → Sales Engine."],
@@ -3219,8 +3222,8 @@ FEATURES = [
      "For LANARS&rsquo;s sellers: sign in with your lanars.com or lanars.no "
      "account, agree to LANARS&rsquo;s notice, choose the work SIM. After each "
      "call on it the call goes to its deal in the Sales Engine by itself &mdash; "
-     "or you choose the deal, or tap Private within two minutes and nothing about "
-     "it is sent. Missed calls too. The transcript and an English summary follow; "
+     "or you choose the deal, or, for a new number, the lead. Every call on the "
+     "work SIM is sent: it is a work phone. Missed calls too. The transcript and an English summary follow; "
      "the recording never leaves the phone.",
      "the-sales-engine"),
     ("Three looks",
@@ -3247,8 +3250,7 @@ PRIVACY_POINTS = [
     ("cloud", "Nothing leaves the phone but work calls",
      "No analytics, and nothing is collected about you. Once you sign in to "
      "LANARS&rsquo;s Sales Engine, calls on the work SIM go to it, with their "
-     "transcript and an English summary &mdash; never the recording; Private "
-     "keeps one out. "
+     "transcript and an English summary &mdash; never the recording. "
      "<em>Copy a report</em> in Diagnostics puts how the last call was recorded "
      "on the clipboard, with no number, name or sound in it, only when you tap "
      "it. Transcripts, summaries and telling voices apart are done on the phone; "
@@ -3273,8 +3275,8 @@ FAQ = [
      "After a call on the work SIM: the number, which way it went, whether it was "
      "answered, when and how long, the deal and how it went; then the transcript, "
      "in the call&rsquo;s language, and a summary in English. Never the recording. "
-     "Nothing from another SIM, a messenger, a call you made Private, or a call "
-     "made before you signed in or while you were signed out."),
+     "Nothing from another SIM, a messenger, or a call made before you signed in "
+     "or while you were signed out."),
     ("Do transcripts send my calls anywhere?",
      "Not by themselves: they are made on the phone, and reach LANARS&rsquo;s Sales "
      "Engine only for work calls, once you sign in to it. The speech and summary models run on the phone; the only thing fetched "
@@ -3860,7 +3862,7 @@ PRIVACY_DATA = [
      "number, direction, whether it was answered, start and length, the deal "
      "and how it went, and, once the phone has made them, its transcript and an "
      "English summary. Before that, the number is checked against the CRM to "
-     "find its deal. Never the recording. Not a call you tap Private on, not a "
+     "find its deal. Never the recording. Not a "
      "colleague&rsquo;s after the check, not one made while signed out. Waiting "
      "calls are kept in the app&rsquo;s private storage, in no backup, until "
      "sent; a token for your session is kept there under a key in the "

@@ -45,7 +45,9 @@ the tester (asked 2026-11-03).
 3. Call a number with one open deal, say nothing for 2 minutes: the call is
    on that deal in the web app, with direction, time and length.
 4. Call a number with two open deals, choose the second: it is there.
-5. Call any number, tap Private: nothing about it in the web app.
+5. As a stand user with a weekly goal, call a number not in the CRM: the
+   notification asks "Which lead?"; search a company, pick its deal: the call
+   is on it, and the next call to that number finds the deal by itself.
 6. Flight mode, three calls, network back: three calls, once each.
 7. With a speech and summary model and "after each call": the deal's call
    note holds the English summary; the transcript opens from the call.

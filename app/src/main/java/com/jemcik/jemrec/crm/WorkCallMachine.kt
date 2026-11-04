@@ -12,10 +12,8 @@ object WorkCallMachine {
     enum class Local {
         /** Taken from the call log; its number not looked up yet. */
         NEW,
-        /** Looked up (or not to be); the Private window is open until dueAtMs. */
+        /** Looked up (or not to be); held until dueAtMs, for the seller to change the deal. */
         WAITING,
-        /** The seller tapped Private before step 1: nothing more is sent (§13). */
-        PRIVATE,
         /** A colleague's number: nothing more is sent (§5). */
         INTERNAL,
         /** Step 1 went; the server's state is in serverJson. */
@@ -25,6 +23,8 @@ object WorkCallMachine {
         ;
 
         companion object {
+            // "PRIVATE" (the API of 2026-11-02's Private, dropped 2026-11-03) is
+            // no longer a state: a debug install's row with it reads as not sent.
             fun of(name: String): Local = entries.firstOrNull { it.name == name } ?: NOT_SENT
         }
     }
@@ -52,7 +52,7 @@ object WorkCallMachine {
         }
     }
 
-    enum class Action { LOOKUP, STEP_ONE, PICK, MAKE_PRIVATE, CONTENT, FAIL_CONTENT }
+    enum class Action { LOOKUP, STEP_ONE, PICK, CONTENT, FAIL_CONTENT }
 
     /** What to do for [c] and from when; null when there is nothing left to do for it. */
     fun next(c: WorkCallEntry): Pair<Action, Long>? {
@@ -61,10 +61,9 @@ object WorkCallMachine {
         return when (local) {
             Local.NEW -> Action.LOOKUP to c.dueAtMs
             Local.WAITING -> Action.STEP_ONE to c.dueAtMs
-            Local.PRIVATE, Local.INTERNAL, Local.NOT_SENT -> null
+            Local.INTERNAL, Local.NOT_SENT -> null
             Local.SENT -> when {
                 c.serverId == null -> null
-                c.privateAsked -> Action.MAKE_PRIVATE to c.dueAtMs
                 c.pickChoice != null -> Action.PICK to c.dueAtMs
                 content.waitsForServerId -> Action.CONTENT to maxOf(c.dueAtMs, c.contentDueAtMs)
                 // Waiting for the phone's transcript; failed is sent if it has not come by then.
@@ -83,8 +82,13 @@ object WorkCallMachine {
     /** 1, 2, 4 ... 60 minutes (research R6). */
     fun backoffMs(attempts: Int): Long = (60_000L shl attempts.coerceIn(0, 6)).coerceAtMost(60 * 60_000L)
 
-    /** The seller's chance to tap Private before step 1 (FR-020, decided 2026-11-03). */
-    const val PRIVATE_WINDOW_MS = 2 * 60_000L
+    /**
+     * How long a call is held after it ends before step 1 goes, unless the
+     * seller confirms sooner: their chance to change the deal, outcome or next
+     * call (FR-020). It was the window for Private until the API of 2026-11-03
+     * dropped Private ("it is a work phone"); kept at 2 minutes (2026-11-04).
+     */
+    const val HOLD_MS = 2 * 60_000L
     const val CONTENT_DEADLINE_MS = 72L * 60 * 60_000
     const val MAX_AGE_MS = 30L * 24 * 60 * 60_000 - 60 * 60_000
 }

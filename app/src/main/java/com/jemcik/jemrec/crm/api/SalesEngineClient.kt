@@ -59,8 +59,9 @@ class SalesEngineClient(
 
     fun getCall(callId: Int): ApiResult<CallState> = send(Endpoint.GET_CALL, "GET", "/calls/$callId", null) { ApiModels.call(it) }
 
-    fun makePrivate(callId: Int): ApiResult<CallState> =
-        send(Endpoint.PRIVATE, "POST", "/calls/$callId/private", null) { ApiModels.call(it) }
+    /** Open deals by title or company, for the "Which lead?" picker (§10). */
+    fun search(q: String): ApiResult<List<Candidate>> =
+        send(Endpoint.SEARCH, "POST", "/calls/search", Bodies.search(q)) { ApiModels.deals(it) }
 
     private fun <T> send(
         endpoint: Endpoint,

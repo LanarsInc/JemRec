@@ -19,7 +19,7 @@ The screen, top to bottom:
    with one SIM, shown and not changeable. Asks for the phone permission it
    needs, with why.
 4. **What reaches the CRM**: plain words: calls on this line, their
-   transcript and an English summary; never audio; Private keeps a call out.
+   transcript and an English summary; never audio; every call on the line is sent (a work phone).
    And a warning when transcripts will not reach it: "No speech model:
    the CRM gets calls without a summary", "Summaries are off: ...".
 5. Needs the call-log permission: asked here when it is missing.
@@ -36,14 +36,16 @@ Channel "Sales Engine". One per work call, replaced as it changes:
 
 | CRM said | Title | Text | Actions |
 |---|---|---|---|
-| one open deal | the deal's title | "Logging in 2 min · Eksempel AS" | **Private**, **Change** |
-| several open deals | "Choose a deal" | "2 deals for this number" | **Private**, **Choose** |
-| not in the CRM / lookup failed | "Call to the Sales Engine" | "Sending in 2 min" | **Private** |
+| one open deal | the deal's title | "Logging in 2 min · Eksempel AS" | **Change** |
+| several open deals | "Choose a deal" | "2 deals for this number" | **Choose** |
+| not in the CRM / lookup failed | "Call to the Sales Engine" | "Sending in 2 min" | |
 | colleague | none | | |
 | after sending | "Logged on Eksempel AS – nettside" | | auto-dismissed |
 | waiting for a deal | "Choose a deal" | "Not logged yet" | **Choose** |
+| waiting for a lead (`no_match`) | "Which lead?" | "Pick the deal for this call, or search for it" | **Choose** |
 
-Private replaces it with "Kept private" for a few seconds.
+No Private since the API of 2026-11-03. With notifications blocked, calls go
+all the same.
 
 ## The call sheet
 
@@ -52,19 +54,23 @@ Opened from Change/Choose, or from a call's row. A bottom sheet:
 - the call: name or number, direction, time, length;
 - **Deal**: the candidates as radio rows (title, organisation, stage,
   status chip for won/lost, "call due" mark), the suggested one preselected;
-  **Don't log**; "3 more deals: log this call in the web app" when the total
+  **Other**; "3 more deals: log this call in the web app" when the total
   exceeds them; a refreshed list for a call that waited (§7);
 - **Outcome**: segmented chips: Reached, No answer, Voicemail, Wrong number,
   Call back, Not interested;
 - **Next call**: off, or date (Oslo), time (optional), subject;
-- **Log call** / **Private** buttons; after sending, **Make private** for a
-  call not logged on a deal.
+- **Log call**; for a waiting call it needs a deal or Other ticked.
+- **Which lead?** for a `no_match` call: a search field (deals or companies,
+  from 2 characters, searched 0.4 s after the last key, 60 a 10 minutes),
+  its results, then the server's **Suggestions**, then **Other**; nothing
+  ticked at first. A deal picked from the search stays shown while the
+  search changes. A refused search says why and is not retried.
 
 ## Calls tab
 
 A work call's row gets a line under it: "Sales Engine · On Eksempel AS –
-nettside", "Choose a deal" (in the error colour), "Not in the CRM",
-"Private: not sent", "Not sent ...". Over the list, a card says how many
+nettside", "Choose a deal" or "Which lead?" (in the error colour), "Not in
+the CRM", "Other: not on a deal", "Not sent ...". Over the list, a card says how many
 calls wait for a deal. Tapping either opens the call sheet. (A card, not
 the chip first planned: it says what to do.)
 

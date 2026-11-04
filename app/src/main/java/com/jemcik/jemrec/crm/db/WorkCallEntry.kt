@@ -58,7 +58,7 @@ data class WorkCallEntry(
     val localState: String,
     /** Built once and resent unchanged (§6.3). */
     val stepOneBody: String? = null,
-    /** Nothing is done for this call before then: the Private window, a backoff, a `retry-after`. */
+    /** Nothing is done for this call before then: the hold after the call, a backoff, a `retry-after`. */
     val dueAtMs: Long,
     val serverId: Int? = null,
     /** The last call object the server sent (ApiModels.callJson). */
@@ -67,8 +67,6 @@ data class WorkCallEntry(
     val pickChoice: String? = null,
     val pickDealId: Int? = null,
     val pickNextJson: String? = null,
-    /** Make private was asked for and not yet sent (§10). */
-    val privateAsked: Boolean = false,
     /** `WorkCallMachine.Content` name. */
     val contentState: String,
     /** The step-2 body, made once from the first finished transcript (FR-035). */

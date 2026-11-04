@@ -3,13 +3,16 @@
     "call": {
       "id": 5015,
       "client_call_id": "9f3a4b5c-6d7e-4f80-8b92-334455667788",
-      "status": "private",
-      "deal": null,
-      "activity_id": null,
+      "status": "logged",
+      "deal": {
+        "id": 1000458,
+        "title": "Eksempel AS – support"
+      },
+      "activity_id": 1000795,
       "completed_planned_call": false,
       "next_activity_id": null,
       "callback_activity_id": null,
-      "content_status": "none",
+      "content_status": "expected",
       "pending_reason": null,
       "candidates": [],
       "candidates_total": 0

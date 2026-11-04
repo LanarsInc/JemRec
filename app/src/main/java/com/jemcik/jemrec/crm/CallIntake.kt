@@ -69,7 +69,7 @@ object CallIntake {
             outcome = (if (recording?.message == true) com.jemcik.jemrec.crm.api.Outcome.NO_ANSWER else f.outcome).name,
             // A number to look up goes first; a hidden one waits out the Private window (§5).
             localState = (if (f.phone == null) Local.WAITING else Local.NEW).name,
-            dueAtMs = if (f.phone == null) f.endedAtMs + WorkCallMachine.PRIVATE_WINDOW_MS else 0,
+            dueAtMs = if (f.phone == null) f.endedAtMs + WorkCallMachine.HOLD_MS else 0,
             contentState = (if (recording != null) Content.EXPECTED else Content.NOT_EXPECTED).name,
         )
     }

@@ -54,7 +54,6 @@ class ApiErrorsTest {
     fun `409`() {
         assertEquals(ApiFailure.Adopt, c(Endpoint.CALL, 409, "duplicate", "client_call_id already used with other call facts"))
         assertEquals(ApiFailure.Adopt, c(Endpoint.PICK, 409, "duplicate", "the call is not waiting for a deal"))
-        assertEquals(ApiFailure.Adopt, c(Endpoint.PRIVATE, 409, "duplicate", "a logged call is edited or deleted in the CRM"))
         assertEquals(ApiFailure.NoticeChanged, c(Endpoint.ACKNOWLEDGE, 409, "conflict", "the notice version is not current"))
         assertEquals(ApiFailure.Retry, c(Endpoint.CALL, 409, "conflict", "this call is being written"))
     }

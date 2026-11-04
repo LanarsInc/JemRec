@@ -1,6 +1,6 @@
 # Contract: the app's client of the Sales Engine API
 
-The server's contract is [the API document](../reference/sales-engine-api-2026-11-02.md);
+The server's contract is [the API document](../reference/sales-engine-api-2026-11-03.md);
 this is the app's side of it: what each call takes and returns, and what an
 answer makes the app do. Everything here is plain Kotlin, Android-free, so it
 is unit tested off the phone (CLAUDE.md).
@@ -29,7 +29,7 @@ is unit tested off the phone (CLAUDE.md).
 | `pickDeal(id, choice, dealId?, next?)` | `POST /calls/{id}/deal` | `CallState` |
 | `postContent(id, content)` | `POST /calls/{id}/content` | `CallState` |
 | `getCall(id)` | `GET /calls/{id}` | `CallState` |
-| `makePrivate(id)` | `POST /calls/{id}/private` | `CallState` |
+| `search(q)` | `POST /calls/search` | open deals, best match first (§10); 429 is shown, not retried |
 
 `CallState` is the call object of §6.2; unknown `status` -> final, unknown
 `pending_reason` -> `several_open_deals`, unknown `match` -> `none`. Ids are
