@@ -38,7 +38,8 @@ fun interface VoiceTeller {
  * (ChunkPlan), so memory stays that of one chunk however long the call. In
  * each chunk sherpa-onnx finds who speaks when (two voices at most), and each
  * voice's speech - up to [EMBED_MS] of it - is described by an embedding.
- * [VoiceLink] makes the chunks' voices the call's two, [VoiceSilence] decides
+ * Where the engine leaves a chunk as one voice, [WindowVoices] tells it apart
+ * in 2 s windows instead. [VoiceLink] makes the chunks' voices the call's two, [VoiceSilence] decides
  * whether they may be named at all, and [VoiceSeam] puts each line under its
  * voice, cutting a line where the voice changes.
  *
@@ -253,18 +254,52 @@ object VoiceStep {
     /** One chunk's turns in call time, from [keepFromMs] on, and each voice's embedding. */
     private fun tellChunk(ptr: Long, slice: AudioDecoder.DecodedRange, keepFromMs: Long, shouldStop: () -> Boolean): VoiceLink.Chunk {
         val raw = VoiceNative.turns(ptr, slice.audio)
-        val local = (raw.indices step 3).map { VoiceTurn(raw[it].toLong(), raw[it + 1].toLong(), raw[it + 2]) }
-        val embeddings = local.map { it.voice }.distinct().mapNotNull { voice ->
-            val pcm = speechOf(slice.audio, local.filter { it.voice == voice }, EMBED_MS)
-            if (pcm.size < MIN_EMBED_MS * SAMPLES_PER_MS || shouldStop()) null
-            else VoiceNative.embed(ptr, pcm).takeIf { it.isNotEmpty() }?.let { voice to it }
-        }.toMap()
+        var local = (raw.indices step 3).map { VoiceTurn(raw[it].toLong(), raw[it + 1].toLong(), raw[it + 2]) }
+        var embeddings = describe(ptr, slice.audio, local, shouldStop)
+        // Numbers only: each voice's seconds, whether it was described, and the two's likeness.
+        Log.i(TAG, "Chunk at ${slice.startMs / 1000}s: ${summary(local, embeddings)}")
+        // The engine can leave two people as one voice (WindowVoices): then the chunk's speech is
+        // told apart in short windows, and the rest goes on as for any chunk.
+        if (WindowVoices.needed(local, embeddings.keys) && !shouldStop()) {
+            val windows = WindowVoices.windows(local)
+            val vectors = windows.mapNotNull { w ->
+                if (shouldStop()) return@mapNotNull null
+                val from = (w.first * SAMPLES_PER_MS).toInt().coerceIn(0, slice.audio.size)
+                val to = ((w.last + 1) * SAMPLES_PER_MS).toInt().coerceIn(from, slice.audio.size)
+                VoiceNative.embed(ptr, slice.audio.copyOfRange(from, to)).takeIf { it.isNotEmpty() }
+            }
+            val groups = if (vectors.size == windows.size) WindowVoices.split(vectors) else null
+            if (groups != null) {
+                val split = WindowVoices.turns(local, windows, groups)
+                val described = describe(ptr, slice.audio, split, shouldStop)
+                if (described.size == 2) {
+                    local = split
+                    embeddings = described
+                    Log.i(TAG, "Told apart in ${windows.size} windows of ${WindowVoices.WINDOW_MS / 1000}s: ${summary(local, embeddings)}")
+                }
+            }
+        }
         val turns = local.mapNotNull { t ->
             val start = maxOf(t.startMs + slice.startMs, keepFromMs)
             val end = t.endMs + slice.startMs
             if (end > start) VoiceTurn(start, end, t.voice) else null
         }
         return VoiceLink.Chunk(turns, embeddings)
+    }
+
+    /** Each voice of [turns] described from up to [EMBED_MS] of its speech; a voice with under [MIN_EMBED_MS] is left out. */
+    private fun describe(ptr: Long, audio: FloatArray, turns: List<VoiceTurn>, shouldStop: () -> Boolean): Map<Int, FloatArray> =
+        turns.map { it.voice }.distinct().mapNotNull { voice ->
+            val pcm = speechOf(audio, turns.filter { it.voice == voice }, EMBED_MS)
+            if (pcm.size < MIN_EMBED_MS * SAMPLES_PER_MS || shouldStop()) null
+            else VoiceNative.embed(ptr, pcm).takeIf { it.isNotEmpty() }?.let { voice to it }
+        }.toMap()
+
+    private fun summary(turns: List<VoiceTurn>, embeddings: Map<Int, FloatArray>): String {
+        val seconds = turns.groupBy { it.voice }.mapValues { (_, t) -> t.sumOf { it.lengthMs } / 1000.0 }
+        val likeness = embeddings.values.toList().takeIf { it.size == 2 }?.let { "%.2f".format(VoiceLink.cosine(it[0], it[1])) } ?: "-"
+        return seconds.entries.sortedBy { it.key }.joinToString { (v, sec) -> "voice $v %.1fs%s".format(sec, if (v in embeddings) "" else " (too short to describe)") } +
+            ", cosine $likeness"
     }
 
     /**

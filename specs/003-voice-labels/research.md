@@ -150,6 +150,28 @@ be measured before it is relied on marked **Measure**.
   in both chunkings alike (cosine 0.11 and 0.19), 69% and 63% right against
   its unsure channels.
 
+- **The engine left two people as one (2026-11-05, A24, release build)**:
+  a 235 s phone call of two people, no speakerphone, one mix. sherpa-onnx,
+  told two voices, gave 204.6 s and 0.4 s: the second too short to
+  describe, so one voice and no names, with or without the owner's print.
+  Its speech in 3 s windows (68) fell into two groups by 2-means, 38 and 30
+  windows, within 0.83 and 0.81, between 0.47; the least alike pair of
+  windows 0.01 - the scrap the engine cut off. The print (a recorded sample)
+  was 0.77 to one group and 0.24 to the other.
+- **Decision (as built)**: when a chunk comes back with fewer than two
+  voices described, or one holding over 95% of its speech, its speech is cut
+  into 2 s windows every 1 s within each of the engine's turns, each
+  described, and split in two by 2-means on cosine (`WindowVoices`); each
+  window holds the speech halfway to its neighbours. The two groups are
+  described as any chunk's voices, and VoiceLink and VoiceSilence decide as
+  before, so two groups 0.6 or more alike are one person and nothing is
+  named. That call: 189 windows, 19 s more, 99.2 s and 105.3 s at 0.27; the
+  print 0.81 and 0.19, so You and Them.
+- **Not yet measured**: the calls of one speaker (16:29, 10:06 above) with
+  this in place. They should stay unnamed by the 0.6 rule - two halves of
+  one person - but `VoiceAccuracyTest` needs the debug build, and the A24
+  holds the release one.
+
 ## V5. Labelling the lines and cutting at a turn
 
 - **Decision (as built)**: each line takes the voice that covers most of its

@@ -1612,7 +1612,12 @@ truth: the one real conversation 98.6% right, in 5-minute and 60 s chunks
 alike; every call of one voice unnamed. The engine is told there are two
 voices, so a chunk of one person came back as two of theirs; the chunks' two
 voices are now joined when they sound alike, which kept a 306 s call of one
-voice in one.
+voice in one. The other way round, the engine can also leave two people as
+one: a 235 s phone call of two came back 204.6 s and 0.4 s (A24,
+2026-11-05), the cut at a scrap of noise. A chunk left with one voice is
+now told apart in 2 s windows of its speech, split in two by how alike they
+sound; that call came out 99 s and 105 s at cosine 0.27, and the owner's
+print found them by 0.81 against 0.19. It cost 19 s.
 
 **You, by your voice.** A print of the owner's voice - numbers, no sound -
 from a short text read once under *Your voice* (the microphone asked for
