@@ -14,6 +14,7 @@ import com.jemcik.jemrec.crm.CrmState
 import com.jemcik.jemrec.crm.CrmSync
 import com.jemcik.jemrec.crm.CrmSyncWorker
 import com.jemcik.jemrec.crm.GoogleSignIn
+import com.jemcik.jemrec.crm.SalesEngineBuild
 import com.jemcik.jemrec.crm.SessionStore
 import com.jemcik.jemrec.crm.WorkCallMachine
 import com.jemcik.jemrec.crm.WorkLine
@@ -108,7 +109,7 @@ class SalesEngineController(
         val callLog = granted(Manifest.permission.READ_CALL_LOG)
         val state = CrmState.of(
             // A build with no address sends nothing; one with no Google client id can still use a stand token set by hand.
-            configured = BuildConfig.SALES_ENGINE_URL.isNotBlank() && (GoogleSignIn.configured || store.session() != null),
+            configured = SalesEngineBuild.url.isNotBlank() && (GoogleSignIn.configured || store.session() != null),
             session = store.state,
             noticeOk = store.noticeOk,
             callLogAllowed = callLog,
@@ -132,7 +133,7 @@ class SalesEngineController(
                 phoneStateAllowed = WorkLine.canList(app),
                 callLogAllowed = callLog,
                 contentWarning = contentWarning(),
-                serverHost = BuildConfig.SALES_ENGINE_URL.removePrefix("https://").substringBefore('/'),
+                serverHost = SalesEngineBuild.url.removePrefix("https://").substringBefore('/'),
             )
         }
     }

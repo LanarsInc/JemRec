@@ -85,11 +85,15 @@ abstract class ScreenTest {
     @Before fun fixLanguageAndZone() {
         Locale.setDefault(Locale.UK)
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+        // The stand's address is each developer's local.properties: a screen draws as a build
+        // with no Sales Engine, the same on every machine (SalesEngineBuild).
+        com.jemcik.jemrec.crm.SalesEngineBuild.none()
     }
 
     @After fun restoreLanguageAndZone() {
         Locale.setDefault(locale)
         TimeZone.setDefault(zone)
+        com.jemcik.jemrec.crm.SalesEngineBuild.reset()
     }
 
     /** show() reads the icons inline; the next test class, a screen test or

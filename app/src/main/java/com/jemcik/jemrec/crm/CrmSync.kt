@@ -43,7 +43,7 @@ class CrmSync(
     private val events: Events = Events.NONE,
     private val now: () -> Long = System::currentTimeMillis,
     /** This build has an address to send to (app/build.gradle.kts); tests point it at their own server. */
-    private val configured: () -> Boolean = { BuildConfig.SALES_ENGINE_URL.isNotBlank() },
+    private val configured: () -> Boolean = { SalesEngineBuild.url.isNotBlank() },
 ) {
 
     interface Events {
@@ -301,7 +301,7 @@ class CrmSync(
 
         fun client(context: Context): SalesEngineClient {
             val store = store(context)
-            return SalesEngineClient(BuildConfig.SALES_ENGINE_URL, BuildConfig.VERSION_NAME, store::token)
+            return SalesEngineClient(SalesEngineBuild.url, BuildConfig.VERSION_NAME, store::token)
         }
     }
 }
