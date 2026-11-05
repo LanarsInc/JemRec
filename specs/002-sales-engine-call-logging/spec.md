@@ -434,6 +434,7 @@ network on; all three reach the stand once each, within minutes.
 - Transcript labels are "Seller" and "Customer" where the two sides are told
   apart, "Speaker 1" and "Speaker 2" where the voices are told apart but the
   seller's is not known (spec 003), and "Call" where they are not.
+  A work call's summary speaks of "the seller" and "the customer", never "you".
 - English summaries come from the same on-phone model as today's summaries.
   Their quality is checked on the Galaxy A24 against known calls, as the
   summaries' were: Qwen3 1.7B, left to write English for a Norwegian call,

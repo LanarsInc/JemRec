@@ -147,6 +147,18 @@ class SummaryRunnerTest {
         assertTrue(prompts.single().contains("Them: Ja"))
     }
 
+    /** A work call's summary is read in the Sales Engine: Seller and Customer, third person, never "You". */
+    @Test fun aWorkCallIsSummarisedAsSellerAndCustomer() = runBlocking {
+        transcript()
+        runner().run("a.ogg", "Priya Raman", SummaryModel.QWEN3_1_7B_Q4_K_M, "/m", forCrm = true)
+        val prompt = prompts.single()
+        assertTrue(prompt.contains("Seller: Hei"))
+        assertTrue(prompt.contains("Customer: Ja"))
+        assertTrue(!prompt.contains("Priya Raman: Ja"))
+        assertTrue(prompt.contains("third person"))
+        assertTrue(!prompt.contains("second person"))
+    }
+
     /** A one-mix call's voices, not yet named, are Voice 1 and Voice 2 in its lines - never the contact. */
     @Test fun unnamedVoicesAreVoice1AndVoice2() {
         val facts = TranscriptFacts("m", "en", split = false, audioMs = 1, wallMs = 1, loadMs = 0, threads = 1, createdAt = 0)

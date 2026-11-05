@@ -442,7 +442,10 @@ private fun Status(ui: TranscriptUi, vm: MainViewModel) {
             Text("The transcription did not finish: ${job.reason}", color = MaterialTheme.colorScheme.error)
             Button(onClick = { haptics.tap(); vm.transcripts.transcribe() }) { Text("Try again") }
         }
-        JobState.Idle -> if (ui.transcript == null) ModelOrStart(ui, vm, body)
+        // With a transcript there, Transcribe again is under it - but only once the model is here.
+        // A language set for this call whose model is not downloaded (Norwegian's NB-Whisper, say)
+        // left neither that button nor a way to get the model (found 2026-11-03): offer the model.
+        JobState.Idle -> if (ui.transcript == null || ui.model !is ModelState.Ready) ModelOrStart(ui, vm, body)
     }
 }
 
