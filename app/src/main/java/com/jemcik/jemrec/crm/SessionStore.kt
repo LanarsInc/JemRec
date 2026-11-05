@@ -78,7 +78,10 @@ class SessionStore(private val prefs: SharedPreferences, private val sealer: Tok
         putString(KEY_USER_EMAIL, s.user.email)
         if (s.minAppVersion == null) remove(KEY_MIN_VERSION) else putString(KEY_MIN_VERSION, s.minAppVersion)
         putString(KEY_NOTICE_CURRENT, s.noticeVersion)
-        if (s.noticeAcknowledged) putString(KEY_NOTICE_ACKED, s.noticeVersion)
+        // The server's word, both ways: a Google sign-in on the stand (2026-11-05) answered
+        // acknowledged: false where the hand-set token's agreement was kept here, so the phone
+        // sent, was told 403 notice_required, and stood still instead of showing the notice.
+        if (s.noticeAcknowledged) putString(KEY_NOTICE_ACKED, s.noticeVersion) else remove(KEY_NOTICE_ACKED)
         putString(KEY_STATE, State.ACTIVE.name)
         remove(KEY_SIGNED_OUT_AT)
     }

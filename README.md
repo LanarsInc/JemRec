@@ -18,7 +18,7 @@ the phone sets itself up.
 [![Android](https://img.shields.io/badge/Android-12%2B%20(API%2031)-3DDC84)](#phones-and-android-versions)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.3.21-7F52FF)](https://kotlinlang.org)
 [![Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4)](https://developer.android.com/jetpack/compose)
-[![Tests](https://img.shields.io/badge/tests-1541-success)](docs/DEVELOPMENT.md#tests)
+[![Tests](https://img.shields.io/badge/tests-1956-success)](docs/DEVELOPMENT.md#tests)
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/memo/home-dark.png"><img src="docs/screenshots/memo/home.png" width="26%" alt="Memo: the recordings list"></picture>
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/deck/home-dark.png"><img src="docs/screenshots/deck/home.png" width="26%" alt="Deck: the recordings list"></picture>
@@ -60,7 +60,10 @@ the phone sets itself up.
    options, USB and Wireless debugging (no cable needed), and pairing - the
    phone pairs with itself. Type the six-digit code into JemRec's
    *notification*, not the app: leaving Settings closes the code window. Once;
-   the pairing survives restarts.
+   the pairing survives restarts. OPPO, OnePlus and realme phones on their
+   own systems (ColorOS, OxygenOS, realme UI) need one more switch in
+   Developer options, *Disable system optimization* (*Disable permission
+   monitoring* on older ones); setup names it.
 3. **Let it keep running:** on phones that stop apps in the background
    (Honor, Huawei, Xiaomi, Samsung and others), setup asks you to allow JemRec
    in the phone's own screen for it, and tells you what to tap there. If the
@@ -148,6 +151,12 @@ are in [How JemRec works](docs/ARCHITECTURE.md#after-a-restart).
 
 ## What you can do
 
+<a href="https://www.youtube.com/watch?v=v5JV6KUUj_I"><img src="docs/video/features.jpg" alt="The features video: JemRec's screens on a pocket recorder" width="560"></a>
+
+**Prefer to watch?** What it does, in 1:51
+[on YouTube](https://www.youtube.com/watch?v=v5JV6KUUj_I), on the app's own
+screens.
+
 | | |
 | --- | --- |
 | **Record every call, or be asked** | Automatic mode records every call; ask-first records nothing until you tap Record. A Quick Settings tile turns recording on and off, and a long press on it opens JemRec. → [more](docs/ARCHITECTURE.md#recording-and-being-asked) |
@@ -155,7 +164,7 @@ are in [How JemRec works](docs/ARCHITECTURE.md#after-a-restart).
 | **Keep only the calls you want** | All your contacts, all but some, only some, or none - and other numbers on their own switch. → [more](docs/ARCHITECTURE.md#whose-calls-to-keep) |
 | **Messenger calls** | WhatsApp, Telegram, Viber, and Google Meet calls and meetings, both sides, each switched on separately, with the caller's name from the app's notification. Android 14+. → [more](docs/ARCHITECTURE.md#messenger-calls) |
 | **See every call** | The Calls tab is your call log, each call with its recording - or, if there is none, why. Search either list, or narrow it with a tap. → [more](docs/ARCHITECTURE.md#the-calls-tab) |
-| **Name files your way** | By date and time, with the caller, or the way Honor's Phone app plays them from its call history. → [more](docs/ARCHITECTURE.md#file-names) |
+| **Name files your way** | By date and time, with the caller, with the phone number for a program that sorts them, or the way Honor's Phone app plays them from its call history. → [more](docs/ARCHITECTURE.md#file-names) |
 | **Play, keep, clean up** | A call plays as its waveform, to see where people talk, and plays on with the screen off, under the phone's media controls; a keep mark, a 30-day Recently deleted, and auto-delete for old or very short ones. → [more](docs/ARCHITECTURE.md#playing-in-the-background) |
 | **Hear about problems** | A notification after each call, and one when a recording is silent, the recorder is down, a call went unrecorded, or the phone stopped JemRec or held it back in the background. A call that came out wrong? *Copy a report* in Diagnostics says how it was recorded, for an issue on GitHub. → [more](docs/ARCHITECTURE.md#after-the-call-and-when-something-is-wrong) |
 | **Answering machine** | Off until you switch it on. Answers a phone call you have not taken after 5 to 30 seconds - after two rings when Do Not Disturb would silence the caller - plays the greeting you recorded and keeps the message, by the same rules as recording. Take the call or hang up from its notification while they speak. It stands down for a day after you call an emergency number. A test call tells you whether it works on your phone. → [more](docs/ARCHITECTURE.md#the-answering-machine) |
@@ -212,6 +221,8 @@ Google Meet was tested on the Honor: calls both ways and a meeting. Signal
 takes the same path as the other messengers and has not been tested yet.
 Developer options and Wireless debugging are on every Android phone, though the
 menu they live in differs by make; JemRec names the right path for yours.
+OPPO, OnePlus and realme phones on their own systems (ColorOS, OxygenOS,
+realme UI) need one more switch there, and setup names that too.
 
 **Both sides of the call** have been recorded on five phones, across three very
 different Android builds:
@@ -296,7 +307,7 @@ recorder does not explain is one its user has to guess at:
 | `RECEIVE_BOOT_COMPLETED` | A reboot kills the recorder; this is what arms the job that rebuilds it. |
 | `READ_MEDIA_AUDIO` | To list recordings made before a reinstall. Refusing it only hides those. |
 | `READ_EXTERNAL_STORAGE` | Android 12 only, which has no `READ_MEDIA_AUDIO`: the same, to list recordings made before a reinstall. It covers photos and videos too; JemRec reads only its own folder. Refusing it only hides those. |
-| `READ_CALL_LOG`, `READ_CONTACTS` | Optional, but the Sales Engine needs the call log: each work call's number, time and length come from it. Otherwise the only way to know who a call was with: to label a recording, to name a file after the caller, to keep or leave out a call by who it was with, and, for the call log, to notice a call that went unrecorded. |
+| `READ_CALL_LOG`, `READ_CONTACTS` | Optional, but the Sales Engine needs the call log: each work call's number, time and length come from it. Otherwise the only way to know who a call was with: to label a recording, to name a file after the caller or their number, to keep or leave out a call by who it was with, and, for the call log, to notice a call that went unrecorded. |
 | `READ_PHONE_STATE` | Only for the Sales Engine, asked when you choose the work line: Android lists the phone's SIMs only with it. |
 | `RECORD_AUDIO` | Since 1.1, only for *Your voice*: asked when you tap Record, to hear you read a short text once so your voice is known in phone calls that come out as one mix. The sound stays in memory and is dropped; what is kept is numbers describing your voice. Calls are recorded by the recorder, which needs nothing of this. |
 | `MANAGE_ONGOING_CALLS` | For exact call tracking. Not one an app can ask for: the daemon allows it, as the shell, while the switch is on. Android then tells JemRec when each call is answered and ends. Tracking never acts on a call; the answering machine's answering is the recorder's, as the shell. |
@@ -479,6 +490,26 @@ marks - a message, kept, who a messenger call was with - inside the file.
 </details>
 
 <details>
+<summary><b>Setup says Android would not let JemRec change debugging settings</b></summary>
+
+<br>
+
+Your phone refuses JemRec the one setting setup grants it until a switch of
+the phone's own is set, and the card names it. On an OPPO, OnePlus or realme
+phone it is *Disable system optimization*, the last switch in Developer
+options' Apps section (*Disable permission monitoring* on older ones; where it
+says just *Permission monitoring*, turn that off instead); some show it only
+in English, so if it is not there, set the phone's language to English, turn
+it on and set the language back. On a Xiaomi it is *USB
+debugging (Security settings)*. Then tap **Try again**. Setup does not finish
+without that setting: it is what lets JemRec turn Wireless debugging back on
+after a restart. Leave it that way afterwards: the recorder needs it too, to
+turn debugging off when JemRec is uninstalled. Reported from two OnePlus phones
+(issues #61 and #64); we have none to try it on.
+
+</details>
+
+<details>
 <summary><b>My banking app won't open while debugging is on</b></summary>
 
 <br>
@@ -513,11 +544,18 @@ second choice, or neither worked, say so in [issue #37](https://github.com/jemci
 <br>
 
 Uninstall JemRec first. If the recorder is running, it notices the uninstall
-within a few minutes, turns both debugging switches off and exits; either way,
-once JemRec is gone nothing turns them back on. To have it off only while
-JemRec is off, see the question above.
+within a few minutes, turns both debugging switches off and exits - on an
+OPPO, OnePlus or realme phone only while its *Disable system optimization*
+switch is set as setup asked, or they stay on for you to turn off. Either way, once JemRec is gone nothing
+turns them back on. To have it off only while JemRec is off, see the question
+above.
 
 </details>
+
+Something else? Ask in [Discussions](https://github.com/jemcik/JemRec/discussions),
+where ideas go too. A call that came out wrong is worth
+[an issue](https://github.com/jemcik/JemRec/issues/new?template=bug.yml),
+with *Copy a report* from Diagnostics, tapped before the next call.
 
 ## Support JemRec
 
@@ -533,7 +571,7 @@ SDK with platforms 37 and 36, build-tools 36.0.0, NDK 28.2.13676358 and CMake
 
     git submodule update --init  # whisper.cpp and llama.cpp
     ./gradlew assembleDebug      # build
-    ./gradlew test               # 1541 tests, screenshots of the screens included
+    ./gradlew test               # 1956 tests, screenshots of the screens included
 
 | | |
 | --- | --- |
@@ -545,6 +583,9 @@ SDK with platforms 37 and 36, build-tools 36.0.0, NDK 28.2.13676358 and CMake
 
 Everything else that would have gone in a document is in the code, beside the
 thing it explains, with the measurement it came from.
+
+JemRec is written by one person and does not take pull requests. An idea is
+welcome in [Ideas](https://github.com/jemcik/JemRec/discussions/categories/ideas).
 
 ## Licence
 

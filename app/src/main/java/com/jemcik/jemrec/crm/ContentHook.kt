@@ -31,7 +31,7 @@ object ContentHook {
     fun transcribed(context: Context, recording: String, lines: Int) = later {
         val summaryComes = lines > 0 && TranscribeSettings.of(context).summariseAfterTranscript &&
             SummaryWorker.chosenModel(context)?.let { ModelRepository.isInstalled(context, it) } == true
-        if (!summaryComes) markFailed(context, recording, if (lines == 0) NO_SPEECH else "no summary")
+        if (!summaryComes) markFailed(context, recording, if (lines == 0) NO_SPEECH else NO_SUMMARY)
     }
 
     fun transcriptionFailed(context: Context, recording: String) = later { markFailed(context, recording, "transcription failed") }
@@ -47,7 +47,7 @@ object ContentHook {
         val summary = repo.summary(recording)?.let { CallSummary.parse(it.json) } ?: return@later markFailed(context, recording, "no summary")
         val content = ContentText.content(transcript.lines, summary, transcript.facts.language)
             ?: return@later markFailed(context, recording, "empty transcript")
-        ready(call, Bodies.ready(content))?.let {
+        ready(call, Bodies.ready(content, call.contentRevision))?.let {
             calls.update(it)
             CrmNotifications.cancelContentFailed(context, it.id)
             CrmSyncWorker.now(context)
@@ -60,18 +60,22 @@ object ContentHook {
     private suspend fun markFailed(context: Context, recording: String, why: String) {
         val calls = CrmDatabase.of(context).calls()
         val call = calls.byRecording(recording) ?: return
+        val resending = Content.of(call.contentState) == Content.RESENDING
+        // Send the transcript queues its own summary, whatever the setting says.
+        if (resending && why == NO_SUMMARY) return
         failed(call)?.let {
             Log.i("JemRec", "crm: no content for a work call: $why")
             calls.update(it)
-            // Said when making it again could help: not for a call with no speech, nor one deleted.
-            if (why != NO_SPEECH && why != DELETED) CrmNotifications.contentFailed(context, it)
+            // Said when making it again could help: not for a call with no speech, nor one deleted,
+            // nor one whose texts the server has already.
+            if (why != NO_SPEECH && why != DELETED && !resending) CrmNotifications.contentFailed(context, it)
             CrmSyncWorker.now(context)
         }
     }
 
     /** Pure: the call with its texts to send, or null - only the first texts go, and failed may be followed once. */
     fun ready(c: WorkCallEntry, body: String): WorkCallEntry? = when (Content.of(c.contentState)) {
-        Content.EXPECTED, Content.NOT_EXPECTED, Content.FAILED_TO_SEND, Content.SENT_FAILED ->
+        Content.EXPECTED, Content.NOT_EXPECTED, Content.FAILED_TO_SEND, Content.SENT_FAILED, Content.RESENDING ->
             c.copy(contentState = Content.READY_TO_SEND.name, contentBody = body, contentDueAtMs = 0)
         else -> null
     }
@@ -79,10 +83,15 @@ object ContentHook {
     /** Pure: the call with "failed" to send, or null when texts are on their way or went already. */
     fun failed(c: WorkCallEntry): WorkCallEntry? = when (Content.of(c.contentState)) {
         Content.EXPECTED -> c.copy(contentState = Content.FAILED_TO_SEND.name, contentDueAtMs = 0)
+        // Not made again: the server keeps the texts it has, and the revision is not spent.
+        Content.RESENDING -> c.copy(
+            contentState = Content.SENT_READY.name, contentRevision = c.contentRevision - 1, lastError = "not made again",
+        )
         else -> null
     }
 
     private const val NO_SPEECH = "no speech"
+    private const val NO_SUMMARY = "no summary"
     private const val DELETED = "recording deleted"
 
     private fun later(block: suspend () -> Unit) {

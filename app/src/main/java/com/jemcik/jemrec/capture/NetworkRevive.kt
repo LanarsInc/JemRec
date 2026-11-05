@@ -25,8 +25,9 @@ import com.jemcik.jemrec.Prefs
  * The keep-alive job answers that on a 15-minute clock - which means a call in
  * the first quarter-hour after walking back onto Wi-Fi is missed even though
  * recording was possible the whole time. This closes that gap. It watches for
- * Wi-Fi coming back and revives the daemon within a second or two, so "on Wi-Fi"
- * and "recording" line up as closely as the platform allows.
+ * Wi-Fi coming back and revives the daemon within seconds, so "on Wi-Fi" and
+ * "recording" line up as closely as the platform allows: on the Honor,
+ * 2026-10-31, the run began 3 s after Wi-Fi and the recorder answered at 9 s.
  *
  * WHY A PENDING-INTENT CALLBACK, NOT A LISTENER
  *
@@ -41,7 +42,8 @@ import com.jemcik.jemrec.Prefs
  * It does not survive a reboot or a force-stop, so it is re-armed on boot and on
  * every app open, next to the job it complements. Re-registering the same
  * PendingIntent just replaces the old registration, so arming is idempotent.
- * Off disarms it: a switched-off recorder should watch for nothing.
+ * Off leaves it armed, as it leaves the keep-alive: Off is soft, and the
+ * recorder stays (RecorderSwitch.turn).
  *
  * AND IT IS ONE-SHOT, WHICH IS WHY THE KEEP-ALIVE ARMS IT TOO
  *

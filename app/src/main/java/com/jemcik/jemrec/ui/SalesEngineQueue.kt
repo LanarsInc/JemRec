@@ -49,7 +49,11 @@ data class SalesEngineQueue(
                 retrying = retrying.count { WorkCallMachine.retryNow(it, nowMs) != null },
                 why = retrying.minByOrNull { it.dueAtMs }?.let { CallSheetUi.retryText(it.lastError, it.dueAtMs, time) },
                 notSent = calls.count { Local.of(it.localState) == Local.NOT_SENT },
-                transcriptsNotSent = calls.count { WorkCallMachine.canResend(it, nowMs) },
+                // Not sent, and could be: not those that went and could only be sent again.
+                transcriptsNotSent = calls.count {
+                    WorkCallMachine.canResend(it, nowMs) &&
+                        Content.of(it.contentState).let { s -> s == Content.FAILED_TO_SEND || s == Content.SENT_FAILED }
+                },
             )
         }
     }

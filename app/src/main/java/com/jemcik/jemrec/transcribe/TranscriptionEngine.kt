@@ -407,11 +407,45 @@ object TranscriptionEngine {
                 // that the trimming did not happen.
                 if (vadModelPath != null) {
                     Log.i(TAG, "VAD kept ${WhisperNative.vadSegmentCount(ptr)} speech stretches")
+                    // Times only: what to set beside the voices' turns when speech is missing from
+                    // a transcript (LANARS, 2026-11-05: 18 s of an answer with no line).
+                    if (com.jemcik.jemrec.BuildConfig.DEBUG) {
+                        Log.d(TAG, "vad: " + speechStretches(ptr, vadOn = true).joinToString(" ") { "${it.startMs}-${it.endMs}" })
+                    }
                 }
 
                 // Before the chunk offset is added, so the stretches and the segments are in the same
                 // (chunk-local) timeline — issue #25.
-                val raw = readSegments(ptr, vadOn = vadModelPath != null, words = channel == Channel.MIX)
+                var raw = readSegments(ptr, vadOn = vadModelPath != null, words = channel == Channel.MIX)
+
+                // Speech the VAD heard and whisper wrote nothing for, heard again on its own, in
+                // its own language (GapFill: LANARS, 2026-11-05).
+                if (vadModelPath != null) {
+                    val rate = AudioDecoder.TARGET_SAMPLE_RATE
+                    val heard = speechStretches(ptr, vadOn = true)
+                    val lengthMs = slice.audio.size * 1000L / rate
+                    // Twice: a stretch heard in one language can hold a line of the other at its
+                    // edge - the same call's 0:48-1:40 came back Russian to 1:35, and the seller's
+                    // English at 1:37 was left; the second round hears what is still unwritten,
+                    // never a gap again that gave nothing (GapFill.again).
+                    val done = mutableListOf<LongRange>()
+                    for (round in 1..GapFill.ROUNDS) for (gap in GapFill.again(GapFill.gaps(heard, raw, lengthMs), done)) {
+                        done += gap
+                        if (abortRequested.get()) break
+                        val audio = slice.audio.copyOfRange((gap.first * rate / 1000).toInt(), minOf(slice.audio.size, (gap.last * rate / 1000).toInt()))
+                        val guesses = LanguageGuess.parse(WhisperNative.detectLanguage(ptr, audio, threads))
+                        val gapLanguage = LanguageGuess.decide(guesses) ?: language
+                        whisperActive = true
+                        try {
+                            WhisperNative.transcribe(ptr, audio, threads, gapLanguage, null, vadModelPath, settings.beamSize, settings.maxTextCtx)
+                        } finally {
+                            whisperActive = false
+                        }
+                        val found = readSegments(ptr, vadOn = true, words = channel == Channel.MIX)
+                        raw = GapFill.merge(raw, gap, found)
+                        Log.i(TAG, "Gap of ${(gap.last - gap.first) / 1000}s heard again: ${gapLanguage ?: "auto"} ${guesses.firstOrNull() ?: ""}, ${found.size} line(s)")
+                    }
+                }
 
                 // Stitched against where the audio REALLY started, which a seek may have moved earlier
                 // than the plan asked for. Using the planned offset instead would skew every timestamp
@@ -454,22 +488,28 @@ object TranscriptionEngine {
             // Galaxy A24 (2026-10-30, 113 s of stereo in 27-34 s), so a decode per side was most
             // of the wait.
             val decodeAt = SystemClock.elapsedRealtime()
-            val sides = HashMap<Channel, FloatArray>()
-            AudioDecoder.decodeRange(
-                context, uri, 0L, LanguageGuess.LOOK_MS, Channel.MIX,
-                onInterleaved = { pcm, length, count, rate, _ ->
-                    channels.forEach { sides[it] = AudioDecoder.pcm16ToMono16k(pcm, count, rate, length, it.index) }
-                },
-            ) { abortRequested.get() }
+            // The call's start, and for a long call its middle and end too (LanguageGuess.windows).
+            val durationMs = runCatching { AudioDecoder.durationMs(context, uri) }.getOrDefault(0L)
+            val windows = LanguageGuess.windows(durationMs)
+            val sides = HashMap<Channel, MutableList<FloatArray>>()
+            for (window in windows) {
+                if (abortRequested.get()) break
+                AudioDecoder.decodeRange(
+                    context, uri, window.first, window.last + 1, Channel.MIX,
+                    onInterleaved = { pcm, length, count, rate, _ ->
+                        channels.forEach { sides.getOrPut(it) { mutableListOf() } += AudioDecoder.pcm16ToMono16k(pcm, count, rate, length, it.index) }
+                    },
+                ) { abortRequested.get() }
+            }
             val decodeMs = SystemClock.elapsedRealtime() - decodeAt
             channels.associateWith { channel ->
                 if (abortRequested.get()) return@associateWith emptyList()
-                val speech = sides[channel]?.let(LanguageGuess::speech) ?: return@associateWith emptyList()
+                val speech = sides[channel]?.let(LanguageGuess::speechAcross) ?: return@associateWith emptyList()
                 val detectAt = SystemClock.elapsedRealtime()
                 LanguageGuess.parse(WhisperNative.detectLanguage(ptr, speech, threads)).also {
                     Log.i(
                         TAG,
-                        "Language of $channel, from ${speech.size / AudioDecoder.TARGET_SAMPLE_RATE}s of speech: $it " +
+                        "Language of $channel, from ${speech.size / AudioDecoder.TARGET_SAMPLE_RATE}s of speech in ${windows.size} stretch(es): $it " +
                             "(load $loadMs ms, decode $decodeMs ms, detect ${SystemClock.elapsedRealtime() - detectAt} ms)",
                     )
                 }

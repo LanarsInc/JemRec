@@ -7,8 +7,8 @@ import android.provider.CallLog
 import android.util.Log
 import androidx.core.content.edit
 import com.jemcik.jemrec.Prefs
-import com.jemcik.jemrec.capture.CallLedger
-import com.jemcik.jemrec.capture.CallLogLookup
+import com.jemcik.jemrec.calls.CallLedger
+import com.jemcik.jemrec.calls.CallMatch
 import com.jemcik.jemrec.crm.WorkCallMachine.Content
 import com.jemcik.jemrec.crm.WorkCallMachine.Local
 import com.jemcik.jemrec.crm.db.CrmDatabase
@@ -49,9 +49,9 @@ object CallIntake {
         if (row.dateMs < setupAtMs) return@mapNotNull null
         if (outWindows.any { row.dateMs in it }) return@mapNotNull null
         if (!WorkLine.matches(row.component, row.accountId, line, simCount)) return@mapNotNull null
-        if (testCalls.any { CallLogLookup.sameCall(row.dateMs, it) }) return@mapNotNull null
+        if (testCalls.any { CallMatch.sameCall(row.dateMs, it) }) return@mapNotNull null
         val f = CallLogRows.facts(row) ?: return@mapNotNull null
-        val recording = if (f.answered) recordings.firstOrNull { it.incoming == !f.outgoing && CallLogLookup.sameCall(row.dateMs, it.startMs) } else null
+        val recording = if (f.answered) recordings.firstOrNull { it.incoming == !f.outgoing && CallMatch.sameCall(row.dateMs, it.startMs) } else null
         WorkCallEntry(
             clientCallId = newId(),
             callLogId = row.id,
@@ -138,8 +138,8 @@ object CallIntake {
     suspend fun recordingSaved(context: Context, saved: Saved) {
         remember(context, saved)
         val calls = CrmDatabase.of(context).calls()
-        val candidate = calls.unmatchedBetween(saved.startMs - CallLogLookup.AFTER_MS, saved.startMs + CallLogLookup.BEFORE_MS)
-            .firstOrNull { it.answered && it.outgoing == !saved.incoming && CallLogLookup.sameCall(it.startedAtMs, saved.startMs) }
+        val candidate = calls.unmatchedBetween(saved.startMs - CallMatch.AFTER_MS, saved.startMs + CallMatch.BEFORE_MS)
+            .firstOrNull { it.answered && it.outgoing == !saved.incoming && CallMatch.sameCall(it.startedAtMs, saved.startMs) }
             ?: return
         val content = Content.of(candidate.contentState)
         calls.update(

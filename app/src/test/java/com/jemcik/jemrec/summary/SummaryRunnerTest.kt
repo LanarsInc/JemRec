@@ -88,7 +88,16 @@ class SummaryRunnerTest {
     @Test fun thePromptSaysWhatToDoWithARecordedMenu() = runBlocking {
         transcript()
         runner().run("a.ogg", null, SummaryModel.QWEN3_1_7B_Q4_K_M, "/m")
-        assertTrue(prompts.single().contains("Automated message:"))
+        assertTrue(prompts.single().contains("exactly \"Automated message\""))
+    }
+
+    /** An example in the prompt was copied into a call's summary (the stand, 2026-11-05): none is given. */
+    @Test fun thePromptGivesNoContentToCopy() = runBlocking {
+        transcript()
+        runner().run("a.ogg", null, SummaryModel.QWEN3_1_7B_Q4_K_M, "/m")
+        val prompt = prompts.single()
+        assertTrue(!prompt.contains("balance"))
+        assertTrue(prompt.contains("never from these instructions"))
     }
 
     /** In English since 1.0, whatever the call's language (FR-033, specs/002): the Sales Engine takes English. */

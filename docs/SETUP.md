@@ -121,6 +121,15 @@ recorder. USB debugging — the setting, with no cable involved — is what keep
 Android's debugging service alive, and without it Wireless debugging switches
 itself off again before the app can connect.
 
+> **On an OPPO, OnePlus or realme phone, one more switch:** **Disable system
+> optimization**, the last one in Developer options' **Apps** section
+> (**Disable permission monitoring** on older ones). Turn it on, and leave it
+> on - or, where it says just **Permission monitoring**, turn that off and
+> leave it off. Without it the phone refuses the setting JemRec grants itself
+> in step 5, and the recorder could not turn debugging off when JemRec is
+> uninstalled. Some phones show it only in English: if it is not there, set the
+> phone's language to English, turn it on, and set the language back.
+
 > If you see an old **JemRec** under *Paired devices*, tap the gear beside it
 > and forget it. It is left over from a previous install and cannot be used: a
 > reinstalled app has a new key and must pair again.
@@ -161,6 +170,12 @@ app connects by itself. There is no need to pair again or to fetch a new code.
 JemRec does the rest by itself: it grants itself the one privileged setting it
 needs, starts the recorder, and begins watching for calls. When it is done the
 header says **Ready to record**.
+
+**If it stops at *Android would not let JemRec change debugging settings***,
+the phone refuses that setting until a switch of its own is set, and the card
+names it: on OPPO, OnePlus and realme **Disable system optimization**, set as
+step 3 says; on Xiaomi **USB debugging (Security settings)**, on. Then tap
+**Try again**; **Open settings** beside it opens Settings.
 
 There is no permanent notification. The app is dormant between calls — the
 recorder is a separate process that does the watching — so a notification
@@ -247,16 +262,20 @@ you already have keep their names.
   began, and which way it went.
 - **With the caller**: `20261020_165705_out_Priya Raman.ogg` — easier to find
   in a file manager or on a computer.
+- **With the phone number**: `20261020_165705_out_+447700900123.ogg` — the
+  number with its country code, even a contact's, for a program that sorts
+  recordings by number. A hidden number leaves the date and time; a messenger
+  call has no number, so its name ends with the app.
 - **For Honor's Phone app**, on a phone that has it: `Priya
   Raman@+447700900123_20261020165705.ogg`, the name Honor's own recorder uses.
   Saved in `Sounds/CallRecord` — the File names dialog has a button that opens
   the folder picker right there; tap **Use this folder** and **Allow** —
   Honor's Phone app then shows a play button on the call in its history.
 
-The caller comes from exact call tracking or the call log, with permission to
-read the call log; without it, a recording is named by date and time. Google's
-Phone app has nothing like Honor's: it keeps its own recordings to itself, and
-no other app can add one to its call history.
+The caller and the number come from exact call tracking or the call log, with
+permission to read the call log; without it, a recording is named by date and
+time. Google's Phone app has nothing like Honor's: it keeps its own recordings
+to itself, and no other app can add one to its call history.
 
 ## Messenger calls
 
@@ -500,10 +519,12 @@ describe your voice, never sound; **Delete** removes it.
 
 **The language.** JemRec finds it: each side's first minute is listened to
 before the call is transcribed, so a Norwegian call gets the model made for
-Norwegian, NB-Whisper, and two people speaking two languages each get theirs.
-Seventeen are offered. Settings → Transcripts can set one for every call
-instead, and **Change**, on a transcript, sets one for that call alone - worth
-it for a side of a few words, which is too little to tell.
+Norwegian, NB-Whisper, and two people speaking two languages each get theirs. A
+longer call is listened to at its start, middle and end, and a stretch in
+another language, or one whisper missed, is written again in its own. Seventeen
+are offered. Settings → Transcripts can set one for every call instead, and
+**Change**, on a transcript, sets one for that call alone - worth it for a side
+of a few words, which is too little to tell.
 
 **Summary**, beside Transcript, writes in English, whatever the call's
 language, why the call happened, what was said, and the points, decisions,
@@ -549,7 +570,10 @@ the phone has transcribed and summarised a call, by your setting under
 Transcripts, both go to it: the summary into the call's note on the deal. Never
 the recording. If its transcript could not be made - a summary that did not fit
 in memory, say - the line says **transcript not sent**, and **Send the
-transcript** on the call's sheet makes it again and sends it, once.
+transcript** on the call's sheet makes it again and sends it, once. One that
+went can be made again and sent in its place up to three times - **Send the
+transcript again** - and until the new one is ready, the Sales Engine keeps the
+one it has.
 
 Offline, calls wait and go once when the network is back; the line under a call
 says why it waits and when it tries again. Under **Calls** in Settings → Sales
@@ -790,8 +814,8 @@ works, with the time as each recording's headline.
 **Saving**
 
 - **Saving to** — which folder recordings go in, and back to the default.
-- **File names** — date and time, with the caller, or the name Honor's Phone
-  app plays from its call history.
+- **File names** — date and time, with the caller, with the phone number, or
+  the name Honor's Phone app plays from its call history.
 - **Auto-delete old recordings** and **Auto-delete short calls** — off until
   you choose. Recordings older than 30 days, 90 days, 6 months or a year; calls
   shorter than 5, 10 or 30 seconds. Kept recordings are never touched, and

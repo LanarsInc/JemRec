@@ -5,6 +5,8 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.core.content.edit
 import com.jemcik.jemrec.Prefs
+import com.jemcik.jemrec.calls.PhoneNumbers
+import com.jemcik.jemrec.calls.VoipApps
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -12,20 +14,25 @@ import java.util.Locale
 /**
  * What a saved recording is called, and what a name says when read back.
  *
- * Three ways to name one, chosen in Settings:
+ * Four ways to name one, chosen in Settings:
  *
  *   - DATE, the default and the only one before 0.12:
  *     20261020_165705_out.ogg - when the call began, and which way it went.
  *   - DATE_AND_CALLER: the same, then who it was with -
  *     20261020_165705_out_Priya Shah.ogg - for anyone who browses the folder
  *     in a file manager or copies it to a computer.
+ *   - DATE_AND_NUMBER: the same, then the number, even a contact's -
+ *     20261020_165705_out_+447700900123.ogg - for a program that sorts the
+ *     files by who the call was with (issue #71): that place in the name
+ *     holds a number or nothing, never a name. Written with its country
+ *     code ([international]), so one person's calls carry one number.
  *   - HONOR: Priya Shah@+447700900123_20261020165705.ogg, the name Honor's
  *     own call recorder uses. Honor's Phone app shows a play button on a call
  *     in its history when a file named like that is in Sounds/CallRecord.
  *     Tested on an Honor (see the note in [build]); offered only on a phone
  *     that has that app.
  *
- * The two with a caller in them need the call log, read when the call is
+ * The three with a caller in them need the call log, read when the call is
  * saved; without it, or for a call it does not have, the name falls back to
  * DATE. A name is chosen once, when the recording is saved, and never changed
  * afterwards: everything that remembers a recording - the keep mark, Recently
@@ -35,10 +42,12 @@ import java.util.Locale
  * 20261020_203501_in_viber.ogg, with the caller after it in the formats that
  * name one - 20261020_203501_in_viber_Priya Raman.ogg - and no direction when
  * it is not known. Honor's format does not apply: its dialer has no messenger
- * calls to match. In the date format the caller is noted here by name instead
- * ([noteCaller]), since nothing else can say it: messenger calls are not in
- * the phone's call log. The recording's own tags carry it too
- * (RecordingTags), and a reinstall notes it here again from them.
+ * calls to match, nor the number format: a messenger call has no number, and
+ * a name in its place is what that format is for keeping out. Where the name
+ * does not carry the caller - those two and the date format - it is noted
+ * here by name instead ([noteCaller]), since nothing else can say it:
+ * messenger calls are not in the phone's call log. The recording's own tags
+ * carry it too (RecordingTags), and a reinstall notes it here again from them.
  *
  * READING A NAME BACK
  *
@@ -51,7 +60,7 @@ import java.util.Locale
  */
 object FileNames {
 
-    enum class Format { DATE, DATE_AND_CALLER, HONOR }
+    enum class Format { DATE, DATE_AND_CALLER, DATE_AND_NUMBER, HONOR }
 
     private const val KEY = "file_names"
     private const val KEY_DIRECTIONS = "name_directions"
@@ -83,11 +92,14 @@ object FileNames {
         ?.let { runCatching { DocumentsContract.getTreeDocumentId(it) }.getOrNull() }
         .equals(HONOR_FOLDER_ID, ignoreCase = true)
 
-    /** Who a call was with, as the call log and contacts have it. */
-    data class Party(val number: String?, val name: String?)
+    /** Who a call was with, as the call log and contacts have it; [country]
+     *  where the call was, to read a number dialled without its country code. */
+    data class Party(val number: String?, val name: String?, val country: String? = null)
 
     /**
-     * The name for a call that began at [startedAt]. Pure.
+     * The name for a call that began at [startedAt]. Pure - though the number
+     * format's country code comes from Android's own phone number library,
+     * which a plain test does not have: its tests are in NumberFileNamesTest.
      *
      * HONOR's name, as tested on the phone with copies of one recording:
      *   - its time may be anywhere inside the call, from when the call log
@@ -100,14 +112,19 @@ object FileNames {
      */
     internal fun build(format: Format, startedAt: Long, incoming: Boolean, party: Party?): String {
         val standard = RecordingStore.nameFor(Date(startedAt), incoming)
+        fun followedBy(who: String) = "${standard.removeSuffix(".${RecordingStore.EXTENSION}")}_$who.${RecordingStore.EXTENSION}"
         return when (format) {
             Format.DATE -> standard
-            Format.DATE_AND_CALLER -> {
-                val who = clean(party?.name) ?: digits(party?.number) ?: return standard
-                "${standard.removeSuffix(".${RecordingStore.EXTENSION}")}_$who.${RecordingStore.EXTENSION}"
+            Format.DATE_AND_CALLER -> followedBy(clean(party?.name) ?: digits(dialled(party?.number)) ?: return standard)
+            Format.DATE_AND_NUMBER -> {
+                val number = dialled(party?.number)
+                followedBy(international(number, party?.country) ?: digits(number) ?: return standard)
             }
             Format.HONOR -> {
-                // A hidden number has nothing for the Phone app to match.
+                // A hidden number has nothing for the Phone app to match. Every
+                // digit of the log's number, a code's or an extension's too: the
+                // Phone app wanted the call's own number (above), and
+                // CallMatch.withNumber reads the name back digit for digit.
                 val number = digits(party?.number) ?: return standard
                 val who = clean(party?.name) ?: number
                 "$who@${number}_${honorStamp().format(Date(startedAt))}.${RecordingStore.EXTENSION}"
@@ -146,15 +163,15 @@ object FileNames {
         return name.take(end)
     }
 
-    /** A number as it goes into a name: digits and a leading +, nothing else. */
-    internal fun digits(number: String?): String? {
-        val n = number?.trim() ?: return null
-        val kept = n.filter { it.isDigit() }
-        if (kept.isEmpty()) return null
-        return if (n.startsWith("+")) "+$kept" else kept
-    }
+    /** A number with its country code, as the number format writes it
+     *  (PhoneNumbers.international). */
+    internal fun international(number: String?, country: String?): String? = PhoneNumbers.international(number, country)
 
-    /** What a name says about its call. */
+    private fun dialled(number: String?): String? = PhoneNumbers.dialled(number)
+
+    /** A number as it goes into a name (PhoneNumbers.digits). */
+    internal fun digits(number: String?): String? = PhoneNumbers.digits(number)
+
     /**
      * A recording's name as a log line may show it: its date and time, never
      * the caller. With the caller in it, a file name is a person's name and
@@ -164,6 +181,7 @@ object FileNames {
     internal fun forLog(name: String): String =
         parse(name)?.let { "%1\$tY%1\$tm%1\$td_%1\$tH%1\$tM%1\$tS".format(it.startedAt) } ?: "a recording"
 
+    /** What a name says about its call. */
     internal data class Parsed(
         val startedAt: Long,
         /** Null for Honor's format, which does not say. */
@@ -182,7 +200,10 @@ object FileNames {
             false -> "_out"
             null -> ""
         }
-        val who = if (format == Format.DATE) null else clean(caller)
+        val who = when (format) {
+            Format.DATE, Format.DATE_AND_NUMBER -> null
+            Format.DATE_AND_CALLER, Format.HONOR -> clean(caller)
+        }
         return "$stamp${direction}_$tag${who?.let { "_$it" } ?: ""}.${RecordingStore.EXTENSION}"
     }
 
@@ -245,7 +266,7 @@ object FileNames {
     }
 
     /** A messenger call's caller, by the recording's name, when the name
-     *  itself does not carry it (the date format). */
+     *  itself does not carry it (the date and number formats). */
     fun noteCaller(context: Context, name: String, caller: String) = noteCallers(context, mapOf(name to caller))
 
     /** The same, for many at once: one write of the preferences. */

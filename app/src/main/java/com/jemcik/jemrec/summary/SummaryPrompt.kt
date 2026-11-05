@@ -213,13 +213,21 @@ object SummaryPrompt {
      * calls to an operator's voice menu came back as "a customer inquiring about their balance",
      * "instructions for changing the currency to English" and a made-up date. With this line the
      * same call came back as an automated message with no decisions; asked only to "start the
-     * intent with" the words, the model wrote them alone, so an example is given.
+     * intent with" the words, the model wrote them alone, so an example was given.
+     *
+     * The example was copied. LANARS's stand, 2026-11-05: a test call of one voice counting "one,
+     * two, three" came back as "the operator's balance menu", and "balance" was in four of the
+     * A24's summaries. So no example of content any more: the intent is the two words alone, and
+     * what the recording said goes in the summary, where the transcript is its only source.
      */
     private const val AUTOMATED =
         "If no person speaks with the caller - only a recorded menu, announcement or voicemail " +
-            "greeting - write the intent as \"Automated message\" and what it was, for example " +
-            "\"Automated message: the operator's balance menu\", say only what the recording said, " +
-            "and leave decisions and actionItems empty."
+            "greeting - write the intent as exactly \"Automated message\", say in the summary " +
+            "only what the recording itself said, and leave decisions and actionItems empty."
+
+    /** The same lesson in general: an instruction's words are not the call's. */
+    private const val NO_WORDS_FROM_HERE =
+        "Take every name, topic and number from the transcript only - never from these instructions."
 
     /** True when the capture labelled who was speaking. The one condition both renderings turn on. */
     private fun hasSpeakers(segments: List<SummaryLine>): Boolean =
@@ -384,6 +392,7 @@ object SummaryPrompt {
             appendLine(COVER_EVERYTHING)
             appendLine(IGNORE_MISHEARD)
             appendLine(AUTOMATED)
+            appendLine(NO_WORDS_FROM_HERE)
             // The figure comes from the grammar so the two cannot disagree, and it is a ceiling on
             // what the model is *allowed* rather than a target to fill.
             //

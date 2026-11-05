@@ -95,6 +95,9 @@ data class CallSheetUi(
      * transcript after that: the sheet offers to make it again and send it.
      */
     val canResend: Boolean = false,
+    /** The texts went already: Send the transcript replaces them, [resendsLeft] more times. */
+    val resendAgain: Boolean = false,
+    val resendsLeft: Int = 0,
 ) {
     val missedIncoming: Boolean get() = !outgoing && !answered
 
@@ -147,6 +150,8 @@ data class CallSheetUi(
                 next = NextCall.fromJson(c.nextJson?.let(::JSONObject)),
                 whichLead = pending && server.pendingReason == PendingReason.NO_MATCH,
                 canResend = canResend(c),
+                resendAgain = Content.of(c.contentState).let { it == Content.SENT_READY || it == Content.RESENDING },
+                resendsLeft = WorkCallMachine.resendsLeft(c),
                 note = when {
                     logged -> "A logged call is changed or deleted on its deal in the Sales Engine's web app."
                     c.lastError?.startsWith("logged") == true -> "Logged meanwhile: change it in the web app."
@@ -188,8 +193,14 @@ data class CallSheetUi(
             return when (Content.of(c.contentState)) {
                 Content.NOT_EXPECTED -> null
                 Content.EXPECTED -> "transcript to follow"
-                Content.READY_TO_SEND -> retryText(c.lastError, c.dueAtMs, time)?.let { "transcript not sent yet: $it" } ?: "sending the transcript"
-                Content.SENT_READY -> "transcript sent"
+                Content.READY_TO_SEND -> retryText(c.lastError, c.dueAtMs, time)?.let { "transcript not sent yet: $it" }
+                    ?: if (c.contentRevision > 0) "sending the transcript again" else "sending the transcript"
+                Content.SENT_READY -> when (c.lastError) {
+                    "not replaced" -> "transcript sent; the one made again was refused"
+                    "not made again" -> "transcript sent; it could not be made again"
+                    else -> if (c.contentRevision > 0) "transcript sent again" else "transcript sent"
+                }
+                Content.RESENDING -> "making the transcript again; the Sales Engine keeps the one sent"
                 // "failed" sent or to send: the CRM knows no transcript is coming (FR-031).
                 Content.FAILED_TO_SEND, Content.SENT_FAILED, Content.DONE -> "transcript not sent"
             }
@@ -323,11 +334,18 @@ internal fun CallSheetContent(
         ui.note?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         if (ui.canResend) {
             Text(
-                "Its transcript did not reach the Sales Engine. The phone can make it and its summary again, and send them.",
+                if (ui.resendAgain) {
+                    "The Sales Engine has its transcript and summary. The phone can make them again and send them " +
+                        "in their place - ${ui.resendsLeft} more time${if (ui.resendsLeft == 1) "" else "s"}."
+                } else {
+                    "Its transcript did not reach the Sales Engine. The phone can make it and its summary again, and send them."
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            OutlinedButton(onClick = { haptics.tap(); onResend() }) { Text("Send the transcript") }
+            OutlinedButton(onClick = { haptics.tap(); onResend() }) {
+                Text(if (ui.resendAgain) "Send the transcript again" else "Send the transcript")
+            }
         }
 
         if (ui.canChoose) {

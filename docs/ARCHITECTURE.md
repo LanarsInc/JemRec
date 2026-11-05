@@ -16,6 +16,7 @@ this one is - or to check that it does what it says.
   [starting without Wi-Fi](#starting-without-wi-fi) ·
   [unplugged from a computer](#unplugged-from-a-computer) ·
   [after a restart](#after-a-restart) ·
+  [coming back without you](#coming-back-without-you) ·
   [stopped in the background](#stopped-in-the-background)
 - The features: [recording and being asked](#recording-and-being-asked) ·
   [exact call tracking](#exact-call-tracking) ·
@@ -34,6 +35,7 @@ this one is - or to check that it does what it says.
   [who spoke in a one-mix call](#who-spoke-in-a-one-mix-call) ·
   [the Sales Engine](#the-sales-engine)
 - The phone: [permissions](#what-it-does-not-ask-for) ·
+  [when the phone refuses the grant](#when-the-phone-refuses-the-grant) ·
   [what stays switched on](#what-stays-switched-on) ·
   [off, and debugging with it](#off-and-debugging-with-it)
 
@@ -85,6 +87,30 @@ reader stalled, and the tail of every call was lost: a 76.7-second call arrived
 as 14 to 44 seconds. The daemon runs as shell, outside app management, and is
 never frozen. Afterwards the app fetches the finished file at whatever pace the
 system allows — a freeze there costs a slower copy, never a lost second.
+
+**Two collect it, by one set of rules.** The call service collects a call's
+recording as the call ends. Whatever a wake that did not land leaves on the
+recorder is collected later: by the keep-alive, and, with exact call tracking,
+a few seconds after the last call. Both go through one saver, and what each
+does after a save is one table, so where the two differ it is written down:
+only the call service tells you at once of a recording that came out empty or
+could not be saved; only a later collection keeps trying a file that fails,
+and gives it up after a week. The missed-call check runs after both: after a
+call the call service saved, and after each of the keep-alive's collections.
+
+- A recording is noted as saved before the recorder's copy is deleted, so a
+  copy that outlives its save — a delete that did not get through — is only
+  deleted next time. A messenger call's too, since 0.27; before, it was saved
+  a second time.
+- A recording of two calls (call waiting) is saved as one file each, and noted
+  only once every file is saved: a part that would not save is saved at the
+  next try, the others again with it, rather than lost.
+- A recording is dropped when recording is switched off at its call's end;
+  switched off and on again before the end, it is kept whole (the Honor,
+  2026-11-02). Both collectors judge that moment: the call service reads the
+  switch as the call's end reaches it; a later collection goes by the end
+  Telecom gave, or else by the recording's own end, which is when the
+  recorder's wake to the call service goes.
 
 ## The socket is authenticated in both directions
 
@@ -387,6 +413,46 @@ for a start under way instead of cutting it off.
 Wi-Fi is needed to *rebuild* the recorder, never to use it. Once it is up,
 recording carries on with Wi-Fi off, on mobile data, anywhere.
 
+## Coming back without you
+
+Five things bring a stopped recorder back with nobody touching the phone: a
+heartbeat every 15 minutes (`RecorderKeepAlive`), and four that cut it short -
+a one-time run at a restart, another when Wi-Fi returns (`NetworkRevive`), the
+watch on USB debugging (`UsbDebuggingWatch`, a one-time run itself), and after
+a cable is pulled the app's own revive (`CableWatch`), which falls back to a
+one-time run. Opening JemRec starts it too, on the app's own.
+
+**In the release build, from 0.5 to 0.25.2, no one-time run ran**
+([#69](https://github.com/jemcik/JemRec/issues/69)): not the restart's, not
+Wi-Fi's, not the USB debugging watch, not the cable's fallback. The cable's
+own revive, the heartbeat and an open of the app were left. Before each
+one-time run WorkManager builds, by reflection, the small object that merges
+the run's input (`OverwritingInputMerger`), and its own keep rule let R8
+remove that object's constructor: each run ended failed before it began. The
+debug build is not shrunk, so neither the emulator checks nor the Honor, which
+run it, ever showed it. Measured on the Honor (MagicOS 11, Android 17),
+2026-10-31, with shrunk builds - the debug build's tools through R8 with the
+release's rules: Wi-Fi back with the app not on screen, the old code had no
+recorder after 120 s and WorkManager's own record of the run read FAILED, 0
+attempts (that build still debuggable, so R8 in its debug mode, which removed
+the constructor as the release's pass did); 0.25.3's first build, not
+debuggable, had it back in 21 s, and after a restart 7 s after the app
+started, never opened. WorkManager 2.12 keeps the constructor itself, and the
+checks now install the shrunk build ([DEVELOPMENT.md](DEVELOPMENT.md#build)).
+
+**Wi-Fi's run is a run of its own.** A one-time run that finds no Wi-Fi tries
+again with backoff - 30 s, then 60, 120 and on - and Wi-Fi's run used to be the
+same work as the rest, kept rather than started while one waited. On the Honor
+test above the recorder came back on the waiting run's next try, not on
+Wi-Fi's. The waits double, so from the sixth a waiting try can be further off
+than the heartbeat (WorkManager's backoff, not measured). Now Wi-Fi's run has
+its own name, and tries again only while it is on Wi-Fi: off it, the watch is
+armed again and starts a new one. Measured on the Android 17 emulator,
+2026-10-31, with a run two minutes from its next try: 0.25.3's first build had
+no recorder 45 s after Wi-Fi; with this, it was back in 10 s (`wifi_back`). On
+the Honor the same day, the kick 58 s from its next try: Wi-Fi's run began 3 s
+after Wi-Fi, and the recorder answered at 9 s.
+
 ## Stopped in the background
 
 The same App launch setting decides more than a reboot. Some phones stop apps
@@ -594,6 +660,19 @@ permissions, to tell who a call was with.
 
 - **Date and time**, the default - `20261020_165705_out.ogg`.
 - **With the caller** - `20261020_165705_out_Priya Raman.ogg`.
+- **With the phone number** - `20261020_165705_out_+447700900123.ogg`: the
+  number even for a contact, for a program that sorts the files by who the
+  call was with ([#71](https://github.com/jemcik/JemRec/issues/71)). That
+  place in the name holds a number or nothing, never a name. It is written
+  with its country code, read in the country the call log gives each call
+  (`UA` on all 178 calls on the Honor, 2026-11-01) - else the one the phone's
+  network or SIM is in - so `050 123 45 67` dialled and `+380501234567`
+  ringing in are one number in the names; a short code such as `477` keeps its
+  digits. A hidden number leaves the date, time and direction, and so does a
+  code such as `*86`; `#31#` or `*31#` in front of a number, to hide or show
+  caller ID for that call, is left out, and so is an extension dialled after a
+  pause. A messenger call has no number: its name is the date, direction and
+  app, and its caller is kept as for the date format.
 - **For Honor's Phone app** - `Priya Raman@+447700900123_20261020165705.ogg`,
   in `Sounds/CallRecord`: the name and folder Honor's own recorder uses.
   Honor's Phone app then shows a play button on the call in its history.
@@ -601,13 +680,12 @@ permissions, to tell who a call was with.
   may be anywhere inside the call, the number has to be the call's, and the
   part before the `@` is not read at all.
 
-The caller comes from the number Android gave exact call tracking, or else
-from the call log as the call is saved - either way, only with the call-log
-permission. Without it, or for a call neither knows, a recording is named by
-date and time. A name is
-given once and never changed. Google's Phone app has no equivalent: it keeps
-its own recordings in a database of its own, and nothing in it is open to
-another app.
+The caller and the number come from what Android gave exact call tracking,
+or else from the call log as the call is saved - either way, only with the
+call-log permission. Without it, or for a call neither knows, a recording is
+named by date and time. A name is given once and never changed. Google's
+Phone app has no equivalent: it keeps its own recordings in a database of its
+own, and nothing in it is open to another app.
 
 ## Messenger calls
 
@@ -1426,6 +1504,29 @@ the first minute (15-23 s: Opus decodes at about four times real time there)
 and 23 to 37 s a side. A Ukrainian phone call made with this in place came
 out Ukrainian (0.996), transcript and summary both.
 
+**A call is more than its first minute.** LANARS's stand, 2026-11-05: a
+274 s one-mix call opened with the answerer's Russian, then went on in
+English. Read from its first minute it was Russian (0.95), and pinned so,
+whisper wrote its English as Russian; pinned to English by hand, it left the
+Russian out, and 18 s of English answer too, where it had looped. So a call
+longer than two minutes is read at its start, its middle and its end - 10 s
+of speech from each in whisper's one window, one detection at the same cost;
+the middle and end are 30 s windows, as three minutes took 63 s to decode on
+the A24 - and came out English (0.99). Then **speech with no line is heard
+again** (GapFill): where the VAD kept 3 s or more of speech that no line
+covers, that stretch is transcribed again on its own, its language detected
+on its own. Two kinds of line do not count as covering: a loop whisper
+repeated, which the cleanup takes out later (it hid the 2:52-3:11 answer),
+and a line of fewer words than one in 2.5 s - the 1:10-1:40 line had six
+English words, "you answer", "English", over Russian - which goes when its
+stretch is heard again. What is still unwritten is looked for once more: the
+Russian heard to 1:35 left the seller's English at 1:37, found the second
+time. The same call came out Russian at 0:48-1:35 (0.999, as the user who
+heard it says) and English elsewhere, the seller's lines at 1:37 and 3:05
+under the seller; 28 lines became 37. It costs a detection and a decode a
+gap: 698 s became 985 s for that call, four gaps; a 5-minute English
+conversation had one, of 3 s.
+
 **What it costs, on a Galaxy A24** (Helio G99: two fast cores, six slow
 ones, 2026-10-29): Whisper small took 33.6 s for a 9 s call and 59.5 s for a
 16 s one split into its two sides - whisper processes 30 s at a time, so a
@@ -1596,6 +1697,15 @@ transcript of Seller and Customer (2026-11-05). A transcript with no
 summary to follow, a failed one, a recording put in the trash, or nothing
 within 72 hours of the call sends *failed*. Never the recording.
 
+**Sent again.** A call whose texts went can be made again and sent in their
+place: the next `revision` (1 to 3) replaces the server's. What the stand
+answered on 2026-11-05: a higher revision replaces, the same one with the
+same texts is accepted again (a resend after a cut connection), the same
+one with other texts is 409, and a revision is taken only with `ready`. So
+the app spends a revision only when the seller asks (**Send the transcript
+again**), makes the transcript anew too, and gives the revision back if the
+texts cannot be made. Until they are sent, the server keeps what it has.
+
 **When the network is not there.** Taking calls needs none, so the
 notification shows in a dead zone too; sending waits for it, one request at a time, in a queue of
 its own (`crm.db`) outside the transcription chain, which must never fail. A
@@ -1643,6 +1753,56 @@ declared instead, capped at Android 12, for the row above. One more that cannot 
 `com.jemcik.jemrec.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`, which AndroidX
 defines for this app alone when it registers a receiver as not-exported.
 
+## When the phone refuses the grant
+
+Setup ends by granting JemRec `WRITE_SECURE_SETTINGS` over its own ADB session.
+OPPO, OnePlus and realme phones refuse it out of the box: their system takes a
+list of permissions away from the shell while `persist.sys.permission.enable`
+is `true`, which is how they ship, and `pm grant` answers *Neither user 2000 nor
+current process has android.permission.GRANT_RUNTIME_PERMISSIONS*. Two reports:
+a Nord CE5 on OxygenOS 16 (issue #64, which quoted that line) and a OnePlus 10R
+on Android 15 (#61), which 0.25.1 told to look for a Xiaomi switch.
+
+The way past it is the user's: the last switch in Developer options' Apps
+section, **Disable system optimization** on ColorOS and OxygenOS 15 and 16,
+**Disable permission monitoring** before; some label it just *Permission
+monitoring*, on by default, to be turned off (Shizuku's setup guide; Octoclip's
+notes, ColorOS in Chinese). Some builds show it only in English.
+Nothing else gets past it: while it is off, the shell's own `settings put` and
+`appops set` are refused too. None of that was measured here, with no such
+phone. CallVault measured it on a OnePlus 9 (OxygenOS 14) and a OnePlus 12
+(OxygenOS 16) on 2026-09-16: the property reads `false` once the switch is on,
+and a grant made then outlives the switch going off again, and a restart.
+
+So, since 0.25.2:
+
+- On an OPPO, OnePlus or realme phone the pairing card names the switch, while
+  the user is in Developer options anyway - unless the app can read the
+  property and it says the switch is on.
+- A refused grant is told from one that never ran by what `pm grant` printed,
+  and the card names the switch: that one where the property reads `true` or
+  the phone is OPPO-family, *USB debugging (Security settings)* on a Xiaomi,
+  both anywhere else. **Open settings** sits beside **Try again**.
+- The grant is read back from the package's own record (`dumpsys package`),
+  not taken from `pm grant` saying nothing: a Xiaomi on HyperOS 3 was reported
+  to CallVault granting nothing, silently. The app cannot ask for itself, as a
+  grant reaches it only once it restarts. Where dumpsys does not list the
+  package, the grant's exit status counts, as before.
+- The recorder writes settings as the shell too, and those writes are read
+  back and logged as refused where they were: USB debugging kept on (the
+  app's own write, holding the permission, puts it back - UsbDebuggingWatch),
+  and both switches off for *Turn all debugging off*, which the app then
+  finishes itself once the recorder has gone (inferred: an emulator does not
+  refuse the write). The one nothing can finish is
+  the recorder's off when JemRec is uninstalled: the app is gone. So the
+  cards and docs say to leave it that way.
+- The recorder logs what Android said when it could not allow exact call
+  tracking, and on these phones the self-test names the switch.
+
+Measured here: the read-back on the Android 12 and 17 emulators (2026-10-29),
+granted and revoked, and the `refused-grant` emulator check, where the debug
+build answers with #64's refusal and Try again then grants for real.
+
 ## What stays switched on
 
 **USB debugging and Wireless debugging stay on while JemRec is on** - and
@@ -1678,7 +1838,9 @@ notifications and reads nothing else.
 
 To switch debugging off for good, uninstall JemRec first. If the recorder is
 running, it notices the uninstall within a few minutes, turns both switches off
-and exits; either way, once JemRec is gone nothing turns them back on.
+and exits - on an OPPO, OnePlus or realme phone only while its *Disable system
+optimization* switch is set as setup asked ([when the phone refuses the grant](#when-the-phone-refuses-the-grant));
+either way, once JemRec is gone nothing turns them back on.
 
 
 ## Off, and debugging with it

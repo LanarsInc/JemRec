@@ -123,8 +123,10 @@ object Bodies {
         return o.toString()
     }
 
-    fun ready(c: Content): String = JSONObject()
+    /** [revision] above 0 replaces texts the server has (LANARS, 2026-11-05); 0 is left out, as before. */
+    fun ready(c: Content, revision: Int = 0): String = JSONObject()
         .put("content_status", "ready")
+        .also { if (revision > 0) it.put("revision", revision) }
         .put("summary_text", c.summaryText)
         .put("transcript_text", c.transcriptText)
         .put("language", c.language)

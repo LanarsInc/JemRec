@@ -58,8 +58,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jemcik.jemrec.R
-import com.jemcik.jemrec.capture.CallLogLookup
-import com.jemcik.jemrec.capture.CallRules
+import com.jemcik.jemrec.calls.CallLogLookup
+import com.jemcik.jemrec.calls.CallRules
 import com.jemcik.jemrec.capture.FileNames
 import com.jemcik.jemrec.capture.Retention
 import com.jemcik.jemrec.capture.Trash
@@ -541,6 +541,7 @@ private fun ageChoice(days: Int): String = if (days == 0) "Never" else ageWords(
 private fun fileNamesLabel(format: FileNames.Format): String = when (format) {
     FileNames.Format.DATE -> "Date and time"
     FileNames.Format.DATE_AND_CALLER -> "With the caller"
+    FileNames.Format.DATE_AND_NUMBER -> "With the phone number"
     FileNames.Format.HONOR -> "For Honor's Phone app"
 }
 
@@ -739,11 +740,16 @@ private fun FileNamesDialog(
         selected = state.fileNames,
         label = ::fileNamesLabel,
         detail = { format ->
-            when (format) {
+            val example = when (format) {
                 FileNames.Format.DATE -> "20261020_165705_out.ogg"
                 FileNames.Format.DATE_AND_CALLER -> "20261020_165705_out_Priya Raman.ogg"
+                FileNames.Format.DATE_AND_NUMBER -> "20261020_165705_out_+447700900123.ogg"
                 FileNames.Format.HONOR -> "Priya Raman@+447700900123_20261020165705.ogg"
             }
+            // Free to wrap after a _ or an @, between the name's parts: with
+            // no space in it, the number's example broke as "...123.o" over
+            // "gg" (the screen tests, 360 dp, 2026-11-01).
+            example.replace("_", "_\u200B").replace("@", "@\u200B")
         },
         onChoose = vm::setFileNames,
         onDismiss = dismiss,
@@ -758,6 +764,11 @@ private fun FileNamesDialog(
                         FileNames.Format.DATE_AND_CALLER ->
                             "The same, then the contact's name or the number - easier " +
                                 "to find in a file manager or on a computer."
+                        FileNames.Format.DATE_AND_NUMBER ->
+                            "The same, then the number with its country code, even a " +
+                                "contact's - for a program that sorts recordings by number. " +
+                                "A hidden number leaves the date and time; a messenger call " +
+                                "has no number, so its name ends with the app."
                         FileNames.Format.HONOR ->
                             "The name Honor's own recorder uses. Honor's Phone app then " +
                                 "shows a play button on the call in its history - as long " +

@@ -14,6 +14,7 @@ import com.jemcik.jemrec.crm.CrmState
 import com.jemcik.jemrec.crm.CrmSync
 import com.jemcik.jemrec.crm.CrmSyncWorker
 import com.jemcik.jemrec.crm.GoogleSignIn
+import com.jemcik.jemrec.crm.SalesEngineBuild
 import com.jemcik.jemrec.crm.SessionStore
 import com.jemcik.jemrec.crm.WorkCallMachine
 import com.jemcik.jemrec.crm.WorkLine
@@ -77,7 +78,12 @@ data class SalesEngineUi(
  * (specs/002, contracts/ui.md). The screen draws [state]; everything it does
  * goes through here.
  */
-class SalesEngineController(private val app: Application, private val scope: CoroutineScope) {
+class SalesEngineController(
+    private val app: Application,
+    private val scope: CoroutineScope,
+    /** Where the watch of the work calls runs: as long as the screen's owner, never done. */
+    watchScope: CoroutineScope = scope,
+) {
 
     private val _state = MutableStateFlow(SalesEngineUi())
     val state: StateFlow<SalesEngineUi> = _state.asStateFlow()
@@ -103,7 +109,7 @@ class SalesEngineController(private val app: Application, private val scope: Cor
         val callLog = granted(Manifest.permission.READ_CALL_LOG)
         val state = CrmState.of(
             // A build with no address sends nothing; one with no Google client id can still use a stand token set by hand.
-            configured = BuildConfig.SALES_ENGINE_URL.isNotBlank() && (GoogleSignIn.configured || store.session() != null),
+            configured = SalesEngineBuild.url.isNotBlank() && (GoogleSignIn.configured || store.session() != null),
             session = store.state,
             noticeOk = store.noticeOk,
             callLogAllowed = callLog,
@@ -127,7 +133,7 @@ class SalesEngineController(private val app: Application, private val scope: Cor
                 phoneStateAllowed = WorkLine.canList(app),
                 callLogAllowed = callLog,
                 contentWarning = contentWarning(),
-                serverHost = BuildConfig.SALES_ENGINE_URL.removePrefix("https://").substringBefore('/'),
+                serverHost = SalesEngineBuild.url.removePrefix("https://").substringBefore('/'),
             )
         }
     }
@@ -218,7 +224,12 @@ class SalesEngineController(private val app: Application, private val scope: Cor
             if (model == null || !ModelRepository.isInstalled(app, model)) {
                 return@withContext "Download a summary model in Settings → Transcripts first: the Sales Engine takes a transcript only with its summary."
             }
-            val transcribed = TranscriptRepository.of(app).load(name)?.lines?.isNotEmpty() == true
+            // Sent already: replaced with the next revision, so made anew from the recording - the
+            // transcript too, so what the transcription does better now reaches the CRM (LANARS,
+            // 2026-11-05: lines of two people run together).
+            val again = WorkCallMachine.resend(c)
+            if (again !== c) CrmDatabase.of(app).calls().update(again)
+            val transcribed = again === c && TranscriptRepository.of(app).load(name)?.lines?.isNotEmpty() == true
             if (!transcribed) TranscriptionWorker.enqueue(app, name, recording.uri, recording.caller)
             if (transcribed || !TranscribeSettings.of(app).summariseAfterTranscript) SummaryWorker.enqueue(app, name, recording.caller)
             null
@@ -285,7 +296,7 @@ class SalesEngineController(private val app: Application, private val scope: Cor
 
     /** Every work call, newest first, for the Calls tab's marks. */
     val workCalls: StateFlow<List<WorkCallEntry>> = CrmDatabase.of(app).calls().watch()
-        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        .stateIn(watchScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun closeNotice() = run { if (!pinned) _state.update { it.copy(reading = false) } }
 

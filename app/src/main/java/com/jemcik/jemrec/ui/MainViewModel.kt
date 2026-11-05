@@ -26,23 +26,23 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.jemcik.jemrec.DeepLink
-import com.jemcik.jemrec.capture.AfterCall
+import com.jemcik.jemrec.calls.AfterCall
 import com.jemcik.jemrec.capture.BackgroundKill
-import com.jemcik.jemrec.capture.MissedCalls
+import com.jemcik.jemrec.calls.MissedCalls
 import kotlinx.coroutines.flow.first
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import com.jemcik.jemrec.capture.AnsweringMachine
+import com.jemcik.jemrec.answering.AnsweringMachine
 import com.jemcik.jemrec.capture.AudioAccess
-import com.jemcik.jemrec.capture.CallHistory
-import com.jemcik.jemrec.capture.CallRules
-import com.jemcik.jemrec.capture.CallTracking
+import com.jemcik.jemrec.calls.CallHistory
+import com.jemcik.jemrec.calls.CallRules
+import com.jemcik.jemrec.calls.CallTracking
 import com.jemcik.jemrec.capture.FileNames
-import com.jemcik.jemrec.capture.VoipApps
-import com.jemcik.jemrec.capture.VoipCallNotes
-import com.jemcik.jemrec.capture.CallLogLookup
+import com.jemcik.jemrec.calls.VoipApps
+import com.jemcik.jemrec.calls.VoipCallNotes
+import com.jemcik.jemrec.calls.CallLogLookup
 import com.jemcik.jemrec.capture.CaptureDaemon
 import com.jemcik.jemrec.capture.LastCallReport
 import com.jemcik.jemrec.capture.DebugNotificationCleaner
@@ -82,7 +82,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -221,6 +224,9 @@ data class UiState(
      * never accuses before it has been looked at.
      */
     val pairingNotificationsBlocked: Boolean = false,
+    /** An OPPO, OnePlus or realme phone that may refuse setup's grant until
+     *  its own switch is on (ShellGrant), so the pairing card names it. */
+    val systemOptimizationSwitch: Boolean = false,
     val folder: String = "",
     val usingDefaultFolder: Boolean = true,
     /** True when every call is recorded without asking. */
@@ -385,11 +391,20 @@ class MainViewModel @JvmOverloads constructor(
     /** The answering machine's settings, greeting and diagnostics. */
     val answer = AnswerController(app, viewModelScope, ::say, initialAnswer, quiet = { controller?.pause() })
 
+    /**
+     * The watches that last as long as the view model - the work calls, the
+     * transcribed recordings - in a job of their own under it, so a test
+     * waiting for the view model's work (settle) can leave out what is never
+     * done. Cancelled with the view model, as any child is.
+     */
+    private val watchScope = CoroutineScope(viewModelScope.coroutineContext + SupervisorJob(viewModelScope.coroutineContext.job))
+    internal val watches: Job get() = watchScope.coroutineContext.job
+
     /** The Transcript screen's state and actions (TranscriptsController). */
     val transcripts = TranscriptsController(app, viewModelScope)
 
     /** Settings > Sales Engine: sign-in, notice, work line (SalesEngineController). */
-    val salesEngine = SalesEngineController(app, viewModelScope)
+    val salesEngine = SalesEngineController(app, viewModelScope, watchScope)
 
     /**
      * Which recordings have a transcript, as the database changes: for the
@@ -401,7 +416,7 @@ class MainViewModel @JvmOverloads constructor(
     private fun watchTranscribed() {
         if (watchingTranscribed != null) return
         val app = getApplication<Application>()
-        watchingTranscribed = viewModelScope.launch {
+        watchingTranscribed = watchScope.launch {
             runCatching {
                 TranscriptRepository.of(app).observeTranscribed().collect { set ->
                     _state.update { it.copy(text = it.text.copy(transcribed = set)) }
@@ -667,12 +682,6 @@ class MainViewModel @JvmOverloads constructor(
         // So the notification is posted the moment pairing becomes the thing to
         // do, not when a button is pressed. By the time the user is standing in
         // Settings looking at six digits, the place to type them already exists.
-        // THE REPLY FIELD HAS TO BE THERE BEFORE THE USER NEEDS IT.
-        //
-        // Once the pairing dialog is open, coming back to JemRec to press a
-        // button would close it - which is the entire difficulty of this step.
-        // So the notification is posted the moment pairing becomes the thing to
-        // do, not when a button is pressed.
         if (step == SetupStep.NEEDS_PAIRING) {
             PairingNotification.show(getApplication())
         } else {
@@ -699,16 +708,6 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
-    /**
-     * Bring the recorder back without holding the screen still while it happens.
-     *
-     * Deliberately off launchAction: reviving re-arms Wireless debugging, waits
-     * for adbd, opens an ADB session and starts the daemon, which is seconds -
-     * and launchAction would hold `busy` for all of them, greying out every
-     * control on a screen that is working perfectly well. `starting` is the
-     * flag that already exists for exactly this, and the header reads it rather
-     * than announcing a failure that is being repaired as it is read.
-     */
     /**
      * Wi-Fi came while the screen is up. If the recorder is down, this is the
      * moment it can come back - and doing it from here puts "Starting..." in
@@ -768,6 +767,16 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Bring the recorder back without holding the screen still while it happens.
+     *
+     * Deliberately off launchAction: reviving re-arms Wireless debugging, waits
+     * for adbd, opens an ADB session and starts the daemon, which is seconds -
+     * and launchAction would hold `busy` for all of them, greying out every
+     * control on a screen that is working perfectly well. `starting` is the
+     * flag that already exists for exactly this, and the header reads it rather
+     * than announcing a failure that is being repaired as it is read.
+     */
     private fun reviveInBackground(request: CaptureDaemon.Request = CaptureDaemon.Request.ROUTINE) {
         if (!reviving.compareAndSet(false, true)) return
         starts.begin()
@@ -869,14 +878,6 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     /**
-     * The permission dialog has closed, whichever way and whichever of the two
-     * were granted.
-     *
-     * The verdict is read back from the system rather than taken from the
-     * callback: the user can grant one and refuse the other, and the system is
-     * the only thing that knows which.
-     */
-    /**
      * The user has answered the audio-access request, either way.
      *
      * Granted, the recordings from before the reinstall appear on the next
@@ -888,6 +889,14 @@ class MainViewModel @JvmOverloads constructor(
         refresh()
     }
 
+    /**
+     * The permission dialog has closed, whichever way and whichever of the two
+     * were granted.
+     *
+     * The verdict is read back from the system rather than taken from the
+     * callback: the user can grant one and refuse the other, and the system is
+     * the only thing that knows which.
+     */
     fun onCallLogResult() {
         val app = getApplication<Application>()
         // Anything refused counts as an answer. Asking again next time the app
@@ -1472,6 +1481,9 @@ class MainViewModel @JvmOverloads constructor(
                 pairingRefused = RecorderHealth.cause(app) == RecorderHealth.Problem.CANNOT_CONNECT,
                 onWifi = NetworkRevive.onWifi(app),
                 pairingNotificationsBlocked = PairingNotification.blocked(app),
+                // Only until setup is done: a getprop, on the phones that may
+                // have the switch.
+                systemOptimizationSwitch = !Setup.isComplete(app) && ShellGrant.switchMayBeOff(),
                 folder = RecordingStore.describe(app),
                 usingDefaultFolder = RecordingStore.treeUri(app) == null,
                 automatic = RecordingMode.of(app) == RecordingMode.AUTOMATIC,
@@ -1532,6 +1544,7 @@ class MainViewModel @JvmOverloads constructor(
                 pairingRefused = snapshot.pairingRefused,
                 onWifi = snapshot.onWifi,
                 pairingNotificationsBlocked = snapshot.pairingNotificationsBlocked,
+                systemOptimizationSwitch = snapshot.systemOptimizationSwitch,
                 folder = snapshot.folder,
                 usingDefaultFolder = snapshot.usingDefaultFolder,
                 automatic = snapshot.automatic,
@@ -1678,6 +1691,7 @@ class MainViewModel @JvmOverloads constructor(
         val pairingRefused: Boolean,
         val onWifi: Boolean,
         val pairingNotificationsBlocked: Boolean,
+        val systemOptimizationSwitch: Boolean,
         val folder: String,
         val usingDefaultFolder: Boolean,
         val automatic: Boolean,
@@ -2126,11 +2140,11 @@ class MainViewModel @JvmOverloads constructor(
      */
     fun showMore() = _state.update { it.copy(visibleCount = it.visibleCount + PAGE) }
 
-    /** The system delete dialog has closed, one way or the other. */
     /** Android's dialog is up: the request is spent. Left set, a new screen -
      *  rotated, re-themed behind the dialog - launched it a second time. */
     fun onDeleteConsentShown() = _state.update { it.copy(deleteConsent = null) }
 
+    /** The system delete dialog has closed, one way or the other. */
     fun onDeleteConsentResult(granted: Boolean) {
         _state.update { it.copy(deleteConsent = null) }
         if (!granted) say("deletion cancelled")
@@ -2245,8 +2259,6 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
-    /** Named `say` rather than `append` on purpose: inside a buildString block
-     *  an `append` member would be shadowed by StringBuilder.append. */
     /** As say, and in a snackbar too: for a failure of something the user
      *  did just now. */
     private fun tell(text: String) {
@@ -2259,6 +2271,8 @@ class MainViewModel @JvmOverloads constructor(
         _notices.tryEmit(text)
     }
 
+    /** Named `say` rather than `append` on purpose: inside a buildString block
+     *  an `append` member would be shadowed by StringBuilder.append. */
     private fun say(text: String) {
         val stamp = SimpleDateFormat("HH:mm:ss", Locale.US).format(Date())
         // NEWEST FIRST. Appending put the answer at the bottom of a log that

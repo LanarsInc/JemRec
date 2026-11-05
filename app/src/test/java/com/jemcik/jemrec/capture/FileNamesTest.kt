@@ -1,6 +1,7 @@
 package com.jemcik.jemrec.capture
 
-import com.jemcik.jemrec.capture.CallRules.Contacts
+import com.jemcik.jemrec.calls.CallRules
+import com.jemcik.jemrec.calls.CallRules.Contacts
 import com.jemcik.jemrec.capture.FileNames.Format
 import com.jemcik.jemrec.capture.FileNames.Party
 import org.junit.Assert.assertEquals
@@ -11,7 +12,8 @@ import org.junit.Test
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-/** The three ways to name a recording, and every one read back. */
+/** The ways to name a recording, and every one read back. The number
+ *  format's own tests are in NumberFileNamesTest. */
 class FileNamesTest {
 
     private val at = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).parse("20261020_165705")!!.time
@@ -31,6 +33,18 @@ class FileNamesTest {
         )
         // Nobody known at all: the plain name.
         assertEquals("20261020_165705_in.ogg", FileNames.build(Format.DATE_AND_CALLER, at, true, Party(null, null)))
+        // Caller ID hidden for this call: the number after the code. Any
+        // other code was never a number (NumberFileNamesTest has both too).
+        assertEquals(
+            "20261020_165705_out_0501234567.ogg",
+            FileNames.build(Format.DATE_AND_CALLER, at, false, Party("#31#0501234567", null)),
+        )
+        assertEquals("20261020_165705_out.ogg", FileNames.build(Format.DATE_AND_CALLER, at, false, Party("*86", null)))
+        // An extension after a pause is no part of the number: it was 0501234567123.
+        assertEquals(
+            "20261020_165705_out_0501234567.ogg",
+            FileNames.build(Format.DATE_AND_CALLER, at, false, Party("0501234567,123", null)),
+        )
     }
 
     @Test fun honorsNameIsWhatHonorsPhoneAppLooksFor() {

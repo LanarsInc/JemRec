@@ -94,8 +94,8 @@ class SpikeReceiver : BroadcastReceiver() {
 
         val op = intent.getStringExtra("op").orEmpty()
         // goAsync keeps the receiver alive past onReceive's return. The budget
-        // is around ten seconds, which is why nothing here waits 20s for mDNS
-        // the way the UI's "Find port" button does.
+        // is around ten seconds; pair's search for its port below may take up
+        // to 15 s, past it.
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -155,14 +155,14 @@ class SpikeReceiver : BroadcastReceiver() {
                         val path = intent.getStringExtra("greeting")
                         val text = runCatching {
                             if (path != null) {
-                                com.jemcik.jemrec.capture.Greeting.save(appContext, java.io.File(path).readBytes())
+                                com.jemcik.jemrec.answering.Greeting.save(appContext, java.io.File(path).readBytes())
                             }
-                            com.jemcik.jemrec.capture.AnsweringMachine.setEnabled(appContext, intent.getBooleanExtra("on", true))
+                            com.jemcik.jemrec.answering.AnsweringMachine.setEnabled(appContext, intent.getBooleanExtra("on", true))
                             // All of it: the recording mode a check set too.
                             com.jemcik.jemrec.capture.CaptureDaemon.pushMode(appContext)
                             val set = com.jemcik.jemrec.capture.CaptureDaemon.setAnswering(appContext)
-                            "greeting ${com.jemcik.jemrec.capture.Greeting.seconds(appContext)} s, " +
-                                "wire ${com.jemcik.jemrec.capture.AnsweringMachine.wire(appContext)}, recorder took it: $set, " +
+                            "greeting ${com.jemcik.jemrec.answering.Greeting.seconds(appContext)} s, " +
+                                "wire ${com.jemcik.jemrec.answering.AnsweringMachine.wire(appContext)}, recorder took it: $set, " +
                                 "recorder has ${com.jemcik.jemrec.capture.CaptureDaemon.greetingBytes(appContext)} bytes"
                         }.getOrElse { "failed: $it" }
                         report(appContext, "answer", text)
@@ -267,6 +267,15 @@ class SpikeReceiver : BroadcastReceiver() {
                         report(appContext, "summarise", "queued $name")
                     }
 
+                    // A recording's own language, as its Transcript's Language row sets it; no lang
+                    // clears it to automatic. --es op language --es name <file> [--es lang <code>]
+                    "language" -> {
+                        val name = intent.getStringExtra("name").orEmpty()
+                        val lang = intent.getStringExtra("lang")
+                        TranscriptRepository.of(appContext).setLanguage(name, lang)
+                        report(appContext, "language", "$name: ${lang ?: "automatic"}")
+                    }
+
                     // A recording's summary as stored. --es op summary --es name <file>
                     "summary" -> {
                         val name = intent.getStringExtra("name").orEmpty()
@@ -317,7 +326,7 @@ class SpikeReceiver : BroadcastReceiver() {
                     //   --es op answered --el since 1793016000000
                     "answered" -> {
                         val since = intent.getLongExtra("since", 0L)
-                        val calls = com.jemcik.jemrec.capture.CallLogLookup.answeredCallsSince(appContext, since)
+                        val calls = com.jemcik.jemrec.calls.CallLogLookup.answeredCallsSince(appContext, since)
                         report(
                             appContext, "answered",
                             calls.joinToString("\n") { "${it.at} ${if (it.incoming) "in" else "out"} ${it.label}" }
@@ -524,6 +533,30 @@ class SpikeReceiver : BroadcastReceiver() {
                         report(appContext, "hidesettings", "acting as if hidden: $on")
                     }
 
+                    // Act like a OnePlus with Disable system optimization off,
+                    // whose shell is refused setup's grant: --ez on true|false.
+                    // For this process only.
+                    "refusegrant" -> {
+                        val on = intent.getBooleanExtra("on", true)
+                        com.jemcik.jemrec.ui.ShellGrant.actAsRefused = on
+                        report(appContext, "refusegrant", "acting as if the grant is refused: $on")
+                    }
+
+                    // The ADB session dropped, as Wireless debugging going off
+                    // drops it: for a `finish` with none to run over.
+                    "disconnect" -> {
+                        AdbTransport.close()
+                        report(appContext, "disconnect", "closed")
+                    }
+
+                    // Setup's last step - the grant, then the recorder - over
+                    // the session `connect` opened: what Try again runs.
+                    "finish" -> report(
+                        appContext, "finish",
+                        com.jemcik.jemrec.ui.Setup.finish(appContext)
+                            .fold({ "finished" }, { "failed: ${it.message}" }),
+                    )
+
                     "daemon" -> report(
                         appContext, "daemon",
                         if (CaptureDaemon.isRunning(appContext)) "running" else "not running",
@@ -697,9 +730,9 @@ class SpikeReceiver : BroadcastReceiver() {
                         val verdict = com.jemcik.jemrec.capture.AudioCheck.check(appContext, uri)
                         // Only with --ez notify true: run over a folder of
                         // recordings, one notification each is noise.
-                        if (intent.getBooleanExtra("notify", false)) com.jemcik.jemrec.capture.AfterCall.show(
+                        if (intent.getBooleanExtra("notify", false)) com.jemcik.jemrec.calls.AfterCall.show(
                             appContext,
-                            com.jemcik.jemrec.capture.AfterCall.Call(
+                            com.jemcik.jemrec.calls.AfterCall.Call(
                                 file.name, uri, file.absolutePath, 60.0, true,
                                 System.currentTimeMillis(), "Test call", verdict,
                             ),

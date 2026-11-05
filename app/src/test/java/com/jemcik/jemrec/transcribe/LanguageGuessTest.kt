@@ -25,6 +25,26 @@ class LanguageGuessTest {
         assertEquals(30 * rate, LanguageGuess.speech(audio(*BooleanArray(90) { true }))!!.size)
     }
 
+    /** LANARS's 274 s call opened with one Russian sentence: a long call is read at three places. */
+    @Test fun aLongCallIsReadAtItsStartMiddleAndEnd() {
+        assertEquals(listOf(0L until 60_000L), LanguageGuess.windows(90_000))
+        assertEquals(listOf(0L until 60_000L), LanguageGuess.windows(LanguageGuess.ACROSS_AFTER_MS))
+        assertEquals(
+            listOf(0L until 60_000L, 122_000L until 152_000L, 244_000L until 274_000L),
+            LanguageGuess.windows(274_000),
+        )
+    }
+
+    @Test fun threeStretchesFillOneWindowEvenly() {
+        val out = LanguageGuess.speechAcross(listOf(audio(*BooleanArray(60) { true }), audio(*BooleanArray(60) { true }), audio(*BooleanArray(60) { true })))!!
+        assertEquals(30 * rate, out.size)
+        // A stretch with no speech gives none; the others still count.
+        val two = LanguageGuess.speechAcross(listOf(audio(*BooleanArray(60) { true }), FloatArray(60 * rate), audio(*BooleanArray(60) { true })))!!
+        assertEquals(20 * rate, two.size)
+        // One stretch is read as before.
+        assertEquals(30 * rate, LanguageGuess.speechAcross(listOf(audio(*BooleanArray(90) { true })))!!.size)
+    }
+
     @Test fun tooLittleSpeechTellsNothing() {
         assertNull(LanguageGuess.speech(audio(true, true, false, false)))
         assertNull(LanguageGuess.speech(FloatArray(10 * rate)))

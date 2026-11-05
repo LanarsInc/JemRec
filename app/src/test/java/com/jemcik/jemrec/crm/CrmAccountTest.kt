@@ -123,6 +123,15 @@ class CrmAccountTest {
         assertEquals(bed.nowMs, bed.store.signedOutAtMs)
     }
 
+    /** The stand, 2026-11-05: an agreement kept from before a sign-in the server says has none. */
+    @Test
+    fun `a sign-in the server says has not agreed asks for the notice again`() = runBlocking {
+        bed.store.noticeAcknowledged("2026-11-03", 1)
+        bed.answer(201, "session-201")
+        account.signIn("t")
+        assertFalse(bed.store.noticeOk)
+    }
+
     @Test
     fun `the notice - agreed, and a changed version is told apart`() = runBlocking {
         bed.answer(201, "session-201")
