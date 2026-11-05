@@ -71,6 +71,20 @@ class SummaryPromptTest {
     }
 
     @Test
+    fun `a work call's summary speaks of the seller and the customer`() {
+        val prompt = SummaryPrompt.forChunkJson(
+            listOf(segment("hi", speaker = "Seller")),
+            language = "en",
+            withTimestamps = false,
+            speakersAreNamed = true,
+            forCrm = true,
+        )
+
+        assertTrue(prompt.contains("\"the seller\" and \"the customer\""))
+        assertFalse(prompt.contains("second person"))
+    }
+
+    @Test
     fun `forbids guessing a name when the labels are still the neutral sides`() {
         // The stored labels are A and B until the app has learned which channel is whose. Left
         // unexplained, a model reports them — or worse, decides which one is the user.

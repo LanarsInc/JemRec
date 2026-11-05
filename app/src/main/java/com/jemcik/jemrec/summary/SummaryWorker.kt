@@ -64,8 +64,10 @@ class SummaryWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                 if (isStopped) SummaryEngine.requestAbort()
             }
         }
+        // A work call's summary is sent to the Sales Engine and read there by others (specs/002).
+        val forCrm = runCatching { com.jemcik.jemrec.crm.db.CrmDatabase.of(app).calls().byRecording(recording) != null }.getOrDefault(false)
         val outcome = try {
-            SummaryRunner.of(app).run(recording, contact, model, path.absolutePath, shouldStop = { isStopped || HeavyQueue.isStopped(app, id) }) { completed, chunks ->
+            SummaryRunner.of(app).run(recording, contact, model, path.absolutePath, shouldStop = { isStopped || HeavyQueue.isStopped(app, id) }, forCrm = forCrm) { completed, chunks ->
                 done = completed
                 total = chunks
                 val percent = SummaryProgress.chunkAnchor(completed, chunks)

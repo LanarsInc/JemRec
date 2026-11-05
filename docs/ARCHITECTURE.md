@@ -1589,7 +1589,10 @@ is 60 in 10 minutes) and, like the lookup, is never retried by itself.
 own setting; once the summary is stored, both go: the transcript in the
 call's language, one `Seller:` / `Customer:` line per turn (`Call:` where the
 two sides are one mix), and the summary - written in English for every call
-since 1.0, on the phone too - as plain text with bullets. A transcript with no
+since 1.0, on the phone too - as plain text with bullets. A work call's
+summary is written of "the seller" and "the customer", not to "you": it is read
+in the CRM by others, and the first ones on the stand said "You asked" beside a
+transcript of Seller and Customer (2026-11-05). A transcript with no
 summary to follow, a failed one, a recording put in the trash, or nothing
 within 72 hours of the call sends *failed*. Never the recording.
 

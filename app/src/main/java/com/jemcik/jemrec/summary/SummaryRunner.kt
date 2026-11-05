@@ -63,6 +63,8 @@ class SummaryRunner(
         model: SummaryModel,
         modelPath: String,
         shouldStop: () -> Boolean = { false },
+        /** A work call: its summary goes to the Sales Engine, so the sides are Seller and Customer. */
+        forCrm: Boolean = false,
         onProgress: (completed: Int, total: Int) -> Unit = { _, _ -> },
     ): SummaryOutcome {
         val transcript = repository.load(recording)
@@ -104,7 +106,7 @@ class SummaryRunner(
             return SummaryOutcome.NoRoom(model.minFreeBytes, free)
         }
 
-        val lines = linesOf(transcript, contact)
+        val lines = linesOf(transcript, contact, forCrm)
         // Named when the owner is known (You and Them, by the channels, the print or the owner's
         // mark); a one-mix call's Voice 1 and Voice 2 are labels without names (specs/003).
         val named = transcript.lines.any { it.speaker == Speaker.YOU || it.speaker == Speaker.THEM }
@@ -130,7 +132,7 @@ class SummaryRunner(
                 val parts = mutableListOf<String>()
                 chunks.forEachIndexed { index, chunk ->
                     if (shouldStop()) return@run null
-                    val prompt = SummaryPrompt.forChunkJson(chunk, language, withTimestamps = true, speakersAreNamed = named)
+                    val prompt = SummaryPrompt.forChunkJson(chunk, language, withTimestamps = true, speakersAreNamed = named, forCrm = forCrm)
                     parts += session.generate(promptFor(model, prompt), CHUNK_TOKEN_BUDGET, SummaryGrammar.JSON)
                     onProgress(index + 1, chunks.size)
                 }
@@ -192,19 +194,22 @@ class SummaryRunner(
 
         /**
          * The transcript as the prompt shows it: "You" for the phone's owner,
-         * the contact's name (or "Them") for the other side, "Voice 1" and
+         * the contact's name (or "Them") for the other side - "Seller" and
+         * "Customer" on a work call - "Voice 1" and
          * "Voice 2" for a one-mix call's voices not yet named, nothing when
          * the sides were not told apart.
          */
-        fun linesOf(transcript: Transcript, contact: String?): List<SummaryLine> {
-            val them = contact?.takeIf { it.isNotBlank() && it.none(Char::isDigit) } ?: "Them"
+        fun linesOf(transcript: Transcript, contact: String?, forCrm: Boolean = false): List<SummaryLine> {
+            // A work call's sides are named as its transcript in the Sales Engine names them (ContentText).
+            val you = if (forCrm) "Seller" else "You"
+            val them = if (forCrm) "Customer" else contact?.takeIf { it.isNotBlank() && it.none(Char::isDigit) } ?: "Them"
             return transcript.lines.map { line ->
                 SummaryLine(
                     startMs = line.startMs,
                     endMs = line.endMs,
                     text = line.text,
                     speaker = when (line.speaker) {
-                        Speaker.YOU -> "You"
+                        Speaker.YOU -> you
                         Speaker.THEM -> them
                         Speaker.VOICE1 -> "Voice 1"
                         Speaker.VOICE2 -> "Voice 2"
