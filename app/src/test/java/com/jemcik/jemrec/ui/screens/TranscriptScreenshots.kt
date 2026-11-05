@@ -110,6 +110,20 @@ class TranscriptScreenshots : ScreenTest() {
         snap("transcript-done-mixed")
     }
 
+    /**
+     * A transcript there, and a language set for the call whose model is not: the download is
+     * offered above the lines, as Transcribe again needs the model first.
+     */
+    @Test fun doneButTheLanguagesModelIsMissing() {
+        draw(TranscriptUi(
+            model = ModelState.Missing(SpeechModel.NB_SMALL_Q5_0, SpeechModel.NB_SMALL_Q5_0.sizeBytes, 0),
+            transcript = Transcript(recording.name, facts, lines),
+            languageOverride = "no",
+            language = "no",
+        ))
+        snap("transcript-done-model-missing")
+    }
+
     /** One mix, its two voices told apart and the owner's not known: Voice 1 and Voice 2. */
     @Test fun doneWithVoices() {
         val voices = lines.map { it.copy(speaker = if (it.speaker == Speaker.THEM) Speaker.VOICE1 else Speaker.VOICE2) }
