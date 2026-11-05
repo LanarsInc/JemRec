@@ -7,7 +7,7 @@ import android.content.pm.PackageManager
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
-import com.jemcik.jemrec.capture.CallLogLookup
+import com.jemcik.jemrec.calls.CallLogLookup
 
 /**
  * The work line: the SIM whose calls go to the Sales Engine, and only those

@@ -77,7 +77,12 @@ data class SalesEngineUi(
  * (specs/002, contracts/ui.md). The screen draws [state]; everything it does
  * goes through here.
  */
-class SalesEngineController(private val app: Application, private val scope: CoroutineScope) {
+class SalesEngineController(
+    private val app: Application,
+    private val scope: CoroutineScope,
+    /** Where the watch of the work calls runs: as long as the screen's owner, never done. */
+    watchScope: CoroutineScope = scope,
+) {
 
     private val _state = MutableStateFlow(SalesEngineUi())
     val state: StateFlow<SalesEngineUi> = _state.asStateFlow()
@@ -285,7 +290,7 @@ class SalesEngineController(private val app: Application, private val scope: Cor
 
     /** Every work call, newest first, for the Calls tab's marks. */
     val workCalls: StateFlow<List<WorkCallEntry>> = CrmDatabase.of(app).calls().watch()
-        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        .stateIn(watchScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun closeNotice() = run { if (!pinned) _state.update { it.copy(reading = false) } }
 

@@ -46,7 +46,7 @@
   <div class="manual-text">
   <figure class="video">
     <div class="video-frame">
-      <a href="https://www.youtube.com/watch?v=rt25pZd8R9M" data-youtube="rt25pZd8R9M" aria-label="Play the setup video (2:22), from YouTube">
+      <a href="https://www.youtube.com/watch?v=rt25pZd8R9M" data-youtube="rt25pZd8R9M" data-title="JemRec setup video" aria-label="Play the setup video (2:22), from YouTube">
         <img src="video/setup.jpg" alt="" width="1280" height="720" loading="lazy">
         <span class="play" aria-hidden="true"></span>
       </a>
@@ -98,6 +98,7 @@
     <li>Look at both switches once more. Some phones switch USB debugging off each time Developer options opens, so if it is off again when you come back to that screen, turn it on again. Once JemRec is set up, it turns it back on by itself.</li>
   </ol>
   <p><strong>Why both.</strong> Wireless debugging is the channel JemRec uses to start its recorder. USB debugging — the setting, with no cable involved — is what keeps Android's debugging service alive, and without it Wireless debugging switches itself off again before the app can connect.</p>
+  <div class="note info"><p><strong>On an OPPO, OnePlus or realme phone, one more switch:</strong> <strong>Disable system optimization</strong>, the last one in Developer options' <strong>Apps</strong> section (<strong>Disable permission monitoring</strong> on older ones). Turn it on, and leave it on - or, where it says just <strong>Permission monitoring</strong>, turn that off and leave it off. Without it the phone refuses the setting JemRec grants itself in step 5, and the recorder could not turn debugging off when JemRec is uninstalled. Some phones show it only in English: if it is not there, set the phone's language to English, turn it on, and set the language back.</p></div>
   <div class="note info"><p>If you see an old <strong>JemRec</strong> under <em>Paired devices</em>, tap the gear beside it and forget it. It is left over from a previous install and cannot be used: a reinstalled app has a new key and must pair again.</p></div>
   <div class="step-rail" aria-hidden="true"><i class="d"></i><i class="d"></i><i class="d"></i><i class="c"></i><i></i><i></i><span>4 of 6</span></div>
   <h2 id="step-4-pair-from-your-notifications">Step 4 — Pair, from your notifications</h2>
@@ -117,6 +118,7 @@
   <div class="step-rail" aria-hidden="true"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="c"></i><i></i><span>5 of 6</span></div>
   <h2 id="step-5-wait-a-few-seconds">Step 5 — Wait a few seconds</h2>
   <p>JemRec does the rest by itself: it grants itself the one privileged setting it needs, starts the recorder, and begins watching for calls. When it is done the header says <strong>Ready to record</strong>.</p>
+  <p>**If it stops at <em>Android would not let JemRec change debugging settings</em><strong>, the phone refuses that setting until a switch of its own is set, and the card names it: on OPPO, OnePlus and realme </strong>Disable system optimization<strong>, set as step 3 says; on Xiaomi </strong>USB debugging (Security settings)<strong>, on. Then tap </strong>Try again<strong>; </strong>Open settings** beside it opens Settings.</p>
   <p>There is no permanent notification. The app is dormant between calls — the recorder is a separate process that does the watching — so a notification appears for the length of a call, and one more when it ends, with the recording on it.</p>
   <div class="step-rail" aria-hidden="true"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="c"></i><span>6 of 6</span></div>
   <h2 id="step-6-test-it">Step 6 — Test it</h2>
@@ -153,9 +155,10 @@
   <ul>
     <li><strong>Date and time</strong>, the default: <code>20261020_165705_out.ogg</code> — when the call began, and which way it went.</li>
     <li><strong>With the caller</strong>: <code>20261020_165705_out_Priya Raman.ogg</code> — easier to find in a file manager or on a computer.</li>
+    <li><strong>With the phone number</strong>: <code>20261020_165705_out_+447700900123.ogg</code> — the number with its country code, even a contact's, for a program that sorts recordings by number. A hidden number leaves the date and time; a messenger call has no number, so its name ends with the app.</li>
     <li><strong>For Honor's Phone app</strong>, on a phone that has it: <code>Priya Raman@+447700900123_20261020165705.ogg</code>, the name Honor's own recorder uses. Saved in <code>Sounds/CallRecord</code> — the File names dialog has a button that opens the folder picker right there; tap <strong>Use this folder</strong> and <strong>Allow</strong> — Honor's Phone app then shows a play button on the call in its history.</li>
   </ul>
-  <p>The caller comes from exact call tracking or the call log, with permission to read the call log; without it, a recording is named by date and time. Google's Phone app has nothing like Honor's: it keeps its own recordings to itself, and no other app can add one to its call history.</p>
+  <p>The caller and the number come from exact call tracking or the call log, with permission to read the call log; without it, a recording is named by date and time. Google's Phone app has nothing like Honor's: it keeps its own recordings to itself, and no other app can add one to its call history.</p>
   <h2 id="messenger-calls">Messenger calls</h2>
   <p><strong>Messenger calls</strong>, in Settings, records WhatsApp, Telegram, Signal and Viber calls too, and Google Meet calls and meetings — both sides, you on the left channel and the other person on the right (up to JemRec 0.24, the other way round). Each app has its own switch, and all are off until you turn one on. The ones installed on your phone are listed.</p>
   <p>It needs <strong>Android 14 or newer</strong>. Before it, Android does not let the recorder copy another app's call audio, and Settings says so instead of offering switches that would record nothing.</p>
@@ -299,7 +302,7 @@
   <p><strong>Saving</strong></p>
   <ul>
     <li><strong>Saving to</strong> — which folder recordings go in, and back to the default.</li>
-    <li><strong>File names</strong> — date and time, with the caller, or the name Honor's Phone app plays from its call history.</li>
+    <li><strong>File names</strong> — date and time, with the caller, with the phone number, or the name Honor's Phone app plays from its call history.</li>
     <li><strong>Auto-delete old recordings</strong> and <strong>Auto-delete short calls</strong> — off until you choose. Recordings older than 30 days, 90 days, 6 months or a year; calls shorter than 5, 10 or 30 seconds. Kept recordings are never touched, and whatever is removed waits in Recently deleted.</li>
     <li><strong>Recently deleted</strong> — what has been deleted in the last 30 days, with <strong>Restore</strong> for each, <strong>Restore all</strong>, and <strong>Delete all for good</strong>, which asks first: it cannot be undone.</li>
   </ul>

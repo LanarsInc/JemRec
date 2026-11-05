@@ -4,7 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import com.jemcik.jemrec.capture.CallRules.Contacts
+import com.jemcik.jemrec.calls.CallRules.Contacts
 import com.jemcik.jemrec.capture.FileNames
 import com.jemcik.jemrec.capture.OffMode
 import com.jemcik.jemrec.ui.AnswerUi
@@ -271,6 +271,25 @@ class SettingsScreenshots : ScreenTest() {
         snapWithDialog("dialog-file-names")
     }
 
+    @Test fun fileNamesDialogWithTheNumber() {
+        // The number format's words under its choices: the longest of the
+        // formats', and at twice the text size below.
+        settings(Fixtures.ready().copy(fileNames = FileNames.Format.DATE_AND_NUMBER))
+        compose.onNodeWithText("File names").performScrollTo().performClick()
+        compose.waitForIdle()
+        snapWithDialog("dialog-file-names-number")
+    }
+
+    // The dialog is a window of its own, which the scale settings() gives the
+    // screen does not reach: the configuration's reaches both.
+    @Config(qualifiers = "+night", fontScale = 2f)
+    @Test fun fileNamesDialogWithTheNumberLargeText() {
+        settings(Fixtures.ready().copy(fileNames = FileNames.Format.DATE_AND_NUMBER), fontScale = 2f)
+        compose.onNodeWithText("File names").performScrollTo().performClick()
+        compose.waitForIdle()
+        snapWithDialog("dialog-file-names-number-large-text-dark")
+    }
+
     // Recently deleted, with its Restore all and Delete all for good, and the
     // question Delete all for good asks first.
     @Test fun recentlyDeleted() {
@@ -301,6 +320,32 @@ class SettingsScreenshots : ScreenTest() {
         compose.onNodeWithText("Exact call tracking").performScrollTo().performClick()
         compose.onNodeWithText("Turn off the answering machine too?").assertIsDisplayed()
         snapWithDialog("dialog-tracking-off")
+    }
+
+    // Two of Settings' dialogs nothing drew before the 1.0 restructuring.
+
+    @Test fun startFreshDialog() {
+        settings(Fixtures.ready().copy(confirmingReset = true))
+        compose.onNodeWithText("Start fresh?").assertIsDisplayed()
+        snapWithDialog("dialog-start-fresh")
+    }
+
+    /** Saving to, in the standard folder: Change, and no Use default. */
+    @Test fun folderDialog() {
+        settings(Fixtures.ready())
+        compose.onNodeWithText("Saving to").performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Change").assertIsDisplayed()
+        snapWithDialog("dialog-folder")
+    }
+
+    /** ...and in a folder the user chose: Use default beside Cancel. */
+    @Test fun folderDialogForAChosenFolder() {
+        settings(Fixtures.ready().copy(folder = "Documents/Calls", usingDefaultFolder = false))
+        compose.onNodeWithText("Saving to").performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Use default").assertIsDisplayed()
+        snapWithDialog("dialog-folder-chosen")
     }
 
     @Config(qualifiers = "+night")

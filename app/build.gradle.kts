@@ -131,7 +131,40 @@ android {
             // carry none of it.
             enableUnitTestCoverage = providers.gradleProperty("coverage").isPresent
         }
+        // The debug build through R8 with the release's rules, for the
+        // emulator checks (tools/emulator_checks.py installs this one).
+        // Until 0.25.3 they installed debug, which is not shrunk, so nothing
+        // ever ran what R8 makes: a library rule that let R8 remove a
+        // constructor WorkManager reflects on failed every one-time work in
+        // every release from 0.5 to 0.25.2, and no check could see it (issue
+        // #69). This keeps debug's diagnostic receiver, which the checks
+        // drive, and debug's key.
+        //
+        // Not debuggable, unlike debug: AGP runs R8 in its debug mode for a
+        // debuggable build, which removes what the same rules let go but
+        // optimises far less. Measured 2026-10-31: debuggable, R8 removed
+        // 49,827 items to the release's 70,575 and left 35 classes without a
+        // constructor to the release's 725. The checks read the app's files
+        // as root instead of with run-as.
+        create("shrunk") {
+            initWith(getByName("debug"))
+            isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+            matchingFallbacks += "debug"
+        }
     }
+
+    // The shrunk build is the debug build: its source set is debug's folder,
+    // every kind in it. Named kind by kind, java alone left out the .kt files
+    // there and the shrunk build crashed at launch on the manifest's
+    // DemoProvider - and assets, or anything else added later, would have
+    // gone missing the same way.
+    sourceSets.named("shrunk") { setRoot("src/debug") }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -180,6 +213,8 @@ android {
     buildTypes {
         getByName("release") { salesEngineFields(this, "prod") }
         getByName("debug") { salesEngineFields(this, "dev") }
+        // The emulator checks' build is debug's, so the stand (or the mock) as debug's is.
+        getByName("shrunk") { salesEngineFields(this, "dev") }
     }
 
     externalNativeBuild {
@@ -288,6 +323,13 @@ android {
             // CrmSyncFailuresTest is one failure the queue sees. A repeat reaching
             // the real server is harmless: client_call_id makes it the same call.
             test.systemProperty("sun.net.http.retryPost", "false")
+            // The contract tests (app/src/test/.../contract) read these as
+            // text. Gradle does not know that, and called the tests up to date
+            // after a change to the emulator checks alone.
+            test.inputs.files(rootProject.fileTree("tools") { include("*.py") })
+                .withPropertyName("toolsReadByContractTests")
+            test.inputs.dir(rootProject.file("shellserver/tests/fixtures"))
+                .withPropertyName("protocolFixture")
             // With -Pcoverage: Robolectric loads the app's classes through a
             // class loader of its own, which JaCoCo skips unless told - and
             // then the screens the screen tests draw count as never run.
@@ -377,7 +419,15 @@ dependencies {
 
     // Keeps the shell-side recorder alive without a permanent foreground
     // service: a periodic job revives it when it is down and Wi-Fi is around.
-    implementation("androidx.work:work-runtime-ktx:2.9.1")
+    //
+    // 2.10 is the floor. 2.9.1's keep rule for input mergers had no member
+    // clause, so R8 kept OverwritingInputMerger and removed the constructor
+    // WorkManager reflects on for every one-time work: in every shrunk
+    // release from 0.5 to 0.25.2, each kick of the keep-alive and every USB
+    // debugging watch ended FAILED without running (issue #69). 2.10 ships
+    // the rule with the constructor. 2.12 also brings Room 2.7, whose own
+    // rule keeps WorkDatabase_Impl's constructor the same way.
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
 
     // Two databases: transcripts and summaries, with full-text search over
     // both - the one thing searched word by word; its schema is CallVault's,
@@ -430,6 +480,10 @@ dependencies {
     testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.76.0")
     testImplementation(platform("androidx.compose:compose-bom:2026.08.00"))
     testImplementation("androidx.compose.ui:ui-test-junit4")
+    // WorkManager's test driver, for the keep-alive's and the USB watch's
+    // doWork and for what each trigger enqueues: an in-process WorkManager
+    // over a synchronous executor. Its version is work-runtime-ktx's above.
+    testImplementation("androidx.work:work-testing:2.12.0")
 }
 
 kotlin {

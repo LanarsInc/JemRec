@@ -9,6 +9,8 @@ import android.service.notification.StatusBarNotification
 import android.util.Log
 import androidx.core.content.edit
 import com.jemcik.jemrec.Prefs
+import com.jemcik.jemrec.calls.VoipApps
+import com.jemcik.jemrec.calls.VoipCallNotes
 
 /**
  * Hides the system's "Wireless debugging connected" notification - if, and
@@ -16,12 +18,10 @@ import com.jemcik.jemrec.Prefs
  *
  * WHY IT HAS TO EXIST
  *
- * On this phone a shell-uid process dies the instant adbd restarts - the kill
- * is by cgroup, and shell cannot leave its cgroup - and adbd restarts whenever
- * Wireless debugging is toggled off. So the recorder can only stay alive while
- * Wireless debugging stays ON, and Android shows its own permanent "Wireless
- * debugging connected" notification for exactly as long. The two are welded
- * together by the ROM; no setting unpicks them. What can be unpicked is the
+ * While JemRec is on, Wireless debugging stays on - it is how the recorder is
+ * started again (see ARCHITECTURE, "What stays switched on") - and Android
+ * shows its own permanent "Wireless debugging connected" notification for as
+ * long as it is on. No setting unpicks the two. What can be unpicked is the
  * notification.
  *
  * WHY IT ASKS FIRST
