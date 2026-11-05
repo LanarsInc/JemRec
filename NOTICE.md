@@ -101,6 +101,30 @@ licence <https://github.com/snakers4/silero-vad>; ggml conversion by ggml-org,
 MIT <https://huggingface.co/ggml-org/whisper-vad>. Text:
 `app/src/main/assets/licenses/MIT-silero-vad.txt`.
 
+## sherpa-onnx
+
+Copyright (c) 2022-2026 Xiaomi Corporation and the sherpa-onnx authors,
+Apache License 2.0. Built from the pinned submodule in `third_party/` into
+`libvoicejr.so`, to tell the two voices of a one-mix call apart. Text:
+`app/src/main/assets/licenses/Apache-2.0.txt`. <https://github.com/k2-fsa/sherpa-onnx>
+
+## ONNX Runtime
+
+`libonnxruntime.so` 1.28.2, prebuilt (the build sherpa-onnx uses,
+<https://github.com/csukuangfj/onnxruntime-libs>). Copyright (c) Microsoft
+Corporation, MIT licence. Text: `app/src/main/assets/licenses/MIT-onnxruntime.txt`.
+<https://github.com/microsoft/onnxruntime>
+
+## Voice models - downloaded, not in the APK
+
+- pyannote segmentation-3.0, int8 ONNX export by sherpa-onnx: finds who
+  speaks when. Copyright (c) 2022 CNRS, MIT licence. Text:
+  `app/src/main/assets/licenses/MIT-pyannote.txt`. <https://huggingface.co/pyannote/segmentation-3.0>
+- NVIDIA TitaNet-S (`titanet_small`), ONNX export by sherpa-onnx: describes a
+  voice as numbers. Its licence is the NeMo Toolkit's, Apache License 2.0
+  (NGC catalog, read 2026-11-03). Text: `app/src/main/assets/licenses/Apache-2.0.txt`.
+  <https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/titanet_small>
+
 ## CallVault - code taken, licence to settle
 
 The transcription and summary code (`app/src/main/cpp/whisperjr.cpp`,

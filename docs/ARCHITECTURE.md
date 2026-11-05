@@ -30,7 +30,9 @@ this one is - or to check that it does what it says.
   [marks inside the recording](#marks-inside-the-recording) ·
   [notifications](#after-the-call-and-when-something-is-wrong) ·
   [the last call's report](#the-last-calls-report) ·
-  [transcripts and summaries](#transcripts-and-summaries)
+  [transcripts and summaries](#transcripts-and-summaries) ·
+  [who spoke in a one-mix call](#who-spoke-in-a-one-mix-call) ·
+  [the Sales Engine](#the-sales-engine)
 - The phone: [permissions](#what-it-does-not-ask-for) ·
   [what stays switched on](#what-stays-switched-on) ·
   [off, and debugging with it](#off-and-debugging-with-it)
@@ -953,8 +955,8 @@ up during the greeting, having said nothing, leaves nothing; the Calls tab says
 so. A message is posted on its own notification channel, with a sound, and is
 never removed by the short-calls auto-delete rule.
 
-**Your greeting** is recorded by the recorder, not the app, which holds no
-microphone permission; the app trims the silence at both ends and evens the
+**Your greeting** is recorded by the recorder, not the app, whose microphone
+permission is for *Your voice* alone; the app trims the silence at both ends and evens the
 level, because a call's uplink plays at full volume with no control over it.
 
 **Whether it works on a phone** is found out, not assumed. Android's own answer
@@ -1059,7 +1061,7 @@ screen (one at a time, stopping with the screen), or one played before then
 levels, a byte each, under a hash of the file name, which can hold a
 caller's, until the recording is deleted. A recording still being written is
 left until it is finished, and one decode runs at a time a recording. Android's `Visualizer`, which draws whatever is playing, was not an
-option: it needs the microphone permission this app does not hold.
+option: it needs the microphone permission, which this app holds for *Your voice* alone.
 
 **Fast, for a long call.** Android's decoder runs in a process of its own,
 and every packet handed to it is a trip there and back. So the packets go six
@@ -1400,8 +1402,9 @@ you on the left (Recording, and being asked). Before transcribing, the app
 compares the two channels' loudness over the first minute: where they are
 the two sides, each is transcribed alone and its lines are named You and
 Them, merged in time; where they carry the same mix, as a Galaxy A24's
-phone calls do, the call is transcribed once and no line is named. Messenger
-calls always have their sides apart.
+phone calls do, the call is transcribed once, and its two voices are told
+apart afterwards (the next section). Messenger calls always have their sides
+apart.
 
 **The language is found first, then told.** Seventeen: CallVault's sixteen
 and Norwegian. Settings can set one for every call, and a recording can have
@@ -1436,9 +1439,11 @@ the call's own service, as expedited work, for the same reason.
 **Summaries** follow CallVault's method: the lines in chunks, each summed up
 as JSON that a grammar keeps well-formed, the parts merged, timestamps the
 transcript does not have dropped, repeats removed, and the language named
-in the prompt. Checked on the A24 against three invented calls whose facts
-were all known, in English, Norwegian and Ukrainian: Qwen3 1.7B wrote each
-in its language, in 92 to 243 s, and gets the gist right; but it errs in
+in the prompt. Since 1.0 every summary is written in English, whatever the call's
+language: the Sales Engine takes English, and the phone shows the same one
+([the Sales Engine](#the-sales-engine)). Before that, checked on the A24
+against three invented calls whose facts were all known, in English,
+Norwegian and Ukrainian: Qwen3 1.7B wrote each in its language, in 92 to 243 s, and gets the gist right; but it errs in
 details now and then - in one run "assembly is included" where it cost extra,
 in another a time an hour off - and left to itself it wrote a real Norwegian
 call's summary in English and filled its action items with tasks nobody gave.
@@ -1466,34 +1471,170 @@ it, however it went. A transcript can be copied, or exported as text,
 Markdown (with the summary), SRT or VTT subtitles, or JSON, through
 Android's share sheet.
 
+## Who spoke in a one-mix call
+
+On a Galaxy A24 a phone call's two channels carry one mix, equal to within
+Opus's rounding (2026-10-29), and a Pixel on Android 17 does the same by one
+report: the channels cannot say who spoke. Since 1.1, with the voice model
+downloaded, the two voices are told apart on the phone after the lines are
+saved. Measured 2026-10-30 (a spike from the command line) and 2026-11-03 (in
+the app), both on the A24; the details are in
+`specs/003-voice-labels/research.md`.
+
+**The engine.** sherpa-onnx (Apache-2.0), the third pinned submodule, built
+with its C API only into `libvoicejr.so`, over onnxruntime 1.28.2 - the one
+prebuilt library, the build sherpa-onnx itself uses. It links its own libc++
+and is reached only through its C API, so it does not clash with NDK 28's
+(checked with `llvm-readelf`). +9.6 MB to the release APK. The voice model is
+two files, 42 MB, downloaded on a tap like the others: pyannote
+segmentation-3.0 (MIT), which finds who speaks when, and NVIDIA's TitaNet-S
+(Apache-2.0 by NVIDIA's catalog), which describes a voice as 192 numbers.
+
+**After the lines, never before them.** The transcript is saved and shown
+unnamed first; then the call is decoded again as one mix, in the 5-minute
+chunks it was transcribed in, so memory does not grow with its length. Each
+chunk is told apart into two voices, and each voice's first minute in it is
+described. The chunks' voices are linked by how alike they sound into the
+call's two, Voice 1 the one heard first. A line takes the voice that covers
+most of it; where the other covers a second or more, each word goes to the
+voice speaking when it starts and the line is cut there - whisper's word
+times, which whisper.cpp 1.9.3 maps back from the voice-activity timeline
+itself. It runs under the same lock as whisper and the summary model, and
+the summary follows it. On the A24 the 216 s test call took 88-91 s on top of
+the transcription, and the engine about 360 MB.
+
+**Named only when it is clear.** Nothing is named when there are under ten
+seconds of speech, one voice holds over 95% of it, or the two sound alike
+(cosine 0.6 or more): one person on a bad line is not two people. Measured
+on the A24's ten Telegram calls, mixed to one so their channels give the
+truth: the one real conversation 98.6% right, in 5-minute and 60 s chunks
+alike; every call of one voice unnamed. The engine is told there are two
+voices, so a chunk of one person came back as two of theirs; the chunks' two
+voices are now joined when they sound alike, which kept a 306 s call of one
+voice in one.
+
+**You, by your voice.** A print of the owner's voice - numbers, no sound -
+from a short text read once under *Your voice* (the microphone asked for
+then, the sound dropped once described), or until then from the left side
+of their messenger calls when it is plainly one person: twenty seconds of
+speech, not on speakerphone (or, the route unknown, the two sides moving
+apart), every two windows of it alike, and unlike the other side. The
+newest five such calls make the print; a recorded sample replaces them. A
+voice matching it by 0.45, and by 0.20 more than the other, is You and the
+other Them; else they stay Voice 1 and Voice 2, and the owner can say which
+is theirs, swap, or undo it. From the 2026-10-30 spike: the owner 0.53-0.64
+to such a print, strangers 0.17-0.27. The print is one file in the app's
+no-backup storage, deleted with *Delete* or with the voice model.
+
+**Labels everywhere a line goes.** Copy, export and the summary's lines say
+Voice 1 and Voice 2; the summary is told they are two people, one of them
+the owner, neither to be written about as "you". The Sales Engine gets
+Speaker 1 and Speaker 2, or Seller and Customer once named. Transcribing a
+call again tells its voices apart again; nothing old is redone on its own.
+
+**Not yet.** A third voice goes with whichever of the two it sounds more
+like. Whether the call was on speakerphone is not read yet.
+
+## The Sales Engine
+
+LANARS's sellers log their work calls in the Sales Engine, LANARS's CRM, and
+this fork does it for them (specs/002-sales-engine-call-logging, with the API
+document it follows). Nothing of it happens until a seller signs in.
+
+**Signing in.** Sign in with Google, with a lanars.com or lanars.no account,
+through Android's Credential Manager; the ID token Google gives is exchanged at
+once for the Sales Engine's own token and never kept. Google issues that token
+only to an app whose package (`com.lanars.jemrec`) and certificate LANARS
+registered, which is why debug builds share one key kept in the repository.
+The token is kept under a key in the Android Keystore. It lasts 90 days; one
+with less than a week left is renewed when the app's screen opens, without a
+chooser, and a session that ends anyway asks for a sign-in by notification.
+Then the seller agrees to LANARS's notice - shown as the server gives it, and
+again whenever LANARS changes it - and chooses the work SIM.
+
+**Which calls.** Every phone call on the work SIM from the moment setup was
+complete: the call log is the source, not the recordings, so missed and
+unanswered calls are logged too, and a call the rules left unrecorded is
+still a call. Only Telephony's own rows on that SIM: never another SIM's,
+never a messenger's or Google Meet's (they log through accounts of their
+own), never the answering machine's test calls, and never a call made while
+the seller was signed out on purpose. A call answered by the answering
+machine goes as answered, with the outcome *no answer*, and the message's
+transcript.
+
+**After the call.** Android writes the call's row a moment after it ends; the
+app looks for it for half a minute after every call's end, when it opens, and
+from the keep-alive job. It checks the number against the CRM (never a hidden
+one), and a notification says what it found - the deal, *choose a deal*, or
+nothing - and holds the call two minutes, for the seller to change the deal.
+Then the call goes: to the single open deal by itself, otherwise for the
+server to decide, which keeps a call with several open deals waiting until
+the seller chooses. There is no Private: LANARS took it out of the API on
+2026-11-03 ("it is a work phone"), so every call on the work line goes, with
+notifications blocked too. A colleague's number sends nothing after the
+check. The call's sheet - from the notification or its line in the Calls tab
+- takes the deal, *Other* (kept outside the CRM), the outcome and a next call
+(in Oslo's dates, whatever the phone's zone).
+
+**Which lead?** For a seller LANARS gave a weekly call goal, an outgoing call
+to a number with no deal comes back waiting, `no_match`, with a few
+suggestions: the deals they opened in the last 12 hours and the top of their
+"Call next" list. The sheet asks *Which lead?*, with the suggestions, a
+search of every open deal by title or company, and *Other*; the server then
+saves the number on the deal picked. The app does not know who has a goal: it
+acts on the answer. The search runs once the seller stops typing (the limit
+is 60 in 10 minutes) and, like the lookup, is never retried by itself.
+
+**The transcript and summary.** Made on the phone as before, by the seller's
+own setting; once the summary is stored, both go: the transcript in the
+call's language, one `Seller:` / `Customer:` line per turn (`Call:` where the
+two sides are one mix), and the summary - written in English for every call
+since 1.0, on the phone too - as plain text with bullets. A transcript with no
+summary to follow, a failed one, a recording put in the trash, or nothing
+within 72 hours of the call sends *failed*. Never the recording.
+
+**When the network is not there.** Taking calls needs none, so the
+notification shows in a dead zone too; sending waits for it, one request at a time, in a queue of
+its own (`crm.db`) outside the transcription chain, which must never fail. A
+call keeps one id across retries, restarts and sign-ins, and its first body is
+resent unchanged, so the server never logs it twice. Each refusal the API
+document names is acted on as it says: a dead session, a changed notice or a
+required update holds the whole queue and asks the seller; a rate limit waits
+as long as it is told; an answer that is not the API's - a gateway's HTML, a
+captive portal - is a network error, never a reason to sign in again.
+
 ## What it does not ask for
 
-No `RECORD_AUDIO`. This app never records — the shell-side process
-does the capturing, including your greeting for the answering machine, and only
-while you are recording it — and a call recorder that asks for the microphone
-anyway is asking for something it does not use.
+`RECORD_AUDIO` for one thing only, since 1.1: *Your voice*, half a minute of
+the owner reading a short text so their voice is known in a one-mix call. It
+is asked for when they tap Record, never before. Calls, and the greeting for
+the answering machine, are captured by the shell-side process, which needs no
+permission of the app's; until 1.1 the app held no microphone permission at
+all.
 
 This is the whole list, in the order F-Droid's listing page shows it, because a
 permission a call recorder does not explain is one its user has to guess at:
 
 | Permission | Why |
 | --- | --- |
-| `INTERNET` | Android requires it for any TCP socket, including one to `127.0.0.1`, which is what it was for until 0.26. Since then it also downloads a speech or summary model from Hugging Face when you tap Download - over Wi-Fi only unless you say otherwise - and nothing else: no call, transcript or summary is ever sent. |
+| `INTERNET` | Android requires it for any TCP socket, including one to `127.0.0.1`, which is what it was for until 0.26. Since then it also downloads a speech or summary model from Hugging Face when you tap Download - over Wi-Fi only unless you say otherwise - and, since 1.0, sends work calls and their transcripts and summaries to LANARS's Sales Engine once the seller signs in ([the Sales Engine](#the-sales-engine)). Never a recording. |
 | `ACCESS_NETWORK_STATE` | To tell whether there is Wi-Fi to rebuild the recorder over, instead of trying and failing. |
 | `WRITE_SECURE_SETTINGS` | Granted by the app to itself over its own ADB session. Nothing but a shell can grant it, so no user can be talked into it. It lets JemRec switch debugging back on when the phone turns it off, and off with JemRec when you ask it to. |
 | `POST_NOTIFICATIONS` | The recording notice, the ask-first prompt, the pairing code box. |
-| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE` | To stay alive while a call is being recorded and while the finished file is collected; while the recorder is restarted after a computer's cable comes out; and for the seconds it takes to warn that the phone stopped JemRec in the background. `SPECIAL_USE` is the honest type: the microphone type would need a microphone permission this app does not hold. |
+| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE` | To stay alive while a call is being recorded and while the finished file is collected; while the recorder is restarted after a computer's cable comes out; and for the seconds it takes to warn that the phone stopped JemRec in the background. `SPECIAL_USE` is the honest type: the microphone type is for a service that records from the microphone itself, and this one does not - the recorder does. |
 | `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | To play a recording on with the screen off, in `PlaybackService` ([playing in the background](#playing-in-the-background)). It plays; it never records. |
 | `RECEIVE_BOOT_COMPLETED` | A reboot kills the recorder; this is what arms the job that rebuilds it. |
 | `READ_MEDIA_AUDIO` | To list recordings made before a reinstall. Refusing it only hides those. |
 | `READ_EXTERNAL_STORAGE` | Android 12 only, which has no `READ_MEDIA_AUDIO`: the same, to list recordings made before a reinstall. It covers photos and videos too; JemRec reads only its own folder. Refusing it only hides those. |
-| `READ_CALL_LOG`, `READ_CONTACTS` | Optional. The only way to know who a call was with: to label a recording, to name a file after the caller, to keep or leave out a call by who it was with, and, for the call log, to notice a call that went unrecorded. |
+| `READ_CALL_LOG`, `READ_CONTACTS` | Optional, except for the Sales Engine, whose calls come from the call log. Otherwise the only way to know who a call was with: to label a recording, to name a file after the caller, to keep or leave out a call by who it was with, and, for the call log, to notice a call that went unrecorded. |
+| `READ_PHONE_STATE` | Since 1.0, for the Sales Engine alone: choosing the work SIM means listing the phone's SIMs, which Android shows only with it. Asked when the line is chosen. |
+| `RECORD_AUDIO` | Since 1.1, for *Your voice* alone: the owner reads a short text once, the sound is kept in memory while it is described and then dropped, and only the numbers describing the voice are kept. Asked when Record is tapped. |
 | `MANAGE_ONGOING_CALLS` | For exact call tracking. Not one an app can ask for: the daemon allows it, as the shell, while the switch is on. Android then tells JemRec when each call is answered and ends. Tracking never acts on a call; the answering machine's answering is the recorder's, as the shell. |
 | `USE_FULL_SCREEN_INTENT` | Lets the ask-first prompt last a minute instead of five seconds. Not auto-granted, and nothing is gated on it. |
 | `WAKE_LOCK` | So the keep-alive job can finish its few seconds of work, and so a phone with its screen off stays awake while it brings the recorder back after a USB cable, a minute and a half at most. WorkManager declares it too. |
 
-Two more (`READ_PHONE_STATE` and `WRITE_EXTERNAL_STORAGE`) are actively
-**removed** from the manifest, because the ADB library's own manifest would
+`WRITE_EXTERNAL_STORAGE` is actively **removed** from the manifest, as
+`READ_PHONE_STATE` was until 1.0, because the ADB library's own manifest would
 otherwise pull them in; the third it pulls in, `READ_EXTERNAL_STORAGE`, is
 declared instead, capped at Android 12, for the row above. One more that cannot be removed and means nothing:
 `com.jemcik.jemrec.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`, which AndroidX

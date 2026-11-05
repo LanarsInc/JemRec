@@ -1,0 +1,237 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "f4484ceb633212fef9e01326e2f934c8",
+    "entities": [
+      {
+        "tableName": "work_call",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `clientCallId` TEXT NOT NULL, `callLogId` INTEGER NOT NULL, `userId` INTEGER NOT NULL, `outgoing` INTEGER NOT NULL, `answered` INTEGER NOT NULL, `phone` TEXT, `presentation` TEXT NOT NULL, `countryIso` TEXT, `startedAtMs` INTEGER NOT NULL, `durationSeconds` INTEGER NOT NULL, `endedAtMs` INTEGER NOT NULL, `recording` TEXT, `byMachine` INTEGER NOT NULL, `lookupJson` TEXT, `choice` TEXT NOT NULL, `dealId` INTEGER, `chosenByUser` INTEGER, `outcome` TEXT NOT NULL, `nextJson` TEXT, `localState` TEXT NOT NULL, `stepOneBody` TEXT, `dueAtMs` INTEGER NOT NULL, `serverId` INTEGER, `serverJson` TEXT, `pickChoice` TEXT, `pickDealId` INTEGER, `pickNextJson` TEXT, `contentState` TEXT NOT NULL, `contentBody` TEXT, `contentDueAtMs` INTEGER NOT NULL, `attempts` INTEGER NOT NULL, `lastError` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "clientCallId",
+            "columnName": "clientCallId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "callLogId",
+            "columnName": "callLogId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "outgoing",
+            "columnName": "outgoing",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "answered",
+            "columnName": "answered",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phone",
+            "columnName": "phone",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "presentation",
+            "columnName": "presentation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "countryIso",
+            "columnName": "countryIso",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "startedAtMs",
+            "columnName": "startedAtMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationSeconds",
+            "columnName": "durationSeconds",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endedAtMs",
+            "columnName": "endedAtMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recording",
+            "columnName": "recording",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "byMachine",
+            "columnName": "byMachine",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lookupJson",
+            "columnName": "lookupJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "choice",
+            "columnName": "choice",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dealId",
+            "columnName": "dealId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "chosenByUser",
+            "columnName": "chosenByUser",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "outcome",
+            "columnName": "outcome",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nextJson",
+            "columnName": "nextJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "localState",
+            "columnName": "localState",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stepOneBody",
+            "columnName": "stepOneBody",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "dueAtMs",
+            "columnName": "dueAtMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "serverId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "serverJson",
+            "columnName": "serverJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pickChoice",
+            "columnName": "pickChoice",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pickDealId",
+            "columnName": "pickDealId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "pickNextJson",
+            "columnName": "pickNextJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "contentState",
+            "columnName": "contentState",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentBody",
+            "columnName": "contentBody",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "contentDueAtMs",
+            "columnName": "contentDueAtMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attempts",
+            "columnName": "attempts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastError",
+            "columnName": "lastError",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_work_call_clientCallId",
+            "unique": true,
+            "columnNames": [
+              "clientCallId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_work_call_clientCallId` ON `${TABLE_NAME}` (`clientCallId`)"
+          },
+          {
+            "name": "index_work_call_callLogId",
+            "unique": true,
+            "columnNames": [
+              "callLogId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_work_call_callLogId` ON `${TABLE_NAME}` (`callLogId`)"
+          },
+          {
+            "name": "index_work_call_recording",
+            "unique": false,
+            "columnNames": [
+              "recording"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_work_call_recording` ON `${TABLE_NAME}` (`recording`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f4484ceb633212fef9e01326e2f934c8')"
+    ]
+  }
+}

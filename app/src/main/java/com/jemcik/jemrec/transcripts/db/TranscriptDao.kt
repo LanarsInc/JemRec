@@ -73,6 +73,24 @@ interface TranscriptDao {
         upsertTranscript(entry)
     }
 
+    @Query("UPDATE transcripts SET voiceSource = :voiceSource, voiceModel = :voiceModel WHERE recording = :recording")
+    suspend fun setVoiceSource(recording: String, voiceSource: String, voiceModel: String?)
+
+    /**
+     * New speaker labels for a transcript that is there, in one transaction:
+     * its lines replaced (telling voices apart may cut a line in two, so the
+     * count can change) and where the labels came from. The row itself, and
+     * so the transcript's facts, stay. Nothing happens if the transcript was
+     * deleted meanwhile.
+     */
+    @Transaction
+    suspend fun replaceVoices(recording: String, segments: List<TranscriptSegmentEntry>, voiceSource: String, voiceModel: String?) {
+        if (transcript(recording) == null) return
+        deleteSegments(recording)
+        insertSegments(segments)
+        setVoiceSource(recording, voiceSource, voiceModel)
+    }
+
     @Transaction
     suspend fun deleteFor(recording: String) {
         deleteSegments(recording)

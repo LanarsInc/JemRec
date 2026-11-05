@@ -23,6 +23,8 @@ data class TranscriptFacts(
     val loadMs: Long,
     val threads: Int,
     val createdAt: Long,
+    /** Where the speaker labels came from; read back from the database, ignored by save. */
+    val voiceSource: VoiceSource = VoiceSource.NONE,
 )
 
 /** A finished transcript: how it was made, and its lines in order. */
@@ -48,8 +50,28 @@ class TranscriptRepository(private val db: TranscriptDatabase) {
             loadMs = facts.loadMs,
             threads = facts.threads,
             createdAt = facts.createdAt,
+            voiceSource = (if (facts.split) VoiceSource.CHANNELS else VoiceSource.NONE).key,
         )
-        val segments = lines.filter { it.text.isNotBlank() }.mapIndexed { i, line ->
+        // A new transcript makes the old summary a summary of something else.
+        db.summaries().deleteFor(recording)
+        db.transcripts().replace(entry, entries(recording, lines))
+    }
+
+    /**
+     * A transcript's lines again with their voices told apart or named, and
+     * where those labels came from. The facts stay; the lines are replaced
+     * whole, as telling voices apart may cut one in two. Nothing is written if
+     * the transcript was deleted or transcribed again in the meantime: only
+     * when it is still the one made at [createdAt].
+     */
+    suspend fun saveVoices(recording: String, createdAt: Long, lines: List<TranscriptSegment>, source: VoiceSource, voiceModel: String?) {
+        val now = db.transcripts().transcript(recording) ?: return
+        if (now.createdAt != createdAt) return
+        db.transcripts().replaceVoices(recording, entries(recording, lines), source.key, voiceModel)
+    }
+
+    private fun entries(recording: String, lines: List<TranscriptSegment>) =
+        lines.filter { it.text.isNotBlank() }.mapIndexed { i, line ->
             TranscriptSegmentEntry(
                 recording = recording,
                 idx = i,
@@ -59,10 +81,6 @@ class TranscriptRepository(private val db: TranscriptDatabase) {
                 text = line.text.trim(),
             )
         }
-        // A new transcript makes the old summary a summary of something else.
-        db.summaries().deleteFor(recording)
-        db.transcripts().replace(entry, segments)
-    }
 
     suspend fun load(recording: String): Transcript? {
         override?.let { return it(recording) }
@@ -138,6 +156,7 @@ class TranscriptRepository(private val db: TranscriptDatabase) {
         loadMs = loadMs,
         threads = threads,
         createdAt = createdAt,
+        voiceSource = VoiceSource.of(voiceSource),
     )
 
     private fun TranscriptSegmentEntry.line() =

@@ -94,6 +94,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -161,6 +162,8 @@ fun HomeScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Modifier,
     val searchFocus = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val narrowing = state.recordingsNarrowing
+    val workCalls by vm.salesEngine.workCalls.collectAsStateWithLifecycle()
+    val workByRecording = remember(workCalls) { workCalls.filter { it.recording != null }.associateBy { it.recording } }
     LaunchedEffect(narrowing.searchOpen, narrowingAside) {
         if (narrowing.searchOpen && !narrowingAside) runCatching { searchFocus.requestFocus() }
     }
@@ -527,7 +530,12 @@ fun HomeScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Modifier,
             days.forEachIndexed { run, (day, rows) ->
                 item(key = "day-$run", contentType = "day") { DayHeading(day, dayCounts[day] ?: rows.size) }
                 items(rows, key = { it.name }, contentType = { "recording" }) { recording ->
-                    RecordingRow(recording, day, state, vm)
+                    Column {
+                        RecordingRow(recording, day, state, vm)
+                        // A work call's Sales Engine line, as on the Calls tab: a recording is
+                        // where most look for a call, and it said nothing (A24, 2026-11-04).
+                        workByRecording[recording.name]?.let { CrmMark(it, vm.salesEngine::openCall) }
+                    }
                 }
             }
 

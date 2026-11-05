@@ -14,6 +14,10 @@
 *.jks
 *.keystore
 keystore.properties
+# The one exception: the shared debug key, which signs nothing released and is
+# here so every machine's debug build has the SHA-1 Google Sign-In knows
+# (app/build.gradle.kts says more).
+!/app/debug.keystore
 
 # shellprobe build output - the source and the result are what matter
 /shellprobe/build/

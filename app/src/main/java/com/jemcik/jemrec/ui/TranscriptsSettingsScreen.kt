@@ -16,6 +16,8 @@ import com.jemcik.jemrec.transcribe.LanguageNames
 import com.jemcik.jemrec.transcribe.Sides
 import com.jemcik.jemrec.transcribe.TranscribeMode
 import com.jemcik.jemrec.transcribe.TranscriptionScheduler
+import com.jemcik.jemrec.transcribe.PrintSource
+import com.jemcik.jemrec.transcribe.model.VoiceModel
 import com.jemcik.jemrec.transcribe.TranscriptionLanguageChoice
 
 /**
@@ -133,6 +135,24 @@ internal fun TranscriptsSettingsContent(ui: TranscriptsSettingsUi, vm: MainViewM
             }
         }
 
+        SettingsGroup(
+            "Voices",
+            note = "Phone calls that come out as one mix - both people on both channels - have their two " +
+                "voices told apart on the phone, and each line marked Voice 1 or Voice 2.",
+        ) {
+            row { VoiceModelRowView(ui.voiceModel, vm) }
+            row { YourVoiceRow(ui, vm) }
+            row {
+                SwitchRow(
+                    title = "Learn my voice from my calls",
+                    summary = "Uses your side of messenger calls when it is plainly only you speaking, " +
+                        "until you record your voice. Nothing leaves the phone.",
+                    checked = ui.voiceFromCalls,
+                    onCheckedChange = vm.transcripts::setVoiceFromCalls,
+                )
+            }
+        }
+
         SettingsGroup("Space used") {
             row {
                 SettingsRow(
@@ -151,7 +171,8 @@ internal fun TranscriptsSettingsContent(ui: TranscriptsSettingsUi, vm: MainViewM
         SettingsFooter(
             "A call whose two sides are on the two channels - every messenger call, and phone calls on " +
                 "phones that keep them apart - has each line named You or Them. Where both channels " +
-                "carry the same sound, the lines are not named.",
+                "carry the same sound, the two voices are told apart with the voice model; without it, " +
+                "the lines are not named.",
         )
     }
     if (choosingLanguage) {
@@ -226,6 +247,58 @@ private fun SummaryModelRowView(row: SummaryModelRow, chosen: Boolean, vm: MainV
         },
     )
 }
+
+/** The voice model: two files, one row - its size and memory, whether the phone can hold it, and what can be done. */
+@Composable
+private fun VoiceModelRowView(row: VoiceModelRow, vm: MainViewModel) {
+    val c = vm.transcripts
+    val state = when {
+        !row.fits -> "Needs a phone with more memory"
+        row.downloading != null -> "Downloading… ${row.downloading}%"
+        row.installed -> "Downloaded"
+        row.partialBytes > 0 -> "${sizeMb(row.partialBytes)} of ${sizeMb(VoiceModel.sizeBytes)} downloaded"
+        else -> "${sizeMb(VoiceModel.sizeBytes)}, ${sizeMb(VoiceModel.PEAK_MEMORY_BYTES)} of memory"
+    }
+    SettingsRow(
+        title = "Voice model",
+        summary = state,
+        enabled = row.fits,
+        trailing = {
+            if (row.fits) {
+                when {
+                    row.downloading != null -> TextButton(onClick = c::cancelVoices) { Text("Stop") }
+                    row.installed -> TextButton(onClick = c::deleteVoices) { Text("Delete") }
+                    else -> TextButton(onClick = c::downloadVoices) { Text(if (row.partialBytes > 0) "Continue" else "Download") }
+                }
+            }
+        },
+    )
+}
+
+/** The owner's voice print: whether it is known and from what, and Record or Delete. */
+@Composable
+private fun YourVoiceRow(ui: TranscriptsSettingsUi, vm: MainViewModel) {
+    val ready = ui.voiceModel.installed
+    val print = ui.print
+    val summary = when {
+        !ready -> "Needs the voice model"
+        print == null -> "Not known. Phone calls show Voice 1 and Voice 2."
+        print.source == PrintSource.SAMPLE -> "Recorded on ${dayOf(print.madeAt)}. Your lines say You."
+        else -> "Learned from ${print.calls} of your messenger calls. Recording it is better."
+    }
+    SettingsRow(
+        title = "Your voice",
+        summary = summary,
+        enabled = ready,
+        onClick = if (ready) ({ vm.transcripts.resetSample(); vm.showScreen(Screen.RECORD_VOICE) }) else null,
+        trailing = {
+            if (ready && print != null) TextButton(onClick = vm.transcripts::deletePrint) { Text("Delete") }
+        },
+    )
+}
+
+private fun dayOf(ms: Long): String =
+    java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.UK).format(java.util.Date(ms))
 
 private fun modeTitle(mode: TranscribeMode) = when (mode) {
     TranscribeMode.MANUAL -> "Only when I ask"

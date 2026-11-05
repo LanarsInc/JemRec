@@ -481,10 +481,12 @@ Java_com_jemcik_jemrec_transcribe_WhisperNative_segmentEndMs(JNIEnv *, jobject, 
 
 // The i-th segment's words, one per line as "<start in ms>\t<word>\n".
 //
-// Times are on the VAD's COMPRESSED timeline when VAD is on -- the audio whisper actually decoded, with
-// the silence taken out -- which is exactly what SpeakerSeamSplit wants: it places each word in a kept
-// stretch by that time. Measured with whisper-cli -ojf on a real call: 0.01 -> 4.74 s for one speaker,
-// 5.07 -> 8.53 s for the other, the seam between the two kept stretches exactly in the gap.
+// Times are in the buffer's own time, as the segments' are: whisper_full_get_token_t0 maps a token from
+// the VAD's compressed timeline (the audio whisper decoded, silence taken out) back to the audio it was
+// given, snapping one that falls in a removed pause to the nearer edge (whisper.cpp v1.9.3,
+// whisper_map_token_time_segment_aware). Until 2026-11-03 this read token_data.t0, which is the
+// compressed time - CallVault's SpeakerSeamSplit wanted that, and nothing here read the words. Telling
+// voices apart (VoiceSeam) compares word times with the voices' turns, which are in the call's time.
 //
 // Words are assembled HERE, not in Kotlin, because a token is a run of bytes and not a run of characters:
 // a Hebrew word is several tokens and a character can straddle two of them. A token starting with a space
@@ -507,7 +509,7 @@ Java_com_jemcik_jemrec_transcribe_WhisperNative_segmentWords(JNIEnv *env, jobjec
         const char *text = whisper_full_get_token_text(ctx, i, j);
         if (text == nullptr || text[0] == '\0') continue;
         if (text[0] == ' ') flush();
-        if (word.empty()) word_t0 = whisper_full_get_token_data(ctx, i, j).t0;
+        if (word.empty()) word_t0 = whisper_full_get_token_t0(ctx, i, j);
         for (const char *c = text; *c != '\0'; ++c) {
             // The separators of this format must not appear inside a word.
             if (*c != '\t' && *c != '\n' && !(word.empty() && *c == ' ')) word += *c;

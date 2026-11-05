@@ -20,7 +20,7 @@ data class TranscriptSegmentEntry(
     val idx: Int,
     val startMs: Long,
     val endMs: Long,
-    /** "you", "them" or "none" (Speaker.key). */
+    /** "you", "them", "voice1", "voice2" or "none" (Speaker.key). */
     val speaker: String,
     val text: String,
 )

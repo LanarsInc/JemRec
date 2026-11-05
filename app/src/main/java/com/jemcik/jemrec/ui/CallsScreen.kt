@@ -2,6 +2,7 @@ package com.jemcik.jemrec.ui
 
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
@@ -101,6 +102,11 @@ fun CallsScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Modifier
     LaunchedEffect(narrowing.searchOpen, narrowingAside) {
         if (narrowing.searchOpen && !narrowingAside) runCatching { searchFocus.requestFocus() }
     }
+    // The Sales Engine's work calls, by the call log's start: each row of
+    // one gets its mark, and the calls waiting for a deal a card over the list.
+    val workCalls by vm.salesEngine.workCalls.collectAsStateWithLifecycle()
+    val workByStart = remember(workCalls) { workCalls.associateBy { it.startedAtMs } }
+    val waiting = remember(workCalls) { workCalls.filter(CallSheetUi::needsSeller) }
     val listState = rememberLazyListState()
     val scrolled by remember { derivedStateOf { listState.canScrollBackward } }
 
@@ -141,6 +147,9 @@ fun CallsScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Modifier
                     }
                 }
             }
+            if (waiting.isNotEmpty()) {
+                item(key = "crm-waiting") { WaitingForDeal(waiting, vm.salesEngine::openCall) }
+            }
             if (state.calls.isEmpty()) {
                 item {
                     Text(
@@ -172,13 +181,16 @@ fun CallsScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Modifier
             days.forEachIndexed { run, (day, rows) ->
                 item(key = "day-$run", contentType = "day") { DayHeading(day, rows.size, calls = true) }
                 items(rows, key = { it.key }, contentType = { "call" }) { (key, call) ->
-                    val recording = call.recording
-                    if (recording != null) {
-                        CompositionLocalProvider(LocalPlayerHere provides (playerRow[recording.name] == key)) {
-                            RecordingRow(recording.forCall(call), day, state, vm)
+                    Column {
+                        val recording = call.recording
+                        if (recording != null) {
+                            CompositionLocalProvider(LocalPlayerHere provides (playerRow[recording.name] == key)) {
+                                RecordingRow(recording.forCall(call), day, state, vm)
+                            }
+                        } else {
+                            CallRow(call, day)
                         }
-                    } else {
-                        CallRow(call, day)
+                        workByStart[call.at]?.let { CrmMark(it, vm.salesEngine::openCall) }
                     }
                 }
             }

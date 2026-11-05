@@ -1,0 +1,18 @@
+{
+  "data": {
+    "call": {
+      "id": 5016,
+      "client_call_id": "7d1e2f3a-4b5c-4d6e-8f70-112233445566",
+      "status": "hidden",
+      "deal": null,
+      "activity_id": null,
+      "completed_planned_call": false,
+      "next_activity_id": null,
+      "callback_activity_id": null,
+      "content_status": "expected",
+      "pending_reason": null,
+      "candidates": [],
+      "candidates_total": 0
+    }
+  }
+}

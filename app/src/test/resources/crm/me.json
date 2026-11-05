@@ -1,0 +1,20 @@
+{
+  "data": {
+    "user": {
+      "id": 1000001,
+      "name": "Test Seller",
+      "email": "android-test@example.no",
+      "role": "member"
+    },
+    "key": {
+      "name": "device Example Phone 12",
+      "prefix": "01234567",
+      "kind": "device",
+      "scopes": [
+        "calls:lookup",
+        "calls:write"
+      ],
+      "lead_source": null
+    }
+  }
+}

@@ -1642,9 +1642,11 @@ SETUP = [
     ("p", "Notifications are not decoration here. They are how the app tells you "
           "a call is being recorded, how it asks whether to record one, and "
           "where you will type the pairing code in step 4."),
-    ("p", "JemRec does **not** ask for microphone access and does not have it. "
+    ("p", "JemRec does **not** ask for microphone access to record calls. "
           "The recording is done by a separate, more privileged helper that the "
-          "app starts later; the app itself only collects the finished file."),
+          "app starts later; the app itself only collects the finished file. "
+          "It asks for the microphone once, later, only if you choose to record "
+          "a short text so your voice is known in transcripts."),
     ("p", "**Then one question.** Before you switch anything on, JemRec says what "
           "stays on: USB debugging and Wireless debugging, for as long as it is "
           "installed, turned back on if they go off. Android shows a notification "
@@ -2039,6 +2041,23 @@ SETUP = [
           "are on the two channels - every messenger call, and phone calls on "
           "phones that keep them apart. A tap on a line plays the recording from "
           "there; a long press copies it."),
+    ("p", "**Voice 1 and Voice 2.** Some phones - a Galaxy A24, a Pixel by one "
+          "report - put both people of a phone call on both channels. With the "
+          "**voice model** downloaded (Settings → Transcripts → Voices, 42 MB), "
+          "JemRec tells the two voices apart after the call is transcribed: the "
+          "lines appear first, then each is marked **Voice 1** or **Voice 2**, "
+          "and a line where the voice changes is cut in two. Too little speech, "
+          "or one voice, and nothing is marked. **Which one is you?** above the "
+          "lines turns them into **You** and **Them** for that call; **Swap** and "
+          "**Not marked** turn it round or undo it."),
+    ("p", "**Your voice.** Settings → Transcripts → **Your voice** → read a "
+          "short text aloud for half a minute, and from then on phone calls say "
+          "**You** for your lines where your voice is clear in them, and keep "
+          "Voice 1 and Voice 2 where it is not. JemRec asks for the microphone "
+          "then, for that alone. Until you do, **Learn my voice from my calls** "
+          "uses your side of messenger calls when it is plainly only you "
+          "speaking; it can be switched off. What is kept is numbers that "
+          "describe your voice, never sound; **Delete** removes it."),
     ("p", "**The language.** JemRec finds it: each side's first minute is "
           "listened to before the call is transcribed, so a Norwegian call gets "
           "the model made for Norwegian, NB-Whisper, and two people speaking two "
@@ -2046,7 +2065,7 @@ SETUP = [
           "Transcripts can set one for every call instead, and **Change**, on a "
           "transcript, sets one for that call alone - worth it for a side of a "
           "few words, which is too little to tell."),
-    ("p", "**Summary**, beside Transcript, writes why the call happened, what was "
+    ("p", "**Summary**, beside Transcript, writes in English, whatever the call's language, why the call happened, what was "
           "said, and the points, decisions, things to do and facts, each with the "
           "time it was said - a tap goes to that line. It needs a second "
           "download, a language model, and a phone with 6 GB of memory or more; "
@@ -2060,6 +2079,43 @@ SETUP = [
           "**Export** (text, Markdown with the summary, SRT or VTT subtitles, "
           "JSON) are under a transcript, and the Recordings search finds words "
           "said in a call."),
+    ("h2", "The Sales Engine"),
+    ("p", "For LANARS's sellers: **Settings → Sales Engine** logs work calls in "
+          "LANARS's CRM. **Sign in with Google** with your lanars.com or lanars.no "
+          "account, read LANARS's notice and tap **I agree**, and choose the work "
+          "SIM (a phone with one has it chosen). It needs the call log; listing the "
+          "SIMs needs the phone's own permission, asked there."),
+    ("p", "After each call on the work SIM a notification says where it is going: "
+          "the deal, **Choose a deal** when the number has several, or that the "
+          "Sales Engine decides; two minutes later it goes. It is a work phone: "
+          "every call on the work SIM is sent. **Change** or **Choose** opens the "
+          "call's sheet: its deal or **Other** (kept outside the CRM), how it went, "
+          "and a next call on the deal, in Norwegian time. Missed calls are logged "
+          "too, with a call-back the Sales Engine plans."),
+    ("p", "If LANARS gave you a weekly call goal, a call to a number on no deal "
+          "asks **Which lead?**: pick one of the suggestions, search your open "
+          "deals by title or company, or choose **Other**. The Sales Engine "
+          "saves the number on the deal you pick."),
+    ("p", "Under a work call, in the **Calls** and **Recordings** tabs and on its "
+          "transcript, a line says where it went - on a deal, not in the CRM, "
+          "Other - and where its transcript stands: to follow, sent, or not sent. "
+          "A card says when calls wait for you to choose their deal or lead; a "
+          "tap opens the sheet. Once the phone has transcribed and "
+          "summarised a call, by your setting under Transcripts, both go to it: "
+          "the summary into the call's note on the deal. Never the recording. "
+          "If its transcript could not be made - a summary that did not fit in "
+          "memory, say - the line says **transcript not sent**, and **Send the "
+          "transcript** on the call's sheet makes it again and sends it, once."),
+    ("p", "Offline, calls wait and go once when the network is back; the line "
+          "under a call says why it waits and when it tries again. Under **Calls** "
+          "in Settings → Sales Engine you see what is still to go, what was not "
+          "sent, and **Retry now**. If the "
+          "session ends, LANARS's notice changes, or the Sales Engine needs a "
+          "newer app, a notification says so and calls wait until it is done. "
+          "**Sign out** stops it: calls made while signed out are never sent."),
+    ("p", "A call of a few words gets no summary made by a model, only "
+          "**Short call**; a call to a recorded menu is summarised as an "
+          "**Automated message**."),
     ("h2", "Three looks"),
     ("p", "**Settings → Theme** changes how JemRec looks, never what it does. "
           "**Memo**, the default, is calm and simple, with one big record button; "
@@ -2284,10 +2340,20 @@ SETUP = [
         ["**JemRec was held back in the background**", "The phone froze JemRec "
          "while it was restarting the recorder after a cable, for the minutes it "
          "says. The same button and the same fix."],
+        ["A deal's name, or **Choose a deal**, with **Change** or **Choose**", "A work call "
+         "about to go to the Sales Engine, in two minutes. "
+         "Then **Logged on** the deal, briefly, or **Choose a deal** or **Which "
+         "lead?** while it waits for you. Only once you sign in to the Sales Engine."],
+        ["**Transcript not sent**, with **Send**", "A work call's transcript could "
+         "not be made, so the Sales Engine has the call without it. **Send** opens "
+         "the call, to make it again and send it."],
+        ["**Sign in to the Sales Engine again**, **Read the Sales Engine's new "
+         "notice**, **Update JemRec to keep logging calls**", "Work calls wait until "
+         "you do; the notification opens Settings → Sales Engine."],
     ])),
 
     ("h2", "Settings"),
-    ("p", "One screen, in five groups, each row showing what it is set to now, "
+    ("p", "One screen, in groups, each row showing what it is set to now, "
           "and the settings the header marks wearing the same mark. "
           "Until you allow it, a **Show who called** card sits at the top: it "
           "labels each recording with the contact's name and photo, or the number "
@@ -2326,6 +2392,18 @@ SETUP = [
         "**Recently deleted** — what has been deleted in the last 30 days, with "
         "**Restore** for each, **Restore all**, and **Delete all for good**, which "
         "asks first: it cannot be undone.",
+    ]),
+    ("p", "**Sales Engine**"),
+    ("ul", [
+        "**Sales Engine** — for LANARS's sellers: sign in, LANARS's notice, the "
+        "work SIM, and whether summaries will reach the CRM; see The Sales Engine.",
+    ]),
+    ("p", "**Transcripts**"),
+    ("ul", [
+        "**Transcripts** — the calls' language, the speech and summary models, "
+        "when transcripts are made, who spoke, and Voices: the voice model, "
+        "your voice and whether to learn it from your calls; see Transcripts "
+        "and summaries.",
     ]),
     ("p", "**Notifications and shortcuts**"),
     ("ul", [
@@ -3148,10 +3226,20 @@ FEATURES = [
      "Transcribed on the phone &mdash; the call never leaves it &mdash; in 17 "
      "languages, each side&rsquo;s found by itself, Norwegian with a model made "
      "for it; each line marked You or "
-     "Them where the call&rsquo;s sides are apart, and a tap plays from there. "
-     "A summary beside it: why the call happened, what was decided, what to do. "
+     "Them where the call&rsquo;s sides are apart, and where a phone call comes "
+     "out as one mix its two voices told apart on the phone &mdash; You and Them "
+     "once it knows your voice, Voice 1 and Voice 2 until then. A tap plays from there. "
+     "A summary in English beside it: why the call happened, what was decided, what to do. "
      "Search the words said, copy, or export as text or subtitles.",
      "transcripts-and-summaries"),
+    ("Log work calls in the Sales Engine",
+     "For LANARS&rsquo;s sellers: sign in with your lanars.com or lanars.no "
+     "account, agree to LANARS&rsquo;s notice, choose the work SIM. After each "
+     "call on it the call goes to its deal in the Sales Engine by itself &mdash; "
+     "or you choose the deal, or, for a new number, the lead. Every call on the "
+     "work SIM is sent: it is a work phone. Missed calls too. The transcript and an English summary follow; "
+     "the recording never leaves the phone.",
+     "the-sales-engine"),
     ("Three looks",
      "Memo, calm and simple; Deck, a pocket recorder with an LCD and a REC key; "
      "Multitrack, a sound editor with a colour for each caller. Each light, dark "
@@ -3167,15 +3255,20 @@ FEATURES = [
 ]
 
 PRIVACY_POINTS = [
-    ("mic", "No microphone permission",
-     "The app never records; the recorder does the capturing &mdash; calls, "
-     "and your answering-machine greeting."),
-    ("cloud", "Nothing leaves the phone",
-     "No account, no server, no analytics, and nothing is collected about you. "
+    ("mic", "The microphone for one thing only",
+     "The recorder does the capturing &mdash; calls, and your answering-machine "
+     "greeting &mdash; and needs no permission for it. The app asks for the "
+     "microphone only when you tap Record under <em>Your voice</em>, to hear you "
+     "read a short text once; what is kept is numbers describing your voice, "
+     "never sound, and never sent."),
+    ("cloud", "Nothing leaves the phone but work calls",
+     "No analytics, and nothing is collected about you. Once you sign in to "
+     "LANARS&rsquo;s Sales Engine, calls on the work SIM go to it, with their "
+     "transcript and an English summary &mdash; never the recording. "
      "<em>Copy a report</em> in Diagnostics puts how the last call was recorded "
      "on the clipboard, with no number, name or sound in it, only when you tap "
-     "it. Transcripts and summaries are made on the phone; the one thing fetched "
-     "is the model that makes them, when you tap Download."),
+     "it. Transcripts, summaries and telling voices apart are done on the phone; "
+     "the one thing fetched is the models that do them, when you tap Download."),
     ("person", "Calls and contacts only if you allow them",
      "To name callers, keep calls by who they were with, and notice a call that "
      "went unrecorded. Everything works without them."),
@@ -3192,13 +3285,30 @@ PRIVACY_POINTS = [
 ]
 
 FAQ = [
+    ("What does the Sales Engine get?",
+     "After a call on the work SIM: the number, which way it went, whether it was "
+     "answered, when and how long, the deal and how it went; then the transcript, "
+     "in the call&rsquo;s language, and a summary in English. Never the recording. "
+     "Nothing from another SIM, a messenger, or a call made before you signed in "
+     "or while you were signed out."),
     ("Do transcripts send my calls anywhere?",
-     "No. The speech and summary models run on the phone; the only thing fetched "
+     "Not by themselves: they are made on the phone, and reach LANARS&rsquo;s Sales "
+     "Engine only for work calls, once you sign in to it. The speech and summary models run on the phone; the only thing fetched "
      "is the model itself, once, from Hugging Face, when you tap Download "
-     "&mdash; 175 MB to 2.6 GB. On a Galaxy A24 a short call took about as long "
+     "&mdash; 175 MB to 2.6 GB, and 42 MB more to tell voices apart. On a Galaxy A24 a short call took about as long "
      "again to transcribe, and a summary a minute and a half to two. Set the "
      "call&rsquo;s language rather than leaving it to detection: left to guess, "
      "it once wrote Russian as English words nobody said."),
+    ("Who said what in a phone call that comes out as one mix?",
+     "On some phones &mdash; a Galaxy A24, a Pixel by one report &mdash; both "
+     "channels of a phone call carry the same mix. With the voice model "
+     "downloaded, JemRec tells the two voices apart on the phone after the call "
+     "is transcribed, marks each line Voice 1 or Voice 2, and cuts a line where "
+     "the voice changes. Once it knows your voice &mdash; from a short text you "
+     "read once, or your side of your messenger calls &mdash; your lines say You "
+     "and the other person&rsquo;s Them; where it is not sure it keeps Voice 1 "
+     "and Voice 2, and you can say which is you. On the A24 it was 98.6% right "
+     "on a real conversation, and calls of one voice were left unnamed."),
     ("Does it really record both sides?",
      "Yes, where the phone&rsquo;s audio hardware hands both sides over &mdash; "
      "which it did on every phone above. The Self-test tells you for yours in "
@@ -3342,6 +3452,7 @@ FEATURE_ROWS = [
      ["See every call", "Messenger calls"]),
     (lambda: crop("home", "A recording playing, as its waveform"),
      ["Play, keep, clean up", "Name files your way", "Read a call, and its summary"]),
+    (lambda: crop("calls", "The Calls tab, where each work call says where it went"), ["Log work calls in the Sales Engine"]),
     (shade, ["Hear about problems"]),
     (lambda: crop("answering", "The answering machine&rsquo;s settings"), ["Answering machine"]),
     (trio, ["Three looks"]),
@@ -3700,10 +3811,12 @@ HOW_BODY = f"""
      without a yes on it, but it can ask.</p>
 
   <h2 id="permissions">What it asks for, and what it does not</h2>
-  <p>No microphone permission. The app never records &mdash; the shell-side
-     process does the capturing, your answering-machine greeting included
-     &mdash; and a call recorder that asks
-     for the microphone anyway is asking for something it does not use. Reading
+  <p>The microphone for one thing only. Calls, and your answering-machine
+     greeting, are captured by the shell-side process, which needs no permission
+     of the app&rsquo;s; the app asks for the microphone only when you tap Record
+     under <em>Your voice</em>, to hear you read a short text once so your voice
+     is known in a phone call that comes out as one mix. Until 1.1 it held no
+     microphone permission at all. Reading
      your call log and contacts is optional, offered once, and is used for two
      things only: labelling a recording with who the call was with, and noticing
      a call that went unrecorded. Knowing when a call is answered takes one more
@@ -3719,11 +3832,12 @@ HOW_BODY = f"""
     <tr><td><code>ACCESS_NETWORK_STATE</code></td><td>To tell whether there is Wi-Fi to rebuild the recorder over, instead of trying and failing.</td></tr>
     <tr><td><code>WRITE_SECURE_SETTINGS</code></td><td>Granted by the app to itself over its own ADB session. Nothing but a shell can grant it, so no user can be talked into it. It lets JemRec switch debugging back on when the phone turns it off, and off with JemRec when you ask it to.</td></tr>
     <tr><td><code>POST_NOTIFICATIONS</code></td><td>The recording notice, the ask-first prompt, the pairing code box.</td></tr>
-    <tr><td><code>FOREGROUND_SERVICE</code>, <code>FOREGROUND_SERVICE_SPECIAL_USE</code></td><td>To stay alive while a call is being recorded and while the finished file is collected; while the recorder is restarted after a computer's cable comes out; and for the seconds it takes to warn that the phone stopped JemRec in the background. <code>SPECIAL_USE</code> is the honest type: the microphone type would need a microphone permission this app does not hold.</td></tr>
+    <tr><td><code>FOREGROUND_SERVICE</code>, <code>FOREGROUND_SERVICE_SPECIAL_USE</code></td><td>To stay alive while a call is being recorded and while the finished file is collected; while the recorder is restarted after a computer's cable comes out; and for the seconds it takes to warn that the phone stopped JemRec in the background. <code>SPECIAL_USE</code> is the honest type: the microphone type is for a service that records from the microphone itself, and this one does not &mdash; the recorder does.</td></tr>
     <tr><td><code>RECEIVE_BOOT_COMPLETED</code></td><td>A reboot kills the recorder; this is what arms the job that rebuilds it.</td></tr>
     <tr><td><code>READ_MEDIA_AUDIO</code></td><td>To list recordings made before a reinstall. Refusing it only hides those.</td></tr>
     <tr><td><code>READ_EXTERNAL_STORAGE</code></td><td>Android 12 only, which has no <code>READ_MEDIA_AUDIO</code>: the same, to list recordings made before a reinstall. It covers photos and videos too; JemRec reads only its own folder. Refusing it only hides those.</td></tr>
     <tr><td><code>READ_CALL_LOG</code>, <code>READ_CONTACTS</code></td><td>Optional. The only way to know who a call was with: to label a recording, to name a file after the caller, to keep or leave out a call by who it was with, and, for the call log, to notice a call that went unrecorded.</td></tr>
+    <tr><td><code>RECORD_AUDIO</code></td><td>Since 1.1, only for <em>Your voice</em>: asked when you tap Record, to hear you read a short text once. The sound stays in memory and is dropped; what is kept is numbers describing your voice.</td></tr>
     <tr><td><code>MANAGE_ONGOING_CALLS</code></td><td>For exact call tracking. Not one an app can ask for: the daemon allows it, as the shell, while the switch is on. Android then tells JemRec when each call is answered and ends. Tracking never acts on a call; the answering machine&rsquo;s answering is the recorder&rsquo;s, as the shell.</td></tr>
     <tr><td><code>USE_FULL_SCREEN_INTENT</code></td><td>Lets the ask-first prompt last a minute instead of five seconds. Not auto-granted, and nothing is gated on it.</td></tr>
     <tr><td><code>WAKE_LOCK</code></td><td>So the keep-alive job can finish its few seconds of work, and so a phone with its screen off stays awake while it brings the recorder back after a USB cable, a minute and a half at most. WorkManager declares it too.</td></tr>
@@ -3756,16 +3870,39 @@ HOW_BODY = f"""
 # never add to them; where they differ, the words are the policy.
 # (data, where, how long, when, the words)
 PRIVACY_DATA = [
+    ("Work calls, to LANARS&rsquo;s Sales Engine", "LANARS&rsquo;s Sales Engine, and a queue in the app&rsquo;s private storage", "as LANARS keeps its CRM", "only once you sign in to it",
+     "Only once you sign in to the Sales Engine with your LANARS account, and "
+     "only calls on the work SIM you chose, from then on: each one&rsquo;s "
+     "number, direction, whether it was answered, start and length, the deal "
+     "and how it went, and, once the phone has made them, its transcript and an "
+     "English summary. Before that, the number is checked against the CRM to "
+     "find its deal. Never the recording. Not a "
+     "colleague&rsquo;s after the check, not one made while signed out. Waiting "
+     "calls are kept in the app&rsquo;s private storage, in no backup, until "
+     "sent; a token for your session is kept there under a key in the "
+     "phone&rsquo;s keystore. Signing out ends it; LANARS keeps what reached its "
+     "CRM as it keeps its CRM."),
     ("Transcripts and summaries", "the app&rsquo;s private storage", "until the recording is deleted", "only if you transcribe a call",
      "Only for the calls you transcribe, or that a setting does: each line with "
-     "its time and side, a summary if you ask for one, and a language you set for "
-     "one call. Made on the phone and kept in a database in the app&rsquo;s "
+     "its time and side &mdash; or, in a phone call that comes out as one mix, "
+     "its voice, told apart on the phone with the voice model &mdash; a summary "
+     "if you ask for one, and a language you set for one call. Made on the phone and kept in a database in the app&rsquo;s "
      "private storage, in no backup; deleting a recording for good deletes its "
      "text, and so does uninstalling. Copy and Export hand it on only where you "
      "send it."),
-    ("Speech and summary models", "the app&rsquo;s private storage", "until you delete them", "only if you download one",
+    ("Your voice", "the app&rsquo;s private storage", "until you delete it", "only with the voice model",
+     "Only with the voice model downloaded: a print of your voice, so your "
+     "lines say You in a phone call that comes out as one mix. Numbers that "
+     "describe your voice &mdash; no sound, nothing that can be played back "
+     "&mdash; from a short text you read once under <em>Your voice</em> (the "
+     "microphone is asked for then, and the sound is dropped once described), "
+     "or until then from your side of your messenger calls when it is plainly "
+     "only you, which you can switch off. One file in the app&rsquo;s private "
+     "storage, in no backup, never sent. Delete removes it, and so do deleting "
+     "the voice model and uninstalling."),
+    ("Speech, summary and voice models", "the app&rsquo;s private storage", "until you delete them", "only if you download one",
      "Only the ones you download, from Hugging Face, on your tap: files that "
-     "turn sound into text and text into a summary, the same for everyone. "
+     "turn sound into text and text into a summary, or tell voices apart, the same for everyone. "
      "Nothing about you or your calls is sent to fetch them. Settings &rarr; "
      "Transcripts lists them with their size and Delete; uninstalling deletes "
      "them."),
@@ -3896,14 +4033,16 @@ def privacy_table() -> str:
 
 PRIVACY_BODY = f"""
   <h1>Privacy policy</h1>
-  <p class="lead">JemRec has no servers, no accounts, and no analytics. Nothing it
-     records or reads ever leaves your phone.</p>
-  <p class="muted">Last updated: October 2026.</p>
+  <p class="lead">JemRec has no analytics. Its recordings never leave your phone;
+     once you sign in to LANARS&rsquo;s Sales Engine, your work calls and their
+     transcripts and summaries go to it, and nothing else does.</p>
+  <p class="muted">Last updated: November 2026.</p>
 
   <h2>What it collects</h2>
-  <p><strong>Nothing is sent anywhere.</strong> There is no backend to send it to.
-     The developer cannot see your recordings, your contacts, your call history,
-     your transcripts, or that you use the app at all.</p>
+  <p><strong>Nothing but work calls, to LANARS&rsquo;s Sales Engine</strong>, and
+     only once you sign in to it: the first row below says what. The developer
+     cannot see your recordings, your contacts, your other calls, or your
+     transcripts of them.</p>
 
   <h2>What stays on the phone</h2>
   <p class="muted">Each row in short, then in full: open a row for the
@@ -3930,8 +4069,11 @@ PRIVACY_BODY = f"""
      and checked against its published digest. What is sent is the request for a
      file that is the same for everyone; Hugging Face sees that this address
      asked for it, as any site does. No recording, transcript, summary, contact
-     or anything else about you is sent, then or ever: the models run on the
-     phone.</p>
+     or anything else about you is sent then: the models run on the phone.</p>
+  <p>The Sales Engine, once you sign in to it: the app talks to LANARS&rsquo;s
+     CRM at <code>crm.lanars.no</code> over HTTPS, and nowhere else for it, to
+     sign you in (Google&rsquo;s Sign in with Google, on the phone, gives the
+     proof of your account) and to send work calls as the first row above says.</p>
   <p><em>Start without Wi-Fi</em>, off until you switch it on, has the
      phone&rsquo;s own debugging service listen on port 5555 as well, so that the
      app can reach it at <code>127.0.0.1</code> with no Wi-Fi. The app still
@@ -3961,11 +4103,17 @@ PRIVACY_BODY = f"""
      nothing about a donation reaches the app.</p>
 
   <h2>The microphone</h2>
-  <p>The app holds no microphone permission and never records. Calls are
-     captured by a separate shell-privileged process, which the app starts during
-     setup and which writes to a file the app collects afterwards. So is your
-     answering-machine greeting, only while you record it; the app plays it back
-     to you when you ask.</p>
+  <p>The app never records calls. They are captured by a separate
+     shell-privileged process, which the app starts during setup and which
+     writes to a file the app collects afterwards. So is your answering-machine
+     greeting, only while you record it; the app plays it back to you when you
+     ask.</p>
+  <p>Since 1.1 the app holds the microphone permission for one thing: <em>Your
+     voice</em>, when you choose to read a short text aloud so your voice is
+     known in a phone call that comes out as one mix. It is asked for when you
+     tap Record, never before. The half minute you read is kept in memory while
+     it is described as numbers, then dropped; only the numbers are kept, as
+     above.</p>
   <p>While the answering machine takes a message, the recorder mutes your
      microphone, so the caller hears nothing of the room you are in. It gives
      it back when the call ends or when you take the call.</p>

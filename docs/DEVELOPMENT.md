@@ -15,7 +15,7 @@ Needs **JDK 21** - that major, not "or newer" - and an Android SDK with:
     ndk;28.2.13676358          the speech and language engines
     cmake;3.22.1               which builds them
 
-and the two engines, pinned submodules:
+and the three engines, pinned submodules:
 
     git submodule update --init
 
@@ -34,6 +34,16 @@ slower (CallVault). Only Maven's libraries keep their debug symbols: the
 engines unstripped made a 95 MB debug APK. Release: 11.98 MB (2026-10-29).
 Models are never in the repo (`*.gguf` is ignored; the one `.bin` there is
 the 0.9 MB voice-activity model).
+
+sherpa-onnx (v2.0.1, telling the two voices of a one-mix call apart) is the
+third, built by the same CMake into `libvoicejr.so` with its C API only. It
+runs on onnxruntime, the one prebuilt native library: the build sherpa-onnx
+itself uses, downloaded on the first build with its hash checked, as are
+sherpa-onnx's own small dependencies - so that first build needs the
+network. The library links its own libc++ and is reached only through its C
+API, so it does not clash with NDK 28's (checked 2026-11-03,
+`specs/003-voice-labels/research.md` V1). An F-Droid build would have to
+build onnxruntime from source; this fork ships as an APK.
 
 The daemon is not a Gradle module. `shellserver/build.sh` compiles it against the
 platform the *device* runs, with its `@hide` internals intact, and Gradle runs
@@ -55,7 +65,7 @@ server runs, so 21 is what CI installs and what `build.sh` insists on -
 
 ## Tests
 
-1304 JVM tests, no device needed - 1108 for the app and 196 for the daemon:
+1538 JVM tests, no device needed - 1342 for the app and 196 for the daemon:
 
     ./gradlew test
 
@@ -66,6 +76,36 @@ header, the call-log match, the home screen's selection logic, the lists' day
 headings (just after midnight, "an hour ago" is yesterday), what each Settings
 row says a setting is set to, and every file name read back in every format (a
 misread name is a recording dated wrong).
+
+**The Sales Engine** (specs/002-sales-engine-call-logging) is tested against
+the API document itself: every JSON body in it is a fixture in
+`app/src/test/resources/crm`, written by a script from the document, and the
+client runs against a real local server (MockWebServer) answering with them -
+each endpoint, each failure §11 names, a connection cut after the server
+stored the call. `./gradlew testDebugUnitTest --tests 'com.jemcik.jemrec.crm.*'`
+runs those alone.
+
+Which server a build talks to: debug builds go to LANARS's test stand
+(dev), release builds to production (prod), each with its own address and
+Web client id for Sign in with Google. The defaults are in
+`gradle.properties` (`salesEngineDevUrl`, `salesEngineDevWebClientId`,
+`salesEngineProdUrl`, `salesEngineProdWebClientId`); an environment variable
+or `local.properties` overrides each without a commit:
+
+    JEMREC_SALES_ENGINE_DEV_URL=https://<stand-host>/api/v1 \
+    JEMREC_SALES_ENGINE_DEV_WEB_CLIENT_ID=<id> ./gradlew assembleDebug
+
+`JEMREC_SALES_ENGINE_ENV=dev` makes a release build that talks to the stand,
+for testers. An empty address or client id means not set up: the Sales
+Engine settings say so and nothing is sent - an empty dev address never falls
+back to production. Debug builds show the stand's host in Settings > Sales
+Engine. Google gives a token only to the
+package and certificate LANARS registered: `com.lanars.jemrec` with the
+shared debug key `app/debug.keystore` or the release key. Before sign-in
+works, a token LANARS issues by hand on the stand can be set with the debug
+receiver's `crm-token` op (`--es value <token> --ei int <user id>`);
+`crm-state` prints the session, the setup and the queue (never the token),
+and `crm-lines` what the call log's rows say of the SIM beside the phone's SIMs.
 
 **The screens are tested too**, on the JVM, under Robolectric: the real
 composables drawn from a state the test sets up - recording, switched off,
@@ -93,7 +133,16 @@ afterwards (and with it the models, and with the recorder up, debugging):
         com.jemcik.jemrec.test/androidx.test.runner.AndroidJUnitRunner
 
 `WhisperBridgeTest` checks the bridges (5 tests; it needs Whisper small on the
-phone). `SummaryFaithfulnessTest` and `ThreadsBenchmark` are measurements:
+phone), and `VoiceBridgeTest` the voice engine's (2; the model test needs the
+voice model's two files and a two-sided recording copied under the app's
+`files/voice-test/` with `run-as`, and is skipped without them).
+`VoiceAccuracyTest` is a measurement: with the same files and any number of
+the phone's own messenger recordings there, it mixes each to one, tells its
+voices apart, and scores them against the channels, in the app's 5-minute
+chunks and in 60 s ones - `voice-accuracy.txt`. Delete the copies after;
+never commit a recording. In LANARS's build the test package is
+`com.lanars.jemrec.test`, so its runner is
+`com.lanars.jemrec.test/androidx.test.runner.AndroidJUnitRunner`. `SummaryFaithfulnessTest` and `ThreadsBenchmark` are measurements:
 they write a report to the app's external files directory -
 `summary-faithfulness.txt`, every summary model's summary of three invented
 calls beside what is true in them, to be read for anything invented;
@@ -346,6 +395,14 @@ The signing key is the thing that makes an upgrade possible: an APK signed with
 a different certificate cannot install over an earlier one, whatever its version
 number. It lives outside this repository and always has — see `.gitignore`,
 which has refused signing material since before any existed.
+
+The debug key is the one exception: `app/debug.keystore`, shared by everyone
+and checked in (2026-11-03). Google Sign-In for the Sales Engine works only for
+a package and certificate SHA-1 LANARS registered, and every machine's own
+debug key would be another one to register. It is a debug key, with the
+well-known `android` passwords, and signs nothing that is released. A debug
+build signed with it cannot install over one signed with a machine's old key:
+uninstall that first (stop the recorder before you do).
 
 **The build is reproducible**, and that is what lets F-Droid carry the same
 key: F-Droid builds each tag on its own machine, checks the result against the

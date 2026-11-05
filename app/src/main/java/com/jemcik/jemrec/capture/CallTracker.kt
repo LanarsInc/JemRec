@@ -148,6 +148,9 @@ class CallTracker : InCallService() {
 
     override fun onCallRemoved(call: Call) {
         call.unregisterCallback(callback)
+        // Every phone call's end, answered or not: the Sales Engine takes it
+        // from the call log once Android has written its row (CrmIntakeWorker).
+        runCatching { com.jemcik.jemrec.crm.CrmIntakeWorker.afterCall(applicationContext) }
         val id = call.details.creationTimeMillis
         // The day is counted from the emergency call's end. The network can
         // mark one only once it is up: asked again here.

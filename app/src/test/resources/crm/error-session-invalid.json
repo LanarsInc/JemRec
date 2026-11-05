@@ -1,0 +1,4 @@
+{
+  "error": "invalid_input",
+  "detail": "device.id: must be a lower-case UUID v4"
+}

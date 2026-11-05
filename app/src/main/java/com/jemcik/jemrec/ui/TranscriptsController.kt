@@ -18,7 +18,12 @@ import com.jemcik.jemrec.summary.SummaryWorker
 import com.jemcik.jemrec.transcribe.ModelChoice
 import com.jemcik.jemrec.transcribe.Sides
 import com.jemcik.jemrec.transcribe.TranscribeMode
+import com.jemcik.jemrec.transcribe.Speaker
 import com.jemcik.jemrec.transcribe.TranscriptionScheduler
+import com.jemcik.jemrec.transcribe.OwnerPrint
+import com.jemcik.jemrec.transcribe.PrintSource
+import com.jemcik.jemrec.transcribe.VoiceSample
+import com.jemcik.jemrec.transcribe.VoiceStep
 import com.jemcik.jemrec.transcribe.TranscriptionLanguageChoice
 import com.jemcik.jemrec.transcribe.TranscribeSettings
 import com.jemcik.jemrec.transcribe.TranscriptionEstimate
@@ -28,8 +33,10 @@ import com.jemcik.jemrec.transcribe.model.DownloadableModel
 import com.jemcik.jemrec.transcribe.model.ModelDownloadWorker
 import com.jemcik.jemrec.transcribe.model.ModelRepository
 import com.jemcik.jemrec.transcribe.model.SpeechModel
+import com.jemcik.jemrec.transcribe.model.VoiceModel
 import com.jemcik.jemrec.transcripts.Transcript
 import com.jemcik.jemrec.transcripts.TranscriptRepository
+import com.jemcik.jemrec.transcripts.VoiceSource
 import com.jemcik.jemrec.transcripts.db.TranscriptDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +46,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Where the speech model for this transcript stands. */
 sealed interface ModelState {
@@ -94,6 +102,15 @@ data class TranscriptUi(
     val summaryJob: JobState = JobState.Idle,
     /** A line to bring into view, from a tap on a summary point: its time in ms. */
     val jumpToMs: Long? = null,
+    /** This recording's voices are being told apart now (VoiceStep), its lines already shown. */
+    val tellingVoices: Boolean = false,
+    /**
+     * Cancel was tapped and the work has not ended yet. The run notices within a second or so,
+     * but it ends only when the step under way lets it; until then the screen says so.
+     */
+    val stopping: Boolean = false,
+    /** The owner's voice print is known, so later one-mix calls can say You. */
+    val printKnown: Boolean = false,
 )
 
 /** One speech model's row in Settings. */
@@ -118,6 +135,35 @@ data class SummaryModelRow(
     val partialBytes: Long,
 )
 
+/** The voice model's row in Settings: its two files as one (VoiceModel). */
+data class VoiceModelRow(
+    /** This phone can hold it (VoiceModel.fits). */
+    val fits: Boolean = true,
+    /** Both files on the phone and verified. */
+    val installed: Boolean = false,
+    /** Downloading now: how far across both files; null otherwise. */
+    val downloading: Int? = null,
+    /** Left from interrupted downloads, in bytes. */
+    val partialBytes: Long = 0,
+)
+
+/** The owner's voice print as Settings shows it: where it came from and when. */
+data class PrintRow(val source: PrintSource, val madeAt: Long, val calls: Int)
+
+/** Recording the owner's voice sample, step by step. */
+sealed interface SampleUi {
+    data object Idle : SampleUi
+    /** Recording: the last 20 ms frame's level in dBFS, and how far along. */
+    data class Recording(val levelDb: Double, val elapsedMs: Long) : SampleUi
+    /** Recorded; its print is being made. */
+    data object Describing : SampleUi
+    /** Too little speech in it: read again. */
+    data class TooShort(val speechMs: Long) : SampleUi
+    data object NoMicrophone : SampleUi
+    data object Failed : SampleUi
+    data object Saved : SampleUi
+}
+
 /** Settings > Transcripts and summaries. */
 data class TranscriptsSettingsUi(
     /** The Settings language: an ISO code or "auto", which is also what not having chosen means. */
@@ -139,6 +185,10 @@ data class TranscriptsSettingsUi(
     val transcriptsBytes: Long = 0,
     /** The one summaries use: chosen and fitting, else the best that fits. */
     val summaryModel: SummaryModel? = null,
+    val voiceModel: VoiceModelRow = VoiceModelRow(),
+    /** The owner's voice print; null when there is none. */
+    val print: PrintRow? = null,
+    val voiceFromCalls: Boolean = true,
 )
 
 /**
@@ -174,9 +224,19 @@ class TranscriptsController(
             },
             scope.launch {
                 WorkManager.getInstance(app).getWorkInfosByTagFlow(TranscriptionWorker.tagFor(recording.name))
-                    .collect { infos -> _state.update { it.copy(job = jobOf(infos)) } }
+                    .collect { infos ->
+                        val job = jobOf(infos)
+                        _state.update { it.copy(job = job, stopping = it.stopping && (job is JobState.Running || job == JobState.Queued)) }
+                    }
             },
             scope.launch(Dispatchers.IO) { refreshModel() },
+            scope.launch {
+                VoiceStep.running.collect { name -> _state.update { it.copy(tellingVoices = name == recording.name) } }
+            },
+            scope.launch(Dispatchers.IO) {
+                val known = OwnerPrint.store(app).read() != null
+                _state.update { it.copy(printKnown = known) }
+            },
             scope.launch {
                 repository.observeSummary(recording.name).collect { entry ->
                     _state.update {
@@ -312,6 +372,7 @@ class TranscriptsController(
     fun cancel() {
         val recording = _state.value.recording ?: return
         TranscriptionWorker.cancel(app, recording.name)
+        _state.update { it.copy(stopping = true) }
     }
 
     /** This recording's own language, or null to go back to Settings'. */
@@ -380,7 +441,7 @@ class TranscriptsController(
         if (pinned) return
         watchingModels.forEach { it.cancel() }
         refreshSettings()
-        watchingModels = (SpeechModel.entries + SummaryModel.entries).map { model ->
+        watchingModels = (SpeechModel.entries + SummaryModel.entries + VoiceModel.files).map { model ->
             scope.launch {
                 WorkManager.getInstance(app).getWorkInfosForUniqueWorkFlow(ModelDownloadWorker.workNameFor(model)).collect { infos ->
                     val info = infos.lastOrNull()
@@ -418,12 +479,136 @@ class TranscriptsController(
                     SummaryModelRow(m, m.fits(total), ModelRepository.isInstalled(app, m), downloads[m], ModelRepository.partialBytes(app, m))
                 },
                 summaryModel = SummaryWorker.chosenModel(app),
+                voiceModel = voiceModelRow(total),
+                print = OwnerPrint.store(app).read()?.let { PrintRow(it.source, it.madeAt, it.callCount) },
+                voiceFromCalls = settings.voiceFromCalls,
                 mode = settings.mode,
                 chargingOnly = settings.chargingOnly,
                 summariseAfter = settings.summariseAfterTranscript,
                 modelsBytes = ModelRepository.bytesUsed(app),
                 transcriptsBytes = TranscriptDatabase.bytesUsed(app),
             )
+        }
+    }
+
+    /** The two files as one row: downloading while either is, how far by bytes across both. */
+    private fun voiceModelRow(totalMemory: Long): VoiceModelRow {
+        val installed = VoiceModel.files.map { ModelRepository.isInstalled(app, it) }
+        val downloading = VoiceModel.files.any { it in downloads }
+        val done = VoiceModel.files.zip(installed).sumOf { (part, here) ->
+            if (here) part.sizeBytes else part.sizeBytes * (downloads[part] ?: 0) / 100
+        }
+        return VoiceModelRow(
+            fits = VoiceModel.fits(totalMemory),
+            installed = installed.all { it },
+            downloading = if (downloading) (done * 100 / VoiceModel.sizeBytes).toInt() else null,
+            partialBytes = VoiceModel.files.sumOf { ModelRepository.partialBytes(app, it) },
+        )
+    }
+
+    // ---- Marking which voice is the owner's --------------------------------------------------------
+
+    /** The owner says [mine] (Voice 1 or Voice 2) is theirs: it becomes You, the other Them, here only. */
+    fun markVoice(mine: Speaker) = relabel(VoiceSource.MARKED) { s ->
+        when (s) {
+            mine -> Speaker.YOU
+            Speaker.VOICE1, Speaker.VOICE2 -> Speaker.THEM
+            else -> s
+        }
+    }
+
+    /** You and Them the other way round, for a transcript named by the print or marked. */
+    fun swapVoices() = relabel(VoiceSource.MARKED) { s ->
+        when (s) {
+            Speaker.YOU -> Speaker.THEM
+            Speaker.THEM -> Speaker.YOU
+            else -> s
+        }
+    }
+
+    /**
+     * Back to Voice 1 and Voice 2. Nothing has to be remembered for it: Voice 1 is the voice heard
+     * first, so the first named line's voice is Voice 1 again.
+     */
+    fun unmarkVoices() {
+        val first = _state.value.transcript?.lines?.firstOrNull { it.speaker == Speaker.YOU || it.speaker == Speaker.THEM }?.speaker
+        relabel(VoiceSource.VOICES) { s ->
+            when (s) {
+                Speaker.YOU, Speaker.THEM -> if (s == first) Speaker.VOICE1 else Speaker.VOICE2
+                else -> s
+            }
+        }
+    }
+
+    private fun relabel(source: VoiceSource, rename: (Speaker) -> Speaker) {
+        val t = _state.value.transcript ?: return
+        if (t.facts.voiceSource == VoiceSource.NONE || t.facts.voiceSource == VoiceSource.CHANNELS) return
+        scope.launch(Dispatchers.IO) {
+            val model = TranscriptDatabase.of(app).transcripts().transcript(t.recording)?.voiceModel
+            repository.saveVoices(t.recording, t.facts.createdAt, t.lines.map { it.copy(speaker = rename(it.speaker)) }, source, model)
+        }
+    }
+
+    // ---- The owner's voice sample ----------------------------------------------------------------
+
+    private val _sample = MutableStateFlow<SampleUi>(SampleUi.Idle)
+    val sample: StateFlow<SampleUi> = _sample.asStateFlow()
+    @Volatile private var sampleStop = false
+
+    /** Records the owner reading, then keeps the print of it; the sound itself is dropped. */
+    fun startSample() {
+        if (_sample.value is SampleUi.Recording || _sample.value == SampleUi.Describing) return
+        sampleStop = false
+        _sample.value = SampleUi.Recording(-90.0, 0)
+        scope.launch {
+            val pcm = VoiceSample.record(app, { db, ms -> _sample.value = SampleUi.Recording(db, ms) }) { sampleStop }
+            if (pcm == null) { _sample.value = SampleUi.NoMicrophone; return@launch }
+            val speech = VoiceSample.speechOnly(pcm)
+            if (VoiceSample.speechMs(speech) < VoiceSample.MIN_SPEECH_MS) {
+                _sample.value = SampleUi.TooShort(VoiceSample.speechMs(speech))
+                return@launch
+            }
+            _sample.value = SampleUi.Describing
+            val print = runCatching { VoiceSample.embed(app, speech) }.getOrNull()
+            if (print == null) { _sample.value = SampleUi.Failed; return@launch }
+            withContext(Dispatchers.IO) { OwnerPrint.store(app).saveSample(print, System.currentTimeMillis()) }
+            _sample.value = SampleUi.Saved
+            refreshSettings()
+        }
+    }
+
+    fun stopSample() { sampleStop = true }
+
+    /** Back to the start, for the screen opened again. */
+    fun resetSample() {
+        sampleStop = true
+        _sample.value = SampleUi.Idle
+    }
+
+    fun deletePrint() {
+        scope.launch(Dispatchers.IO) {
+            OwnerPrint.store(app).delete()
+            refreshSettings()
+        }
+    }
+
+    fun setVoiceFromCalls(on: Boolean) { settings.voiceFromCalls = on; refreshSettings() }
+
+    /** Shows [ui] as the sample's state: for the screen tests. */
+    internal fun showSampleForTest(ui: SampleUi) { _sample.value = ui }
+
+    fun downloadVoices() {
+        VoiceModel.download(app, settings.modelsWifiOnly)
+        downloads = downloads + VoiceModel.files.filterNot { ModelRepository.isInstalled(app, it) }.map { it to 0 }
+        refreshSettings()
+    }
+
+    fun cancelVoices() = VoiceModel.cancel(app)
+
+    fun deleteVoices() {
+        scope.launch(Dispatchers.IO) {
+            VoiceModel.delete(app)
+            refreshSettings()
         }
     }
 

@@ -1,10 +1,12 @@
 package com.jemcik.jemrec.ui.screens
 
+import androidx.compose.ui.test.onAllNodesWithText
 import com.jemcik.jemrec.transcribe.Speaker
 import com.jemcik.jemrec.transcribe.TranscriptSegment
 import com.jemcik.jemrec.transcribe.model.SpeechModel
 import com.jemcik.jemrec.transcripts.Transcript
 import com.jemcik.jemrec.transcripts.TranscriptFacts
+import com.jemcik.jemrec.transcripts.VoiceSource
 import com.jemcik.jemrec.ui.AppScaffold
 import com.jemcik.jemrec.ui.JobState
 import com.jemcik.jemrec.ui.ModelState
@@ -40,6 +42,7 @@ class TranscriptScreenshots : ScreenTest() {
     private val facts = TranscriptFacts(
         modelId = "nb-small-q5_0", language = "no", split = true,
         audioMs = 158_000, wallMs = 171_000, loadMs = 900, threads = 6, createdAt = 0,
+        voiceSource = VoiceSource.CHANNELS,
     )
 
     /** An invented call, in Norwegian: a delivery arranged. */
@@ -103,8 +106,69 @@ class TranscriptScreenshots : ScreenTest() {
     /** One mix on both channels (the Galaxy A24's phone calls): no names. */
     @Test fun doneAsOneMix() {
         val mixed = lines.map { it.copy(speaker = Speaker.NONE) }
-        draw(TranscriptUi(model = ModelState.Ready("Whisper small"), transcript = Transcript(recording.name, facts.copy(split = false, modelId = "small-q5_1"), mixed)))
+        draw(TranscriptUi(model = ModelState.Ready("Whisper small"), transcript = Transcript(recording.name, facts.copy(split = false, modelId = "small-q5_1", voiceSource = VoiceSource.NONE), mixed)))
         snap("transcript-done-mixed")
+    }
+
+    /** One mix, its two voices told apart and the owner's not known: Voice 1 and Voice 2. */
+    @Test fun doneWithVoices() {
+        val voices = lines.map { it.copy(speaker = if (it.speaker == Speaker.THEM) Speaker.VOICE1 else Speaker.VOICE2) }
+        draw(TranscriptUi(model = ModelState.Ready("Whisper small"), transcript = Transcript(recording.name, facts.copy(split = false, modelId = "small-q5_1", voiceSource = VoiceSource.VOICES), voices)))
+        snap("transcript-done-voices")
+    }
+
+    /** The owner's voice found by their print: You and Them, which can be turned round or undone. */
+    @Test fun doneByPrint() {
+        draw(TranscriptUi(model = ModelState.Ready("Whisper small"), transcript = Transcript(recording.name, facts.copy(split = false, modelId = "small-q5_1", voiceSource = VoiceSource.PRINT), lines), printKnown = true))
+        snap("transcript-done-by-print")
+    }
+
+    /** The lines are there, unnamed, while their voices are told apart. */
+    @Test fun tellingVoices() {
+        val mixed = lines.map { it.copy(speaker = Speaker.NONE) }
+        draw(TranscriptUi(
+            model = ModelState.Ready("Whisper small"),
+            transcript = Transcript(recording.name, facts.copy(split = false, modelId = "small-q5_1", voiceSource = VoiceSource.NONE), mixed),
+            job = JobState.Running(100),
+            tellingVoices = true,
+        ))
+        snap("transcript-telling-voices")
+    }
+
+    /** Cancel tapped while the voices are told apart: it says so at once, and cannot be tapped twice. */
+    @Test fun stoppingTheVoices() {
+        val mixed = lines.map { it.copy(speaker = Speaker.NONE) }
+        draw(TranscriptUi(
+            model = ModelState.Ready("Whisper small"),
+            transcript = Transcript(recording.name, facts.copy(split = false, modelId = "small-q5_1", voiceSource = VoiceSource.NONE), mixed),
+            job = JobState.Running(100),
+            tellingVoices = true,
+            stopping = true,
+        ))
+        snap("transcript-stopping")
+    }
+
+    /** A work call: its Sales Engine line under its time, the transcript's state included. */
+    @Test fun workCall() {
+        val app = org.robolectric.RuntimeEnvironment.getApplication()
+        val calls = com.jemcik.jemrec.crm.db.CrmDatabase.of(app).calls()
+        kotlinx.coroutines.runBlocking {
+            calls.deleteAll()
+            calls.insert(com.jemcik.jemrec.crm.db.WorkCallEntry(
+                clientCallId = "c", callLogId = 1, userId = 1, outgoing = false, answered = true, phone = "1", presentation = "ALLOWED",
+                countryIso = null, startedAtMs = 0, durationSeconds = 158, endedAtMs = 1, recording = recording.name, outcome = "REACHED",
+                localState = "SENT", dueAtMs = 0, contentState = "SENT_READY", serverId = 1,
+                serverJson = """{"call":{"id":1,"client_call_id":"c","status":"not_in_crm","content_status":"ready","candidates":[],"candidates_total":0}}""",
+            ))
+        }
+        try {
+            draw(done.copy(tab = TranscriptTab.TRANSCRIPT))
+            // The line comes from the database, off the main thread: waited for, not raced.
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("Sales Engine", substring = true).fetchSemanticsNodes().isNotEmpty() }
+            snap("transcript-work-call")
+        } finally {
+            kotlinx.coroutines.runBlocking { calls.deleteAll() }
+        }
     }
 
     // The Summary tab.

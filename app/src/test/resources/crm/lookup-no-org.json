@@ -1,0 +1,22 @@
+{
+  "data": {
+    "match": "deal",
+    "candidates": [
+      {
+        "deal_id": 1000459,
+        "title": "Nettside for Test Person C",
+        "org_name": null,
+        "status": "open",
+        "stage_name": "Contact attempted",
+        "owner": {
+          "id": 1000001,
+          "name": "Test Seller"
+        },
+        "has_due_call": false
+      }
+    ],
+    "candidates_total": 1,
+    "auto_deal_id": 1000459,
+    "suggested_deal_id": 1000459
+  }
+}

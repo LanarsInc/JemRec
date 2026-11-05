@@ -36,6 +36,8 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jemcik.jemrec.crm.db.WorkCallEntry
+import com.jemcik.jemrec.summary.SummaryRunner
 import com.jemcik.jemrec.summary.TranscriptTimestamp
 import com.jemcik.jemrec.transcripts.export.TranscriptFormat
 import com.jemcik.jemrec.transcribe.LanguageNames
@@ -43,6 +45,7 @@ import com.jemcik.jemrec.transcribe.Speaker
 import com.jemcik.jemrec.transcribe.TranscriptionLanguageChoice
 import com.jemcik.jemrec.transcribe.TranscriptSegment
 import com.jemcik.jemrec.transcripts.Transcript
+import com.jemcik.jemrec.transcripts.VoiceSource
 import java.util.Locale
 
 /**
@@ -59,12 +62,21 @@ import java.util.Locale
 @Composable
 fun TranscriptScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Modifier) {
     val ui by vm.transcripts.state.collectAsStateWithLifecycle()
-    TranscriptContent(ui, state.playingName, vm, modifier)
+    val workCalls by vm.salesEngine.workCalls.collectAsStateWithLifecycle()
+    val workCall = ui.recording?.name?.let { name -> workCalls.firstOrNull { it.recording == name } }
+    TranscriptContent(ui, state.playingName, vm, modifier, workCall)
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun TranscriptContent(ui: TranscriptUi, playingName: String?, vm: MainViewModel, modifier: Modifier = Modifier) {
+internal fun TranscriptContent(
+    ui: TranscriptUi,
+    playingName: String?,
+    vm: MainViewModel,
+    modifier: Modifier = Modifier,
+    /** The call's Sales Engine entry, when it is a work call: its line goes under the call's time. */
+    workCall: WorkCallEntry? = null,
+) {
     val haptics = LocalHapticFeedback.current
     val clipboard = LocalClipboardManager.current
     val recording = ui.recording ?: return
@@ -88,6 +100,7 @@ internal fun TranscriptContent(ui: TranscriptUi, playingName: String?, vm: MainV
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                workCall?.let { CrmMark(it, vm.salesEngine::openCall, padding = PaddingValues(top = 4.dp)) }
             }
         }
         item {
@@ -106,6 +119,9 @@ internal fun TranscriptContent(ui: TranscriptUi, playingName: String?, vm: MainV
             return@LazyColumn
         }
         item { Column { LanguageLine(ui, vm); Status(ui, vm) } }
+        if (transcript != null && transcript.lines.isNotEmpty()) {
+            item { VoicesPart(transcript.facts.voiceSource, ui.printKnown, vm) }
+        }
         if (transcript != null) {
             if (transcript.lines.isEmpty()) {
                 item {
@@ -120,7 +136,7 @@ internal fun TranscriptContent(ui: TranscriptUi, playingName: String?, vm: MainV
                 if (i > 0 && line.speaker != transcript.lines[i - 1].speaker) HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                 Line(
                     line = line,
-                    named = transcript.facts.split,
+                    named = transcript.facts.voiceSource != VoiceSource.NONE,
                     modifier = Modifier.combinedClickable(
                         onClick = { haptics.tap(); vm.playFrom(recording, line.startMs) },
                         onLongClick = { clipboard.setText(AnnotatedString(line.text)); vm.notice("Line copied") },
@@ -132,6 +148,46 @@ internal fun TranscriptContent(ui: TranscriptUi, playingName: String?, vm: MainV
             item { Facts(transcript, playingName == recording.name) }
             item { TranscriptActions(ui, vm, transcript.lines.isNotEmpty()) }
         }
+    }
+}
+
+/**
+ * A one-mix call's voices (specs/003-voice-labels, US2): asks which one is the
+ * owner's while they are Voice 1 and Voice 2, and lets a name by the print or
+ * by the owner be turned round or undone. Nothing for a call named by its
+ * channels, or not told apart.
+ */
+@Composable
+private fun VoicesPart(source: VoiceSource, printKnown: Boolean, vm: MainViewModel) {
+    val haptics = LocalHapticFeedback.current
+    val c = vm.transcripts
+    val body = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+    when (source) {
+        VoiceSource.VOICES -> Column(body, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Which one is you?", style = MaterialTheme.typography.titleSmall)
+            if (!printKnown) {
+                Text(
+                    "Record your voice in Settings, under Transcripts, so the app knows next time.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { haptics.tap(); c.markVoice(Speaker.VOICE1) }) { Text("Voice 1") }
+                OutlinedButton(onClick = { haptics.tap(); c.markVoice(Speaker.VOICE2) }) { Text("Voice 2") }
+            }
+        }
+        VoiceSource.PRINT, VoiceSource.MARKED -> Row(body, verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                if (source == VoiceSource.PRINT) "You were found by your voice." else "You marked your voice.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = { haptics.tap(); c.swapVoices() }) { Text("Swap") }
+            TextButton(onClick = { haptics.tap(); c.unmarkVoices() }) { Text("Not marked") }
+        }
+        VoiceSource.NONE, VoiceSource.CHANNELS -> Unit
     }
 }
 
@@ -223,7 +279,8 @@ private fun SummaryPart(ui: TranscriptUi, vm: MainViewModel) {
                 Points("To do", summary.actionItems, vm)
                 Points("Facts", summary.keyFacts, vm)
                 Text(
-                    listOfNotNull(ui.summaryModelId, ui.summaryWallMs?.let { "took ${spoken(it)}" }).joinToString(", ") +
+                    if (ui.summaryModelId == SummaryRunner.NO_MODEL) "Written without a model: the call is too short to summarise."
+                    else listOfNotNull(ui.summaryModelId, ui.summaryWallMs?.let { "took ${spoken(it)}" }).joinToString(", ") +
                         ". Made on the phone from the transcript; check what matters against it.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -357,17 +414,29 @@ private fun Status(ui: TranscriptUi, vm: MainViewModel) {
         }
         is JobState.Running -> Column(body, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                if (job.percent == null) "Getting ready…" else "Transcribing on the phone… ${job.percent}%",
+                when {
+                    ui.stopping -> "Stopping…"
+                    // The lines are below already; their voices come next (VoiceStep).
+                    ui.tellingVoices -> "Telling the two voices apart…"
+                    job.percent == null -> "Getting ready…"
+                    else -> "Transcribing on the phone… ${job.percent}%"
+                },
                 style = MaterialTheme.typography.bodyMedium,
             )
-            if (job.percent == null) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (job.percent == null || ui.tellingVoices || ui.stopping) LinearProgressIndicator(Modifier.fillMaxWidth())
             else LinearProgressIndicator(progress = { job.percent / 100f }, modifier = Modifier.fillMaxWidth())
             Text(
-                "It goes on with the screen off. You can leave this screen.",
+                when {
+                    // The voice step comes after the save; whisper stopped saves nothing (RunOutcome.Stopped).
+                    ui.stopping && ui.tellingVoices -> "The lines already shown are kept, without names."
+                    ui.stopping -> "Nothing of this run is saved."
+                    else -> "It goes on with the screen off. You can leave this screen."
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            OutlinedButton(onClick = { haptics.tap(); vm.transcripts.cancel() }) { Text("Cancel") }
+            // Disabled once tapped: the tap is taken, and a second one would say nothing more.
+            OutlinedButton(onClick = { haptics.tap(); vm.transcripts.cancel() }, enabled = !ui.stopping) { Text("Cancel") }
         }
         is JobState.Failed -> Column(body, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("The transcription did not finish: ${job.reason}", color = MaterialTheme.colorScheme.error)
@@ -431,7 +500,7 @@ private fun Line(line: TranscriptSegment, named: Boolean, modifier: Modifier = M
         Column(Modifier.weight(1f)) {
             if (named && line.speaker != Speaker.NONE) {
                 Text(
-                    if (line.speaker == Speaker.YOU) "You" else "Them",
+                    speakerLabel(line.speaker),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = speakerColour(line.speaker),
@@ -442,10 +511,19 @@ private fun Line(line: TranscriptSegment, named: Boolean, modifier: Modifier = M
     }
 }
 
-/** The look's own two accents: its primary for the phone's owner, its tertiary for the other side. */
+/** The look's own two accents: its primary for the phone's owner (or Voice 1), its tertiary for the other side (or Voice 2). */
 @Composable
 private fun speakerColour(speaker: Speaker): Color =
-    if (speaker == Speaker.YOU) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
+    if (speaker == Speaker.YOU || speaker == Speaker.VOICE1) MaterialTheme.colorScheme.primary
+    else MaterialTheme.colorScheme.tertiary
+
+private fun speakerLabel(speaker: Speaker): String = when (speaker) {
+    Speaker.YOU -> "You"
+    Speaker.THEM -> "Them"
+    Speaker.VOICE1 -> "Voice 1"
+    Speaker.VOICE2 -> "Voice 2"
+    Speaker.NONE -> ""
+}
 
 /** How it was made: the model, the language, and what it cost. */
 @Composable

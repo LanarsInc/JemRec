@@ -35,22 +35,26 @@
 <main>
 
   <h1>Privacy policy</h1>
-  <p class="lead">JemRec has no servers, no accounts, and no analytics. Nothing it
-     records or reads ever leaves your phone.</p>
-  <p class="muted">Last updated: October 2026.</p>
+  <p class="lead">JemRec has no analytics. Its recordings never leave your phone;
+     once you sign in to LANARS&rsquo;s Sales Engine, your work calls and their
+     transcripts and summaries go to it, and nothing else does.</p>
+  <p class="muted">Last updated: November 2026.</p>
 
   <h2>What it collects</h2>
-  <p><strong>Nothing is sent anywhere.</strong> There is no backend to send it to.
-     The developer cannot see your recordings, your contacts, your call history,
-     your transcripts, or that you use the app at all.</p>
+  <p><strong>Nothing but work calls, to LANARS&rsquo;s Sales Engine</strong>, and
+     only once you sign in to it: the first row below says what. The developer
+     cannot see your recordings, your contacts, your other calls, or your
+     transcripts of them.</p>
 
   <h2>What stays on the phone</h2>
   <p class="muted">Each row in short, then in full: open a row for the
      policy&rsquo;s own words, which are what counts.</p>
   <div class="datamap">
     <div class="datamap-head" aria-hidden="true"><span>Data</span><span>Where it lives</span><span>How long</span><span>When</span></div>
-    <details class="datum"><summary><span class="what">Transcripts and summaries</span><span class="chip where"><b>Where</b> the app&rsquo;s private storage</span><span class="chip long"><b>Kept</b> until the recording is deleted</span><span class="chip when if"><b>When</b> only if you transcribe a call</span></summary><p>Only for the calls you transcribe, or that a setting does: each line with its time and side, a summary if you ask for one, and a language you set for one call. Made on the phone and kept in a database in the app&rsquo;s private storage, in no backup; deleting a recording for good deletes its text, and so does uninstalling. Copy and Export hand it on only where you send it.</p></details>
-    <details class="datum"><summary><span class="what">Speech and summary models</span><span class="chip where"><b>Where</b> the app&rsquo;s private storage</span><span class="chip long"><b>Kept</b> until you delete them</span><span class="chip when if"><b>When</b> only if you download one</span></summary><p>Only the ones you download, from Hugging Face, on your tap: files that turn sound into text and text into a summary, the same for everyone. Nothing about you or your calls is sent to fetch them. Settings &rarr; Transcripts lists them with their size and Delete; uninstalling deletes them.</p></details>
+    <details class="datum"><summary><span class="what">Work calls, to LANARS&rsquo;s Sales Engine</span><span class="chip where"><b>Where</b> LANARS&rsquo;s Sales Engine, and a queue in the app&rsquo;s private storage</span><span class="chip long"><b>Kept</b> as LANARS keeps its CRM</span><span class="chip when if"><b>When</b> only once you sign in to it</span></summary><p>Only once you sign in to the Sales Engine with your LANARS account, and only calls on the work SIM you chose, from then on: each one&rsquo;s number, direction, whether it was answered, start and length, the deal and how it went, and, once the phone has made them, its transcript and an English summary. Before that, the number is checked against the CRM to find its deal. Never the recording. Not a colleague&rsquo;s after the check, not one made while signed out. Waiting calls are kept in the app&rsquo;s private storage, in no backup, until sent; a token for your session is kept there under a key in the phone&rsquo;s keystore. Signing out ends it; LANARS keeps what reached its CRM as it keeps its CRM.</p></details>
+    <details class="datum"><summary><span class="what">Transcripts and summaries</span><span class="chip where"><b>Where</b> the app&rsquo;s private storage</span><span class="chip long"><b>Kept</b> until the recording is deleted</span><span class="chip when if"><b>When</b> only if you transcribe a call</span></summary><p>Only for the calls you transcribe, or that a setting does: each line with its time and side &mdash; or, in a phone call that comes out as one mix, its voice, told apart on the phone with the voice model &mdash; a summary if you ask for one, and a language you set for one call. Made on the phone and kept in a database in the app&rsquo;s private storage, in no backup; deleting a recording for good deletes its text, and so does uninstalling. Copy and Export hand it on only where you send it.</p></details>
+    <details class="datum"><summary><span class="what">Your voice</span><span class="chip where"><b>Where</b> the app&rsquo;s private storage</span><span class="chip long"><b>Kept</b> until you delete it</span><span class="chip when if"><b>When</b> only with the voice model</span></summary><p>Only with the voice model downloaded: a print of your voice, so your lines say You in a phone call that comes out as one mix. Numbers that describe your voice &mdash; no sound, nothing that can be played back &mdash; from a short text you read once under <em>Your voice</em> (the microphone is asked for then, and the sound is dropped once described), or until then from your side of your messenger calls when it is plainly only you, which you can switch off. One file in the app&rsquo;s private storage, in no backup, never sent. Delete removes it, and so do deleting the voice model and uninstalling.</p></details>
+    <details class="datum"><summary><span class="what">Speech, summary and voice models</span><span class="chip where"><b>Where</b> the app&rsquo;s private storage</span><span class="chip long"><b>Kept</b> until you delete them</span><span class="chip when if"><b>When</b> only if you download one</span></summary><p>Only the ones you download, from Hugging Face, on your tap: files that turn sound into text and text into a summary, or tell voices apart, the same for everyone. Nothing about you or your calls is sent to fetch them. Settings &rarr; Transcripts lists them with their size and Delete; uninstalling deletes them.</p></details>
     <details class="datum"><summary><span class="what">Call recordings</span><span class="chip where"><b>Where</b> Recordings/JemRec, or your folder</span><span class="chip long"><b>Kept</b> until you delete them</span><span class="chip when"><b>When</b> every recorded call</span></summary><p>The phone&rsquo;s <code>Recordings/JemRec</code> folder, or a folder you choose. Yours to play, share, move or delete like any other file. One deleted in JemRec waits 30 days in Recently deleted, then is removed: in the standard folder, Android&rsquo;s own trash does that; in a folder you chose, it waits as a hidden file that JemRec removes. <em>Delete all for good</em> removes them all at once, when you ask. Messages the answering machine took are recordings too; which ones are messages, and which you marked to keep, is kept by file name in the app&rsquo;s private storage, and written inside each recording as well, so that a reinstall still knows.</p></details>
     <details class="datum"><summary><span class="what">Caller colours</span><span class="chip where"><b>Where</b> the app&rsquo;s private storage</span><span class="chip long"><b>Kept</b> until you uninstall</span><span class="chip when if"><b>When</b> once you use Multitrack</span></summary><p>Only once you use the Multitrack look: which of its six colours each caller has, so a caller keeps theirs, also after you change the look. Kept by a one-way code worked out from the name, not the name itself, in the app&rsquo;s private storage, and in no backup. Uninstalling deletes it.</p></details>
     <details class="datum"><summary><span class="what">Your greeting</span><span class="chip where"><b>Where</b> the app&rsquo;s private storage, and the recorder</span><span class="chip long"><b>Kept</b> until you delete it</span><span class="chip when if"><b>When</b> only if you record one</span></summary><p>Only if you record one for the answering machine: in the app&rsquo;s private storage, and a copy the recorder plays from. Deleting it in the app deletes both, and so does uninstalling.</p></details>
@@ -86,8 +90,11 @@
      and checked against its published digest. What is sent is the request for a
      file that is the same for everyone; Hugging Face sees that this address
      asked for it, as any site does. No recording, transcript, summary, contact
-     or anything else about you is sent, then or ever: the models run on the
-     phone.</p>
+     or anything else about you is sent then: the models run on the phone.</p>
+  <p>The Sales Engine, once you sign in to it: the app talks to LANARS&rsquo;s
+     CRM at <code>crm.lanars.no</code> over HTTPS, and nowhere else for it, to
+     sign you in (Google&rsquo;s Sign in with Google, on the phone, gives the
+     proof of your account) and to send work calls as the first row above says.</p>
   <p><em>Start without Wi-Fi</em>, off until you switch it on, has the
      phone&rsquo;s own debugging service listen on port 5555 as well, so that the
      app can reach it at <code>127.0.0.1</code> with no Wi-Fi. The app still
@@ -117,11 +124,17 @@
      nothing about a donation reaches the app.</p>
 
   <h2>The microphone</h2>
-  <p>The app holds no microphone permission and never records. Calls are
-     captured by a separate shell-privileged process, which the app starts during
-     setup and which writes to a file the app collects afterwards. So is your
-     answering-machine greeting, only while you record it; the app plays it back
-     to you when you ask.</p>
+  <p>The app never records calls. They are captured by a separate
+     shell-privileged process, which the app starts during setup and which
+     writes to a file the app collects afterwards. So is your answering-machine
+     greeting, only while you record it; the app plays it back to you when you
+     ask.</p>
+  <p>Since 1.1 the app holds the microphone permission for one thing: <em>Your
+     voice</em>, when you choose to read a short text aloud so your voice is
+     known in a phone call that comes out as one mix. It is asked for when you
+     tap Record, never before. The half minute you read is kept in memory while
+     it is described as numbers, then dropped; only the numbers are kept, as
+     above.</p>
   <p>While the answering machine takes a message, the recorder mutes your
      microphone, so the caller hears nothing of the room you are in. It gives
      it back when the call ends or when you take the call.</p>

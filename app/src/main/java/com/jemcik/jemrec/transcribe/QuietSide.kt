@@ -35,7 +35,7 @@ object QuietSide {
         val (own, other) = when (line.speaker) {
             Speaker.YOU -> left to right
             Speaker.THEM -> right to left
-            Speaker.NONE -> return false
+            Speaker.NONE, Speaker.VOICE1, Speaker.VOICE2 -> return false
         }
         val from = (line.startMs / ChannelSides.FRAME_MS).toInt().coerceAtLeast(0)
         val to = (line.endMs / ChannelSides.FRAME_MS).toInt().coerceAtMost(minOf(own.size, other.size) - 1)

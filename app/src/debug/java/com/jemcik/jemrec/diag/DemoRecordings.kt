@@ -17,6 +17,7 @@ import com.jemcik.jemrec.transcribe.Speaker
 import com.jemcik.jemrec.transcribe.TranscriptSegment
 import com.jemcik.jemrec.transcripts.Transcript
 import com.jemcik.jemrec.transcripts.TranscriptFacts
+import com.jemcik.jemrec.transcripts.VoiceSource
 import com.jemcik.jemrec.transcripts.TranscriptRepository
 import com.jemcik.jemrec.transcripts.db.CallSummaryEntry
 import com.jemcik.jemrec.summary.CallSummary
@@ -47,7 +48,7 @@ import java.util.Locale
  *
  * Turn it on from a USB shell, the same way as every other diagnostic:
  *
- *   adb shell am broadcast -n com.jemcik.jemrec/.diag.SpikeReceiver \
+ *   adb shell am broadcast -n com.lanars.jemrec/com.jemcik.jemrec.diag.SpikeReceiver \
  *       --es token <t> --es op demo --ez on true
  *
  * That delivery is unreliable on this phone (see SpikeReceiver), so the
@@ -114,12 +115,24 @@ internal object DemoRecordings {
      * Invented transcripts for two of the invented calls, so the Transcript
      * screen has something to show: Olivia's with the two sides apart, as a
      * messenger call or a split phone call comes out, and Marcus's WhatsApp
-     * call in Norwegian, this fork's language. A call is found by its time:
+     * call in Norwegian, this fork's language; and Priya's phone call, one
+     * mix on both channels as a Galaxy A24's are, its voices told apart and
+     * not yet named (specs/003-voice-labels). A call is found by its time:
      * the names are made from "now" each time the list is read, so they move.
      */
     private fun transcriptFor(name: String): Transcript? {
         val at = runCatching { SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).parse(name.take(15))!!.time }.getOrNull() ?: return null
         val call = CALLS.firstOrNull { kotlin.math.abs(System.currentTimeMillis() - it.minutesAgo * 60_000 - at) < 5 * 60_000 } ?: return null
+        VOICE_LINES[call.caller]?.let { voices ->
+            val facts = TranscriptFacts(
+                modelId = "small-q5_1", language = "en", split = false,
+                audioMs = call.seconds * 1000L, wallMs = call.seconds * 1100L, loadMs = 1400, threads = 6,
+                createdAt = at, voiceSource = VoiceSource.VOICES,
+            )
+            return Transcript(name, facts, voices.map { (ms, voice, text) ->
+                TranscriptSegment(ms, ms + 2500, text, if (voice == 1) Speaker.VOICE1 else Speaker.VOICE2)
+            })
+        }
         val lines = DEMO_LINES[call.caller] ?: return null
         val facts = TranscriptFacts(
             modelId = if (call.caller == "Marcus Chen") "nb-small-q5_0" else "turbo-q8_0",
@@ -130,6 +143,7 @@ internal object DemoRecordings {
             loadMs = 1400,
             threads = 6,
             createdAt = at,
+            voiceSource = VoiceSource.CHANNELS,
         )
         return Transcript(name, facts, lines.map { (ms, you, text) -> TranscriptSegment(ms, ms + 2500, text, if (you) Speaker.YOU else Speaker.THEM) })
     }
@@ -150,6 +164,18 @@ internal object DemoRecordings {
             Triple(10_500L, true, "Da sender jeg en ny versjon før fredag."),
             Triple(14_800L, false, "Perfekt. Og prisen står fast på 48 000?"),
             Triple(19_100L, true, "Ja, inkludert montering."),
+        ),
+    )
+
+    /** A one-mix phone call's lines under its two voices, the voice heard first as 1. */
+    private val VOICE_LINES = mapOf(
+        "Priya Raman" to listOf(
+            Triple(1_000L, 1, "Hi, it's Priya from the warehouse."),
+            Triple(3_600L, 2, "Hi Priya. Is it about the delivery?"),
+            Triple(6_200L, 1, "Yes - it comes on Friday between nine and eleven, not Thursday."),
+            Triple(11_800L, 2, "Friday is fine. Could the driver call half an hour before?"),
+            Triple(16_300L, 1, "Of course, I'll put it on the note."),
+            Triple(19_400L, 2, "Thanks, bye."),
         ),
     )
 

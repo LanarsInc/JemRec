@@ -1,5 +1,6 @@
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -46,7 +47,14 @@ android {
     ndkVersion = "28.2.13676358"
 
     defaultConfig {
-        applicationId = "com.jemcik.jemrec"
+        // LANARS's fork. Only the id Android and Google Sign-In know the app
+        // by changed (2026-11-03); the code keeps the com.jemcik.jemrec
+        // packages it came with, so `namespace` above stays. That makes the
+        // two differ: a component named from outside the app needs its full
+        // class name, `com.lanars.jemrec/com.jemcik.jemrec.capture...`, not
+        // the short `com.lanars.jemrec/.capture...`, which would resolve to
+        // a class that does not exist.
+        applicationId = "com.lanars.jemrec"
         minSdk = 31
         targetSdk = 36
 
@@ -75,6 +83,17 @@ android {
     val signingReady = !keystorePath.isNullOrBlank() && file(keystorePath).exists()
 
     signingConfigs {
+        // One debug key for everyone, kept in the repo: Google Sign-In for the
+        // Sales Engine accepts the app only under a package and SHA-1 LANARS
+        // registered, and each machine's own ~/.android/debug.keystore would
+        // be another SHA-1 to register. It signs nothing that is released,
+        // and its passwords are the debug key's well-known ones.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         if (signingReady) create("release") {
             storeFile = file(keystorePath!!)
             storePassword = System.getenv("JEMREC_KEYSTORE_PASSWORD")
@@ -119,7 +138,49 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        // The Sales Engine's address and Google's Web client id, from
+        // gradle.properties (specs/002-sales-engine-call-logging, research R11).
+        buildConfig = true
+    }
+
+    // The CRM a build talks to: LANARS's test stand ("dev") or production
+    // ("prod"). Debug builds go to dev, so debugging never writes on real
+    // deals, and release builds to prod; JEMREC_SALES_ENGINE_ENV=dev makes a
+    // release build for testers that talks to the stand.
+    //
+    // Each value is read, first found wins, from: an environment variable
+    // (JEMREC_SALES_ENGINE_DEV_URL, ...), local.properties (salesEngineDevUrl
+    // and so on, never committed), then a Gradle property - -P, or
+    // ~/.gradle/gradle.properties, or this project's gradle.properties, where
+    // the defaults are. So a stand's host or a client id that is not to
+    // be committed goes in the environment or local.properties.
+    //
+    // An empty address or client id means "not configured": the Sales Engine
+    // settings then say so, and nothing is sent - an empty dev address never
+    // falls back to production.
+    val localProperties = Properties().apply {
+        rootProject.file("local.properties").takeIf { it.isFile }?.reader()?.use(::load)
+    }
+    fun salesEngine(key: String): String {
+        val env = "JEMREC_SALES_ENGINE_" + key.replace(Regex("([a-z])([A-Z])"), "$1_$2").uppercase()
+        return (System.getenv(env) ?: localProperties.getProperty("salesEngine$key")
+            ?: providers.gradleProperty("salesEngine$key").orNull ?: "").trim()
+    }
+    val forcedEnv = salesEngine("Env").lowercase()
+    require(forcedEnv in setOf("", "dev", "prod")) { "salesEngineEnv must be dev or prod, not '$forcedEnv'" }
+    fun salesEngineFields(type: com.android.build.api.dsl.ApplicationBuildType, defaultEnv: String) {
+        val env = forcedEnv.ifEmpty { defaultEnv }
+        val suffix = env.replaceFirstChar { it.uppercase() }
+        type.buildConfigField("String", "SALES_ENGINE_ENV", "\"$env\"")
+        type.buildConfigField("String", "SALES_ENGINE_URL", "\"${salesEngine("${suffix}Url")}\"")
+        type.buildConfigField("String", "SALES_ENGINE_WEB_CLIENT_ID", "\"${salesEngine("${suffix}WebClientId")}\"")
+    }
+    buildTypes {
+        getByName("release") { salesEngineFields(this, "prod") }
+        getByName("debug") { salesEngineFields(this, "dev") }
+    }
 
     externalNativeBuild {
         cmake {
@@ -221,6 +282,12 @@ android {
             // Robolectric's Android 16 sets up a file descriptor through a
             // JDK internal that Java 21 keeps closed unless asked.
             test.jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED")
+            // The JDK's HttpURLConnection, which the Sales Engine client's tests run
+            // on, quietly sends a POST again when a connection drops, and reads
+            // this once per process. Off, so each dropped connection in
+            // CrmSyncFailuresTest is one failure the queue sees. A repeat reaching
+            // the real server is harmless: client_call_id makes it the same call.
+            test.systemProperty("sun.net.http.retryPost", "false")
             // With -Pcoverage: Robolectric loads the app's classes through a
             // class loader of its own, which JaCoCo skips unless told - and
             // then the screens the screen tests draw count as never run.
@@ -312,14 +379,29 @@ dependencies {
     // service: a periodic job revives it when it is down and Wi-Fi is around.
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 
-    // Transcripts and summaries, with full-text search over both. The only
-    // database in the app: everything else is kept in files, and these are
-    // the one thing searched word by word. The schema is CallVault's,
-    // trimmed (specs/001-transcripts-summaries/data-model.md).
+    // Two databases: transcripts and summaries, with full-text search over
+    // both - the one thing searched word by word; its schema is CallVault's,
+    // trimmed (specs/001-transcripts-summaries/data-model.md) - and the Sales
+    // Engine's queue of work calls (specs/002, crm.db). Everything else is
+    // kept in files and preferences.
     implementation("androidx.room:room-runtime:2.8.4")
     implementation("androidx.room:room-ktx:2.8.4")
     ksp("androidx.room:room-compiler:2.8.4")
     testImplementation("androidx.room:room-testing:2.8.4")
+
+    // Sign in with Google for the Sales Engine: its API takes only a Google
+    // ID token issued for LANARS's Web client (specs/002, research R2).
+    // Credential Manager is Google's current way to get one; the old
+    // GoogleSignInClient is deprecated. 1.6.0 is the latest stable (1.7 is
+    // alpha, 2026-11-03).
+    implementation("androidx.credentials:credentials:1.6.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.6.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.2.1")
+
+    // A real HTTP server in the JVM tests, to run the Sales Engine client
+    // against every body of the API document. Test only: the app itself
+    // talks with HttpURLConnection (research R1).
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.1")
 
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")

@@ -13,6 +13,7 @@ import android.net.Uri
 import android.os.SystemClock
 import androidx.annotation.VisibleForTesting
 import android.util.Log
+import com.jemcik.jemrec.transcribe.model.VoiceModel
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -168,6 +169,16 @@ object TranscriptionEngine {
     fun wasAborted(): Boolean = abortRequested.get()
 
     /**
+     * A run begins: an abort asked for before it was meant for an earlier one. The flag is also
+     * cleared as whisper starts, but a run with its language pinned checks it before whisper ever
+     * does - and Cancel during the voice step sets it after whisper has finished, so every later
+     * pinned run stopped at once ("Stopped; nothing saved", five times on the A24, 2026-11-04).
+     */
+    fun forgetAbort() {
+        abortRequested.set(false)
+    }
+
+    /**
      * Clears the abort flag without starting a run.
      *
      * Production never needs this — [transcribe] clears it as each run begins — but a test that
@@ -229,19 +240,30 @@ object TranscriptionEngine {
      * One reader for both callers, so the single-buffer path the harness measures and the chunked path
      * the app runs cannot drift apart in what they do to whisper's output:
      *  - [SpeechGapSnap] puts a line stamped inside a removed pause back where it was spoken (#25);
+     *  - with [words], each line keeps its words and their times, for a one-mix call whose voices
+     *    are told apart afterwards (VoiceSeam). A side of a split call has one speaker and needs none.
      */
-    private fun readSegments(ptr: Long, vadOn: Boolean): List<TranscriptSegment> {
+    private fun readSegments(ptr: Long, vadOn: Boolean, words: Boolean = false): List<TranscriptSegment> {
         val speech = speechStretches(ptr, vadOn)
         val indexed = (0 until WhisperNative.segmentCount(ptr)).map { i ->
             i to TranscriptSegment(
                 startMs = WhisperNative.segmentStartMs(ptr, i),
                 endMs = WhisperNative.segmentEndMs(ptr, i),
                 text = WhisperNative.segmentText(ptr, i).trim(),
+                words = if (words) parseWords(WhisperNative.segmentWords(ptr, i)) else emptyList(),
             )
         }.filter { (_, segment) -> segment.text.isNotEmpty() }
 
         return SpeechGapSnap.apply(indexed.map { it.second }, speech)
     }
+
+    /** `<start in ms>\t<word>` lines from [WhisperNative.segmentWords]; a malformed line is skipped. */
+    internal fun parseWords(lines: String): List<Word> = lines.lineSequence().mapNotNull { line ->
+        val tab = line.indexOf('\t')
+        if (tab <= 0) return@mapNotNull null
+        val text = line.substring(tab + 1)
+        line.substring(0, tab).toLongOrNull()?.takeIf { text.isNotBlank() }?.let { Word(it, text) }
+    }.toList()
 
     /**
      * The stretches of speech the VAD kept, in original audio time, or empty when it was not used.
@@ -322,6 +344,9 @@ object TranscriptionEngine {
                     "(setup took ${lastSetupMs} ms)",
             )
 
+            // A one-mix call's decoded audio, kept for the voice step after it so the call is not
+            // decoded twice (MixCache); only while the voice model is there to use it.
+            val mixCache = if (Channel.MIX in channels && VoiceModel.isInstalled(context)) MixCache.of(context).also { it.start(uri) } else null
             val all = mutableListOf<TranscriptSegment>()
             for ((side, channel) in channels.withIndex()) plan.forEachIndexed { index, chunk ->
                 chunkIndex = side * plan.size + index
@@ -360,6 +385,10 @@ object TranscriptionEngine {
                     Log.w(TAG, "Pass ${index + 1}/${plan.size} decoded no audio")
                     return@forEachIndexed
                 }
+                if (channel == Channel.MIX) {
+                    runCatching { mixCache?.put(index, slice.startMs, if (singlePass) 0L else chunk.keepFromMs, slice.audio) }
+                        .onFailure { Log.w(TAG, "Could not keep the mix for the voices: ${it.message}") }
+                }
 
                 // Bracketed as tightly as possible around the native call: outside it, the counter
                 // still holds whatever the previous run left behind.
@@ -382,7 +411,7 @@ object TranscriptionEngine {
 
                 // Before the chunk offset is added, so the stretches and the segments are in the same
                 // (chunk-local) timeline — issue #25.
-                val raw = readSegments(ptr, vadOn = vadModelPath != null)
+                val raw = readSegments(ptr, vadOn = vadModelPath != null, words = channel == Channel.MIX)
 
                 // Stitched against where the audio REALLY started, which a seek may have moved earlier
                 // than the plan asked for. Using the planned offset instead would skew every timestamp

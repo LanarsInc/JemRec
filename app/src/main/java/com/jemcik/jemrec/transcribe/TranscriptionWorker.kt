@@ -98,6 +98,8 @@ class TranscriptionWorker(context: Context, params: WorkerParameters) : Coroutin
             )
         } finally {
             ticker.cancel()
+            // The mix kept for the voice step is read by now, or will never be (MixCache).
+            MixCache.of(app).clear()
         }
 
         // The output never carries an input key. Every transcription joins one
@@ -110,8 +112,13 @@ class TranscriptionWorker(context: Context, params: WorkerParameters) : Coroutin
         when (outcome) {
             is RunOutcome.Done -> {
                 if (automatic) TranscriptNotices.ready(app, recording, contact, outcome.lines)
-                // A summary follows when asked for and a model is here; it joins the same chain.
-                if (settings.summariseAfterTranscript && outcome.lines > 0) SummaryAfterTranscript.queue(app, recording, contact)
+                // A summary follows when asked for and a model is here; it joins the same chain. Not
+                // after Cancel: a tap while the voices are told apart keeps the lines already saved,
+                // unnamed, and ends the work there; the summary can be asked for on the screen. A
+                // work call's texts then wait for it until their deadline (ContentHook).
+                if (settings.summariseAfterTranscript && outcome.lines > 0 && !cancelled) SummaryAfterTranscript.queue(app, recording, contact)
+                // A work call's transcript with no summary to follow reaches the Sales Engine as "failed".
+                com.jemcik.jemrec.crm.ContentHook.transcribed(app, recording, outcome.lines)
                 HeavyQueue.finished(KEY_LINES to outcome.lines)
             }
             // Stopped by the user ends it; stopped by Android (time's up for an
@@ -124,6 +131,7 @@ class TranscriptionWorker(context: Context, params: WorkerParameters) : Coroutin
             }
             is RunOutcome.Failed -> {
                 if (automatic) TranscriptNotices.failed(app, recording, contact, outcome.reason)
+                com.jemcik.jemrec.crm.ContentHook.transcriptionFailed(app, recording)
                 HeavyQueue.finished(KEY_ERROR to outcome.reason)
             }
         }

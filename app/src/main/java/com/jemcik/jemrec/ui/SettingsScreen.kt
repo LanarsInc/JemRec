@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -42,7 +43,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -351,6 +354,22 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Modif
                     },
                     icon = Icons.Filled.Delete,
                     onClick = vm::showTrash,
+                )
+            }
+        }
+
+        // LANARS's CRM: first among the groups that are this fork's own,
+        // since a seller who is not connected logs nothing.
+        val salesEngine by vm.salesEngine.state.collectAsStateWithLifecycle()
+        LaunchedEffect(Unit) { vm.salesEngine.refresh() }
+        SettingsGroup("Sales Engine") {
+            row {
+                SettingsRow(
+                    title = "Sales Engine",
+                    summary = salesEngineLine(salesEngine),
+                    summaryColor = if (salesEngine.state.needsSeller) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    icon = Icons.Filled.AccountCircle,
+                    onClick = { vm.showScreen(Screen.SALES_ENGINE) },
                 )
             }
         }

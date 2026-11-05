@@ -10,6 +10,7 @@ import com.jemcik.jemrec.transcribe.TranscriptionLanguageChoice
 import com.jemcik.jemrec.transcripts.Transcript
 import com.jemcik.jemrec.transcripts.TranscriptRepository
 import com.jemcik.jemrec.transcripts.db.CallSummaryEntry
+import kotlinx.coroutines.delay
 import java.util.Locale
 
 /** One prompt in, the model's text out: the engine in the app, a stand-in in the tests. */
@@ -52,6 +53,8 @@ class SummaryRunner(
     private val clock: () -> Long = { SystemClock.elapsedRealtime() },
     private val now: () -> Long = { System.currentTimeMillis() },
     private val deviceLanguage: () -> String = { Locale.getDefault().language },
+    /** Waits between looks at free memory ([ROOM_POLL_MS]). */
+    private val pause: suspend (Long) -> Unit = { delay(it) },
 ) {
 
     suspend fun run(
@@ -65,16 +68,59 @@ class SummaryRunner(
         val transcript = repository.load(recording)
         if (transcript == null || transcript.lines.isEmpty()) return SummaryOutcome.NoTranscript
 
-        // Checked before the load, not discovered by Android killing the app halfway.
-        val free = freeMemory()
+        // A call of a few words has nothing a model can summarise, and a small one invents what is
+        // missing: said as it is, in English, with no model and no memory (2026-11-04).
+        val words = transcript.lines.sumOf { line -> line.text.split(Regex("\\s+")).count { it.any(Char::isLetterOrDigit) } }
+        if (words < SHORT_CALL_WORDS) {
+            val short = CallSummary(
+                intent = "Short call",
+                summary = "Too short to summarise: $words word${if (words == 1) "" else "s"} were said. The transcript has them.",
+                keyPoints = emptyList(), decisions = emptyList(), actionItems = emptyList(), keyFacts = emptyList(),
+            )
+            repository.saveSummary(
+                CallSummaryEntry(recording, NO_MODEL, SUMMARY_LANGUAGE, short.toJson(), short.searchableText(), 0, now()),
+            )
+            Log.i(TAG, "Short call ($words words): no model run")
+            return SummaryOutcome.Done(short)
+        }
+
+        // Checked before the load, not discovered by Android killing the app halfway. And waited
+        // for: a summary queued behind a transcription starts the moment the voice step ends, and
+        // the memory that step used is not free again at once. Measured on the A24, 2026-11-04: a
+        // 274 s call's voices peaked at 2560 MB, and 0.15 s later 1334 MB was free of the 1792 MB
+        // Qwen3 1.7B needs, so a work call's texts reached the CRM as "failed"; 2295 MB was
+        // free once the phone had settled.
+        var free = freeMemory()
+        var waitedMs = 0L
+        while (free < model.minFreeBytes && waitedMs < ROOM_WAIT_MS) {
+            if (shouldStop()) return SummaryOutcome.Stopped
+            pause(ROOM_POLL_MS)
+            waitedMs += ROOM_POLL_MS
+            free = freeMemory()
+        }
+        if (waitedMs > 0) Log.i(TAG, "Waited ${waitedMs / 1000}s for memory: ${free / 1_000_000} MB free")
         if (free < model.minFreeBytes) {
             Log.w(TAG, "Not enough free memory for ${model.id}: ${free / 1_000_000} MB free, ${model.minFreeBytes / 1_000_000} MB needed")
             return SummaryOutcome.NoRoom(model.minFreeBytes, free)
         }
 
         val lines = linesOf(transcript, contact)
-        val named = lines.any { it.speaker != null }
-        val language = languageOf(transcript, lines)
+        // Named when the owner is known (You and Them, by the channels, the print or the owner's
+        // mark); a one-mix call's Voice 1 and Voice 2 are labels without names (specs/003).
+        val named = transcript.lines.any { it.speaker == Speaker.YOU || it.speaker == Speaker.THEM }
+        // The language to write in: English, for every call (FR-033 of
+        // specs/002, decided with the user 2026-11-03).
+        // WHAT THIS DID BEFORE, AND WHY IT CHANGED. It wrote in the call's own
+        // language - the transcript's, then Settings', then the text's script,
+        // then the phone's (SummaryLanguage.resolve) - because a small model left
+        // to infer the language wrote English for a Norwegian call. The pinning
+        // stays: the prompt still names one language, now always English, which
+        // LANARS's Sales Engine requires (§8 `summary_language`: `en`) and the
+        // phone shows the same summary. What made the Norwegian call's action
+        // items up - nobody saying what belongs there - is still said
+        // (NOTHING_DECIDED), and SummaryPrompt now adds that the call may be in
+        // another language. Measured on the A24 before release (research R9).
+        val language = SUMMARY_LANGUAGE
         val chunks = SummaryChunking.chunk(lines)
         onProgress(0, chunks.size)
         val startedAt = clock()
@@ -124,18 +170,21 @@ class SummaryRunner(
         return SummaryOutcome.Done(done)
     }
 
-    /** The language to write in: the transcript's own, then Settings', then the text's script, then the phone's. */
-    private fun languageOf(transcript: Transcript, lines: List<SummaryLine>): String =
-        SummaryLanguage.resolve(
-            chosen = null,
-            transcriptionSetting = settings.language?.takeIf { it != TranscriptionLanguageChoice.AUTO },
-            transcriptLanguage = transcript.facts.language.takeIf { it != TranscriptionLanguageChoice.AUTO },
-            transcriptText = lines.joinToString(" ") { it.text },
-            deviceLanguage = deviceLanguage(),
-        )
-
     companion object {
         private const val TAG = "JR:Summary"
+
+        /** How long a summary waits for free memory before it gives up, and how often it looks. */
+        const val ROOM_WAIT_MS = 2 * 60_000L
+        const val ROOM_POLL_MS = 5_000L
+
+        /** Fewer words than this are not given to a model (a "hello? I'll call you back" call). */
+        const val SHORT_CALL_WORDS = 15
+
+        /** The model id stored with such a call's summary. */
+        const val NO_MODEL = "none"
+
+        /** Every summary is in English (FR-033, specs/002). */
+        const val SUMMARY_LANGUAGE = "en"
 
         /** CallVault's budgets: a chunk's JSON, and the merge of several. */
         const val CHUNK_TOKEN_BUDGET = 1_600
@@ -143,8 +192,9 @@ class SummaryRunner(
 
         /**
          * The transcript as the prompt shows it: "You" for the phone's owner,
-         * the contact's name (or "Them") for the other side, nothing when the
-         * sides were not told apart.
+         * the contact's name (or "Them") for the other side, "Voice 1" and
+         * "Voice 2" for a one-mix call's voices not yet named, nothing when
+         * the sides were not told apart.
          */
         fun linesOf(transcript: Transcript, contact: String?): List<SummaryLine> {
             val them = contact?.takeIf { it.isNotBlank() && it.none(Char::isDigit) } ?: "Them"
@@ -156,6 +206,8 @@ class SummaryRunner(
                     speaker = when (line.speaker) {
                         Speaker.YOU -> "You"
                         Speaker.THEM -> them
+                        Speaker.VOICE1 -> "Voice 1"
+                        Speaker.VOICE2 -> "Voice 2"
                         Speaker.NONE -> null
                     },
                 )

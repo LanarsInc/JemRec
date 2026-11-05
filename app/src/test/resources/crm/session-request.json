@@ -1,0 +1,9 @@
+{
+  "id_token": "<Google ID token>",
+  "device": {
+    "id": "0b7f6c1e-2d4a-4e8b-9f31-6a5c2e7d8b90",
+    "label": "Example Phone 12",
+    "app_version": "1.4.0",
+    "android_sdk": 35
+  }
+}

@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import java.io.File
 
 /**
@@ -12,6 +14,9 @@ import java.io.File
  * Its shape follows CallVault's (schema 9), trimmed; it starts at version 1
  * here. Schemas are exported to app/schemas so each later version can be
  * migrated and tested against the one before.
+ *
+ * Version 2 (specs/003-voice-labels): where a transcript's speaker labels
+ * came from, and which voice model made them ([MIGRATION_1_2]).
  */
 @Database(
     entities = [
@@ -22,7 +27,7 @@ import java.io.File
         CallSummaryFts::class,
         RecordingLanguageEntry::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class TranscriptDatabase : RoomDatabase() {
@@ -32,6 +37,22 @@ abstract class TranscriptDatabase : RoomDatabase() {
 
     companion object {
         const val FILE = "transcripts.db"
+
+        /**
+         * Adds voiceSource and voiceModel. A transcript with a You or Them
+         * line was named from its channels - the only way there was - and
+         * any other was not named at all.
+         */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE transcripts ADD COLUMN voiceSource TEXT NOT NULL DEFAULT 'none'")
+                db.execSQL("ALTER TABLE transcripts ADD COLUMN voiceModel TEXT")
+                db.execSQL(
+                    "UPDATE transcripts SET voiceSource = 'channels' WHERE recording IN " +
+                        "(SELECT recording FROM transcript_segments WHERE speaker IN ('you', 'them'))"
+                )
+            }
+        }
 
         @Volatile private var instance: TranscriptDatabase? = null
 
@@ -44,6 +65,7 @@ abstract class TranscriptDatabase : RoomDatabase() {
         fun of(context: Context): TranscriptDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(context.applicationContext, TranscriptDatabase::class.java, FILE)
+                    .addMigrations(MIGRATION_1_2)
                     .build().also { instance = it }
             }
     }

@@ -112,12 +112,7 @@ object ChunkPlan {
      */
     fun stitch(segments: List<TranscriptSegment>, chunk: Chunk): List<TranscriptSegment> =
         segments.asSequence()
-            .map {
-                it.copy(
-                    startMs = it.startMs + chunk.decodeFromMs,
-                    endMs = it.endMs + chunk.decodeFromMs,
-                )
-            }
+            .map { it.shiftedBy(chunk.decodeFromMs) }
             .filter { it.endMs > chunk.keepFromMs }
             .toList()
 }

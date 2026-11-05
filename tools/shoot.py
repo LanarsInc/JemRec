@@ -39,7 +39,10 @@ import time
 # The phone these were shot on. Anyone else: JEMREC_DEVICE=<serial>, or leave it
 # and let adb pick when only one device is attached.
 DEV = os.environ.get("JEMREC_DEVICE", "AUNN025C15000871")
-PKG = "com.jemcik.jemrec"
+# The applicationId. The classes kept their own package (NS) when LANARS's
+# fork changed it, so a component is PKG/NS.Class, never PKG/.Class.
+PKG = "com.lanars.jemrec"
+NS = "com.jemcik.jemrec"
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 # docs/screenshots/<look>/<theme>/<screen>.png at full size, and beside each
 # look's folder the README's and the site's copies (see thumbnails).
@@ -354,7 +357,7 @@ def shoot(look: str, theme: str, wanted: set) -> None:
     if not look_is(LOOKS[look]):
         print(f"    the look was written over; writing {look} again")
         set_look(LOOKS[look])
-    shell(f"am start -n {PKG}/.MainActivity")
+    shell(f"am start -n {PKG}/{NS}.MainActivity")
     time.sleep(4)
 
     into = OUT / look / theme

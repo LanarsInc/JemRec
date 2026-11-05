@@ -1,0 +1,4 @@
+{
+  "error": "duplicate",
+  "detail": "the call is not waiting for a deal"
+}

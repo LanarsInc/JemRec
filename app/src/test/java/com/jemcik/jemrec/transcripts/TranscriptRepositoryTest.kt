@@ -53,7 +53,51 @@ class TranscriptRepositoryTest {
         val t = repo.load("a.ogg")!!
         assertEquals(listOf("Hei", "Hallo"), t.lines.map { it.text })
         assertEquals(listOf(Speaker.YOU, Speaker.THEM), t.lines.map { it.speaker })
-        assertEquals(facts, t.facts)
+        // Split, so its labels came from the channels; save sets that, not the caller.
+        assertEquals(facts.copy(voiceSource = VoiceSource.CHANNELS), t.facts)
+    }
+
+    @Test fun aOneMixTranscriptIsSavedUnnamed() = runBlocking {
+        repo.save("a.ogg", facts.copy(split = false), listOf(line(0, "Hei", Speaker.NONE)))
+        assertEquals(VoiceSource.NONE, repo.load("a.ogg")!!.facts.voiceSource)
+    }
+
+    /** Telling voices apart replaces the lines - one may be cut in two - and keeps the facts. */
+    @Test fun voicesReplaceTheLinesAndSayWhereTheyCameFrom() = runBlocking {
+        val mix = facts.copy(split = false)
+        repo.save("a.ogg", mix, listOf(line(0, "Hei, hvordan går det?", Speaker.NONE)))
+        repo.saveVoices(
+            "a.ogg", mix.createdAt,
+            listOf(line(0, "Hei,", Speaker.VOICE1), line(600, "hvordan går det?", Speaker.VOICE2)),
+            VoiceSource.VOICES, "voices-model",
+        )
+        val t = repo.load("a.ogg")!!
+        assertEquals(listOf(Speaker.VOICE1, Speaker.VOICE2), t.lines.map { it.speaker })
+        assertEquals(mix.copy(voiceSource = VoiceSource.VOICES), t.facts)
+        assertEquals("voices-model", db.transcripts().transcript("a.ogg")!!.voiceModel)
+        assertEquals(1, db.transcripts().search("hvordan").size)
+    }
+
+    /** Transcribing a marked call again starts its voices over: the new lines are unnamed until told apart (US4). */
+    @Test fun transcribingAgainStartsTheVoicesOver() = runBlocking {
+        val mix = facts.copy(split = false)
+        repo.save("a.ogg", mix, listOf(line(0, "Hei", Speaker.NONE)))
+        repo.saveVoices("a.ogg", mix.createdAt, listOf(line(0, "Hei", Speaker.YOU)), VoiceSource.MARKED, "m")
+        repo.save("a.ogg", mix.copy(createdAt = 2), listOf(line(0, "Hei igjen", Speaker.NONE)))
+        val t = repo.load("a.ogg")!!
+        assertEquals(VoiceSource.NONE, t.facts.voiceSource)
+        assertEquals(listOf(Speaker.NONE), t.lines.map { it.speaker })
+        assertEquals(null, db.transcripts().transcript("a.ogg")!!.voiceModel)
+    }
+
+    /** Voices for a transcript that has been made again since are dropped, not written over the new one. */
+    @Test fun voicesForAnOlderTranscriptAreDropped() = runBlocking {
+        val mix = facts.copy(split = false)
+        repo.save("a.ogg", mix.copy(createdAt = 2), listOf(line(0, "ny", Speaker.NONE)))
+        repo.saveVoices("a.ogg", createdAt = 1, listOf(line(0, "gammel", Speaker.VOICE1)), VoiceSource.VOICES, "m")
+        assertEquals(listOf("ny"), repo.load("a.ogg")!!.lines.map { it.text })
+        repo.saveVoices("gone.ogg", createdAt = 1, listOf(line(0, "x", Speaker.VOICE1)), VoiceSource.VOICES, "m")
+        assertEquals(null, repo.load("gone.ogg"))
     }
 
     @Test fun transcribingAgainReplacesTheLinesAndDropsTheOldSummary() = runBlocking {

@@ -1,0 +1,4 @@
+{
+  "error": "invalid_input",
+  "detail": "Idempotency-Key is not accepted on this endpoint"
+}

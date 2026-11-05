@@ -79,6 +79,9 @@ class RecorderKeepAlive(
             // After the reconcile, so a call it has just saved is not one this
             // reports as missed.
             runCatching { MissedCalls.check(applicationContext) }
+            // And the Sales Engine: work calls this phone did not hear end, missed ones
+            // above all, which no recording announces (specs/002, research R5).
+            runCatching { com.jemcik.jemrec.crm.CrmIntakeWorker.now(applicationContext) }
                 .onFailure { Log.w(TAG, "keepalive: missed-call check failed", it) }
         }
         retention()

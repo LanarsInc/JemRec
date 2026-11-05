@@ -1,0 +1,18 @@
+{
+  "data": {
+    "call": {
+      "id": null,
+      "client_call_id": "b15c6d7e-8f90-4a1b-8cd4-556677889900",
+      "status": "internal",
+      "deal": null,
+      "activity_id": null,
+      "completed_planned_call": false,
+      "next_activity_id": null,
+      "callback_activity_id": null,
+      "content_status": "none",
+      "pending_reason": null,
+      "candidates": [],
+      "candidates_total": 0
+    }
+  }
+}

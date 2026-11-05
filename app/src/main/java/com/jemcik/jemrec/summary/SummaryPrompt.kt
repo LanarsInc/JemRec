@@ -84,7 +84,18 @@ object SummaryPrompt {
             // The line that was missing. A poor transcript is exactly when the model reaches for
             // English, so the instruction has to name that situation rather than describe the goal.
             "Never switch language because the transcript was hard to read."
-        ) + listOfNotNull(IN_ITS_OWN_WORDS[code?.lowercase()])
+        ) + listOfNotNull(
+            IN_ITS_OWN_WORDS[code?.lowercase()],
+            // Summaries are English whatever the call's language (FR-033, specs/002), so
+            // the model translates as it sums up; what must survive that word for word is
+            // what the CRM's readers act on.
+            if (code?.lowercase() == "en") {
+                "The call itself may be in another language. Write in English all the same, and " +
+                    "keep names, companies, products, figures, prices and dates exactly as they were said."
+            } else {
+                null
+            },
+        )
     }
 
     /**
@@ -121,9 +132,10 @@ object SummaryPrompt {
      * and a model left to interpret them will report them: "A asked about the invoice" is a worse
      * summary than the unlabelled version was.
      *
-     * @param speakersAreNamed whether the labels are real names, or the neutral `A`/`B` the capture
-     *   stores while the app is still unsure which channel is whose. Neutral is not a lesser case to
-     *   be tidied over: it is the honest one, and the model is told not to guess past it.
+     * @param speakersAreNamed whether the labels are real names, or neutral ones - "Voice 1" and
+     *   "Voice 2", a one-mix call's two voices told apart while the app does not know which is the
+     *   phone owner's (specs/003-voice-labels). Neutral is not a lesser case to be tidied over: it
+     *   is the honest one, and the model is told not to guess past it.
      */
     private fun speakerClause(
         segments: List<SummaryLine>,
@@ -134,8 +146,9 @@ object SummaryPrompt {
             "Each line begins with who said it. \"You\" is the person whose phone recorded the " +
                 "call — write about them in the second person."
         } else {
-            "Each line begins with which side of the call said it. A and B are the two people " +
-                "speaking; which of them is which is not known, so never put a name to either."
+            "Each line begins with which of the two people said it. One of them is the person " +
+                "whose phone recorded the call, but which one is not known: never put a name to " +
+                "either, and do not write about either as \"you\"."
         }
     }
 
@@ -186,6 +199,19 @@ object SummaryPrompt {
      */
     private const val IGNORE_MISHEARD =
         "Ignore words that are clearly mis-transcribed rather than reporting them."
+
+    /**
+     * A recorded menu or announcement is not a conversation. Measured on the A24, 2026-11-04: two
+     * calls to an operator's voice menu came back as "a customer inquiring about their balance",
+     * "instructions for changing the currency to English" and a made-up date. With this line the
+     * same call came back as an automated message with no decisions; asked only to "start the
+     * intent with" the words, the model wrote them alone, so an example is given.
+     */
+    private const val AUTOMATED =
+        "If no person speaks with the caller - only a recorded menu, announcement or voicemail " +
+            "greeting - write the intent as \"Automated message\" and what it was, for example " +
+            "\"Automated message: the operator's balance menu\", say only what the recording said, " +
+            "and leave decisions and actionItems empty."
 
     /** True when the capture labelled who was speaking. The one condition both renderings turn on. */
     private fun hasSpeakers(segments: List<SummaryLine>): Boolean =
@@ -347,6 +373,7 @@ object SummaryPrompt {
             appendLine(OWN_WORDS)
             appendLine(COVER_EVERYTHING)
             appendLine(IGNORE_MISHEARD)
+            appendLine(AUTOMATED)
             // The figure comes from the grammar so the two cannot disagree, and it is a ceiling on
             // what the model is *allowed* rather than a target to fill.
             //

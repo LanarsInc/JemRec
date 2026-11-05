@@ -1,0 +1,4 @@
+{
+  "error": "forbidden",
+  "detail": "key lacks the scope"
+}

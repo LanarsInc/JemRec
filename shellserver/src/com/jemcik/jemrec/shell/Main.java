@@ -1286,8 +1286,10 @@ public final class Main {
     private static long lastRefusalLog;
     private static int refusals;
 
-    private static final String APP_PACKAGE = "com.jemcik.jemrec";
-    private static final String APP_SERVICE = "com.jemcik.jemrec/.capture.CallMonitorService";
+    /** The app's applicationId, which since LANARS's fork is no longer the
+     *  package its classes live in: hence the service's full class name. */
+    private static final String APP_PACKAGE = "com.lanars.jemrec";
+    private static final String APP_SERVICE = APP_PACKAGE + "/com.jemcik.jemrec.capture.CallMonitorService";
     private static final String ACTION_CALL_STARTED = "com.jemcik.jemrec.CALL_STARTED";
     private static final String ACTION_CALL_ENDED = "com.jemcik.jemrec.CALL_ENDED";
     /** A USB cable went in or came out: adbd may be about to go. See watchCable. */

@@ -68,9 +68,11 @@ Notifications are not decoration here. They are how the app tells you a call is
 being recorded, how it asks whether to record one, and where you will type the
 pairing code in step 4.
 
-JemRec does **not** ask for microphone access and does not have it. The
-recording is done by a separate, more privileged helper that the app starts
-later; the app itself only collects the finished file.
+JemRec does **not** ask for microphone access to record calls. The recording is
+done by a separate, more privileged helper that the app starts later; the app
+itself only collects the finished file. It asks for the microphone once, later,
+only if you choose to record a short text so your voice is known in
+transcripts.
 
 **Then one question.** Before you switch anything on, JemRec says what stays
 on: USB debugging and Wireless debugging, for as long as it is installed,
@@ -479,6 +481,23 @@ the call's two sides are on the two channels - every messenger call, and phone
 calls on phones that keep them apart. A tap on a line plays the recording from
 there; a long press copies it.
 
+**Voice 1 and Voice 2.** Some phones - a Galaxy A24, a Pixel by one report -
+put both people of a phone call on both channels. With the **voice model**
+downloaded (Settings → Transcripts → Voices, 42 MB), JemRec tells the two
+voices apart after the call is transcribed: the lines appear first, then each
+is marked **Voice 1** or **Voice 2**, and a line where the voice changes is cut
+in two. Too little speech, or one voice, and nothing is marked. **Which one is
+you?** above the lines turns them into **You** and **Them** for that call;
+**Swap** and **Not marked** turn it round or undo it.
+
+**Your voice.** Settings → Transcripts → **Your voice** → read a short text
+aloud for half a minute, and from then on phone calls say **You** for your
+lines where your voice is clear in them, and keep Voice 1 and Voice 2 where it
+is not. JemRec asks for the microphone then, for that alone. Until you do,
+**Learn my voice from my calls** uses your side of messenger calls when it is
+plainly only you speaking; it can be switched off. What is kept is numbers that
+describe your voice, never sound; **Delete** removes it.
+
 **The language.** JemRec finds it: each side's first minute is listened to
 before the call is transcribed, so a Norwegian call gets the model made for
 Norwegian, NB-Whisper, and two people speaking two languages each get theirs.
@@ -486,11 +505,12 @@ Seventeen are offered. Settings → Transcripts can set one for every call
 instead, and **Change**, on a transcript, sets one for that call alone - worth
 it for a side of a few words, which is too little to tell.
 
-**Summary**, beside Transcript, writes why the call happened, what was said,
-and the points, decisions, things to do and facts, each with the time it was
-said - a tap goes to that line. It needs a second download, a language model,
-and a phone with 6 GB of memory or more; a phone with 8 GB gets a larger one.
-It is made from the transcript, so it can leave things out: check what matters.
+**Summary**, beside Transcript, writes in English, whatever the call's
+language, why the call happened, what was said, and the points, decisions,
+things to do and facts, each with the time it was said - a tap goes to that
+line. It needs a second download, a language model, and a phone with 6 GB of
+memory or more; a phone with 8 GB gets a larger one. It is made from the
+transcript, so it can leave things out: check what matters.
 
 **Without asking** - Settings → Transcripts → When: **After each call**, the
 default once a model is downloaded, or **Overnight**, while charging, for the
@@ -499,6 +519,47 @@ turned off. **Only when I ask** leaves it to the Transcript button. **Copy
 all** and **Export** (text, Markdown with the summary, SRT or VTT subtitles,
 JSON) are under a transcript, and the Recordings search finds words said in a
 call.
+
+## The Sales Engine
+
+For LANARS's sellers: **Settings → Sales Engine** logs work calls in LANARS's
+CRM. **Sign in with Google** with your lanars.com or lanars.no account, read
+LANARS's notice and tap **I agree**, and choose the work SIM (a phone with one
+has it chosen). It needs the call log; listing the SIMs needs the phone's own
+permission, asked there.
+
+After each call on the work SIM a notification says where it is going: the
+deal, **Choose a deal** when the number has several, or that the Sales Engine
+decides; two minutes later it goes. It is a work phone: every call on the work
+SIM is sent. **Change** or **Choose** opens the call's sheet: its deal or
+**Other** (kept outside the CRM), how it went, and a next call on the deal, in
+Norwegian time. Missed calls are logged too, with a call-back the Sales Engine
+plans.
+
+If LANARS gave you a weekly call goal, a call to a number on no deal asks
+**Which lead?**: pick one of the suggestions, search your open deals by title
+or company, or choose **Other**. The Sales Engine saves the number on the deal
+you pick.
+
+Under a work call, in the **Calls** and **Recordings** tabs and on its
+transcript, a line says where it went - on a deal, not in the CRM, Other - and
+where its transcript stands: to follow, sent, or not sent. A card says when
+calls wait for you to choose their deal or lead; a tap opens the sheet. Once
+the phone has transcribed and summarised a call, by your setting under
+Transcripts, both go to it: the summary into the call's note on the deal. Never
+the recording. If its transcript could not be made - a summary that did not fit
+in memory, say - the line says **transcript not sent**, and **Send the
+transcript** on the call's sheet makes it again and sends it, once.
+
+Offline, calls wait and go once when the network is back; the line under a call
+says why it waits and when it tries again. Under **Calls** in Settings → Sales
+Engine you see what is still to go, what was not sent, and **Retry now**. If
+the session ends, LANARS's notice changes, or the Sales Engine needs a newer
+app, a notification says so and calls wait until it is done. **Sign out** stops
+it: calls made while signed out are never sent.
+
+A call of a few words gets no summary made by a model, only **Short call**; a
+call to a recorded menu is summarised as an **Automated message**.
 
 ## Three looks
 
@@ -695,16 +756,19 @@ And when the app is closed, in notifications:
 | The caller, with pause and a seek bar | A recording you played, going on with the screen off. On the lock screen it says only **Call recording**. It goes when the recording is stopped. |
 | **JemRec was stopped in the background** | This phone stopped JemRec in the background, so a call could go unrecorded. Its button opens the phone's own screen for it, and the notification says what to do there (on an Honor: **App launch**, **Manage manually**). Only on phones that stop apps that way — see *Stopped in the background*. |
 | **JemRec was held back in the background** | The phone froze JemRec while it was restarting the recorder after a cable, for the minutes it says. The same button and the same fix. |
+| A deal's name, or **Choose a deal**, with **Change** or **Choose** | A work call about to go to the Sales Engine, in two minutes. Then **Logged on** the deal, briefly, or **Choose a deal** or **Which lead?** while it waits for you. Only once you sign in to the Sales Engine. |
+| **Transcript not sent**, with **Send** | A work call's transcript could not be made, so the Sales Engine has the call without it. **Send** opens the call, to make it again and send it. |
+| **Sign in to the Sales Engine again**, **Read the Sales Engine's new notice**, **Update JemRec to keep logging calls** | Work calls wait until you do; the notification opens Settings → Sales Engine. |
 
 ## Settings
 
-One screen, in five groups, each row showing what it is set to now, and the
-settings the header marks wearing the same mark. Until you allow it, a **Show
-who called** card sits at the top: it labels each recording with the contact's
-name and photo, or the number when they are not in your contacts, and lets
-JemRec tell you if a call went by unrecorded. It needs your call log and
-contacts, and is asked for in the app rather than at install. Say no and
-everything still works, with the time as each recording's headline.
+One screen, in groups, each row showing what it is set to now, and the settings
+the header marks wearing the same mark. Until you allow it, a **Show who
+called** card sits at the top: it labels each recording with the contact's name
+and photo, or the number when they are not in your contacts, and lets JemRec
+tell you if a call went by unrecorded. It needs your call log and contacts, and
+is asked for in the app rather than at install. Say no and everything still
+works, with the time as each recording's headline.
 
 **Recording**
 
@@ -735,6 +799,17 @@ everything still works, with the time as each recording's headline.
 - **Recently deleted** — what has been deleted in the last 30 days, with
   **Restore** for each, **Restore all**, and **Delete all for good**, which
   asks first: it cannot be undone.
+
+**Sales Engine**
+
+- **Sales Engine** — for LANARS's sellers: sign in, LANARS's notice, the work
+  SIM, and whether summaries will reach the CRM; see The Sales Engine.
+
+**Transcripts**
+
+- **Transcripts** — the calls' language, the speech and summary models, when
+  transcripts are made, who spoke, and Voices: the voice model, your voice and
+  whether to learn it from your calls; see Transcripts and summaries.
 
 **Notifications and shortcuts**
 

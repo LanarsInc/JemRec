@@ -690,6 +690,12 @@ object RecordingSaver {
                         .onFailure { Log.w(TAG, "reconcile: after-call notice failed", it) }
                     runCatching { TranscriptionScheduler.afterCall(context, outcome.name, outcome.uri, null) }
                         .onFailure { Log.w(TAG, "reconcile: could not queue the transcript", it) }
+                    // Its work call, if the Sales Engine has one, now has a recording (specs/002).
+                    runCatching {
+                        com.jemcik.jemrec.crm.CallIntake.recordingSaved(
+                            context, com.jemcik.jemrec.crm.CallIntake.Saved(outcome.name, outcome.startMillis, outcome.incoming, outcome.message),
+                        )
+                    }.onFailure { Log.w(TAG, "reconcile: could not link the recording to its work call", it) }
                 }
                 Outcome.Empty -> Log.i(TAG, "reconcile: dropped empty $recfile")
                 Outcome.Gone -> Log.i(TAG, "reconcile: $recfile was collected meanwhile")

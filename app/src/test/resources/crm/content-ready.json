@@ -1,0 +1,21 @@
+{
+  "data": {
+    "call": {
+      "id": 5012,
+      "client_call_id": "3f1c2a9e-6b7d-4c1e-9a52-1d2e3f4a5b6c",
+      "status": "logged",
+      "deal": {
+        "id": 1000456,
+        "title": "Eksempel AS – nettside"
+      },
+      "activity_id": 1000789,
+      "completed_planned_call": true,
+      "next_activity_id": 1000790,
+      "callback_activity_id": null,
+      "content_status": "ready",
+      "pending_reason": null,
+      "candidates": [],
+      "candidates_total": 0
+    }
+  }
+}

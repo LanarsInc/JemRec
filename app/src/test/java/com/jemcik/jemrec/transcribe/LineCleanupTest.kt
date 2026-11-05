@@ -49,6 +49,19 @@ class LineCleanupTest {
         )
     }
 
+    /** Voices are neither side: no echo test between them, and a loop is dropped per voice. */
+    @Test fun voicesAreCleanedAsSidesWithoutTheEchoTest() {
+        val lines = listOf(
+            TranscriptSegment(0, 2_000, "We will send the quote on Friday.", Speaker.VOICE2),
+            TranscriptSegment(1_000, 3_000, "We will send the quote on Friday.", Speaker.VOICE1),
+            TranscriptSegment(3_000, 5_000, "We will send the quote on Friday.", Speaker.VOICE1),
+        )
+        assertEquals(
+            listOf(Speaker.VOICE2, Speaker.VOICE1),
+            LineCleanup.apply(lines).map { it.speaker },
+        )
+    }
+
     @Test fun whispersNotesOnTheSoundGo() {
         val lines = listOf(them(16_800, 71_900, "[inaudible]"), them(72_000, 73_000, "(music)"), you(0, 1_000, "Hello [laughs] there"))
         assertEquals(listOf("Hello [laughs] there"), LineCleanup.apply(lines).map { it.text })
