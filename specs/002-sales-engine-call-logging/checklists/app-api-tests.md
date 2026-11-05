@@ -70,6 +70,27 @@ for 10 minutes to a day; ask LANARS to lower one for a test, or use the mock.
 6. The Web client id and the SHA-1 registration, for Google sign-in.
 7. `revision` for content (T082), when it is in the document.
 
+### Content revision (2026-11-05)
+
+LANARS: a resend goes as `POST /content` with `revision: 1`. On stand calls
+20 and 21 (made-up numbers), with the API's field names:
+
+| # | Request | Got |
+|---|---|---|
+| R1 | ready | 200 |
+| R2 | other texts, no revision | 409 `duplicate` |
+| R3 | other texts, `revision: 1` | 200, replaces |
+| R4 | the same again, `revision: 1` | 200 |
+| R5 | other texts, `revision: 1` again | 409 `duplicate` |
+| R6 | `revision: 0`, other texts | 200 (a lower revision: kept or ignored, the API does not say) |
+| R7 | `revision: 3`, skipping 2 | 200 |
+| R8 | `revision: 2` after 3 | 200 |
+| R10-R13 | 4, -1, 1.5, "x" | 400 "revision must be an integer from 0 to 3" |
+| F1-F2 | failed, then ready with `revision: 1` | 200, 200 |
+| F3 | failed with a revision | 400 "only allowed with content_status ready" |
+
+To ask: is a lower revision stored or ignored (R6, R8)? The app never sends one.
+
 ## 2. What to test in the app (A24, debug build, stand)
 
 Each line: what to do, what should happen. Calls are made by the tester.
@@ -118,6 +139,7 @@ Each line: what to do, what should happen. Calls are made by the tester.
 - [ ] Call to a voice menu → summary "Automated message ...", no decisions.
 - [ ] Summaries off → "transcript not sent" + notification; turn on, **Send the transcript** → "transcript sent".
 - [ ] No summary model → Send the transcript says to download one.
+- [ ] Transcript sent → **Send the transcript again** (3 more times) → "making the transcript again" → "transcript sent again"; the server has the new texts (`revision` 1).
 - [ ] Recording deleted before the transcript → "transcript not sent", no notification.
 - [ ] Long call (> 5 min) → voices in several chunks; transcript under 200,000 chars or cut with `truncated`.
 - [ ] Transcribe again with a pinned language → runs (not "Stopped" at once).

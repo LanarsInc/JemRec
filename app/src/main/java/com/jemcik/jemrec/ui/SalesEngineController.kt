@@ -223,7 +223,12 @@ class SalesEngineController(
             if (model == null || !ModelRepository.isInstalled(app, model)) {
                 return@withContext "Download a summary model in Settings → Transcripts first: the Sales Engine takes a transcript only with its summary."
             }
-            val transcribed = TranscriptRepository.of(app).load(name)?.lines?.isNotEmpty() == true
+            // Sent already: replaced with the next revision, so made anew from the recording - the
+            // transcript too, so what the transcription does better now reaches the CRM (LANARS,
+            // 2026-11-05: lines of two people run together).
+            val again = WorkCallMachine.resend(c)
+            if (again !== c) CrmDatabase.of(app).calls().update(again)
+            val transcribed = again === c && TranscriptRepository.of(app).load(name)?.lines?.isNotEmpty() == true
             if (!transcribed) TranscriptionWorker.enqueue(app, name, recording.uri, recording.caller)
             if (transcribed || !TranscribeSettings.of(app).summariseAfterTranscript) SummaryWorker.enqueue(app, name, recording.caller)
             null

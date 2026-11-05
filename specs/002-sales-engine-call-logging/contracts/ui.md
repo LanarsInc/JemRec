@@ -74,6 +74,12 @@ Opened from Change/Choose, or from a call's row. A bottom sheet:
   transcribes and summarises it again, queued behind any run, and the texts
   go when the summary is stored (§8 takes one after "failed"). It says why
   when it cannot: the recording is gone, or no summary model is here.
+- **Send the transcript again** when its texts went (`ready`) and fewer
+  than 3 revisions were spent: the phone transcribes and summarises it
+  anew and sends them with the next `revision`, which replaces the
+  server's (LANARS, 2026-11-05). Until then the line says "making the
+  transcript again; the Sales Engine keeps the one sent"; a making that
+  fails leaves the server's texts and the revision unspent.
 - **Which lead?** for a `no_match` call: a search field (deals or companies,
   from 2 characters, searched 0.4 s after the last key, 60 a 10 minutes),
   its results, then the server's **Suggestions**, then **Other**; nothing

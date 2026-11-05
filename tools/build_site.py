@@ -2132,7 +2132,10 @@ SETUP = [
           "the summary into the call's note on the deal. Never the recording. "
           "If its transcript could not be made - a summary that did not fit in "
           "memory, say - the line says **transcript not sent**, and **Send the "
-          "transcript** on the call's sheet makes it again and sends it, once."),
+          "transcript** on the call's sheet makes it again and sends it, once. "
+          "One that went can be made again and sent in its place up to three "
+          "times - **Send the transcript again** - and until the new one is "
+          "ready, the Sales Engine keeps the one it has."),
     ("p", "Offline, calls wait and go once when the network is back; the line "
           "under a call says why it waits and when it tries again. Under **Calls** "
           "in Settings → Sales Engine you see what is still to go, what was not "

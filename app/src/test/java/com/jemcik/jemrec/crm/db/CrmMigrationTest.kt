@@ -35,7 +35,7 @@ class CrmMigrationTest {
     }
 
     @Test fun theQueueComesThroughWithoutPrivate() = runBlocking {
-        createVersion1 { db ->
+        createVersion(1) { db ->
             db.execSQL(
                 "INSERT INTO work_call (clientCallId, callLogId, userId, outgoing, answered, phone, presentation, countryIso, " +
                     "startedAtMs, durationSeconds, endedAtMs, choice, outcome, localState, dueAtMs, serverId, privateAsked, contentState, contentDueAtMs, attempts, byMachine) " +
@@ -55,9 +55,29 @@ class CrmMigrationTest {
         }
     }
 
-    /** A database at version 1 exactly as Room made it: its tables, indices and identity hash. */
-    private fun createVersion1(fill: (SupportSQLiteDatabase) -> Unit) {
-        val schema = JSONObject(File(SCHEMAS, "1.json").readText()).getJSONObject("database")
+    /** Version 2 to 3: a revision for texts sent again (LANARS, 2026-11-05); every call kept has sent once. */
+    @Test fun theQueueComesThroughWithRevisionZero() = runBlocking {
+        createVersion(2) { db ->
+            db.execSQL(
+                "INSERT INTO work_call (clientCallId, callLogId, userId, outgoing, answered, phone, presentation, countryIso, " +
+                    "startedAtMs, durationSeconds, endedAtMs, choice, outcome, localState, dueAtMs, serverId, contentState, contentDueAtMs, attempts, byMachine) " +
+                    "VALUES ('3f1c2a9e-6b7d-4c1e-9a52-1d2e3f4a5b6c', 7, 1000001, 1, 1, '+47 400 00 001', 'ALLOWED', 'no', " +
+                    "1000, 184, 185000, 'AUTO', 'REACHED', 'SENT', 0, 5012, 'SENT_READY', 0, 0, 0)"
+            )
+        }
+        val room = Room.databaseBuilder(context, CrmDatabase::class.java, name).allowMainThreadQueries().build()
+        try {
+            val c = room.calls().all().single()
+            assertEquals("SENT_READY", c.contentState)
+            assertEquals(0, c.contentRevision)
+        } finally {
+            room.close()
+        }
+    }
+
+    /** A database at [version] exactly as Room made it: its tables, indices and identity hash. */
+    private fun createVersion(version: Int, fill: (SupportSQLiteDatabase) -> Unit) {
+        val schema = JSONObject(File(SCHEMAS, "$version.json").readText()).getJSONObject("database")
         val statements = buildList {
             val entities = schema.getJSONArray("entities")
             for (i in 0 until entities.length()) {
@@ -79,7 +99,7 @@ class CrmMigrationTest {
         }
         val config = SupportSQLiteOpenHelper.Configuration.builder(context)
             .name(name)
-            .callback(object : SupportSQLiteOpenHelper.Callback(1) {
+            .callback(object : SupportSQLiteOpenHelper.Callback(version) {
                 override fun onCreate(db: SupportSQLiteDatabase) = statements.forEach(db::execSQL)
                 override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
             })

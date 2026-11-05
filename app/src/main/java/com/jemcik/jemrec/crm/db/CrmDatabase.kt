@@ -17,9 +17,13 @@ import androidx.room.migration.AutoMigrationSpec
  */
 @Database(
     entities = [WorkCallEntry::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2, spec = CrmDatabase.NoPrivate::class)],
+    autoMigrations = [
+        AutoMigration(from = 1, to = 2, spec = CrmDatabase.NoPrivate::class),
+        // Version 3 adds `contentRevision`, 0 for every call already kept: sent once.
+        AutoMigration(from = 2, to = 3),
+    ],
 )
 abstract class CrmDatabase : RoomDatabase() {
     abstract fun calls(): WorkCallDao

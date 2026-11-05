@@ -43,6 +43,12 @@ object WorkCallMachine {
         SENT_FAILED,
         /** The server refused it, or the call never reached the server: nothing more. */
         DONE,
+        /**
+         * Sent, and the seller asked for it again: the phone is making the texts anew, to replace
+         * the server's with the next `revision` (contentRevision). Until they come the server keeps
+         * what it has; one that cannot be made leaves it there (SENT_READY).
+         */
+        RESENDING,
         ;
 
         val waitsForServerId: Boolean get() = this == READY_TO_SEND || this == FAILED_TO_SEND
@@ -85,7 +91,26 @@ object WorkCallMachine {
      */
     fun canResend(c: WorkCallEntry, nowMs: Long): Boolean =
         Local.of(c.localState) == Local.SENT && c.recording != null && !tooOld(c, nowMs) &&
-            Content.of(c.contentState).let { it == Content.FAILED_TO_SEND || it == Content.SENT_FAILED }
+            when (Content.of(c.contentState)) {
+                Content.FAILED_TO_SEND, Content.SENT_FAILED -> true
+                // Sent: again, while a revision is left (LANARS, 2026-11-05: "revision: 1").
+                Content.SENT_READY -> c.contentRevision < MAX_REVISION
+                // Asked for already: asked again, as a making that was stopped leaves it here.
+                Content.RESENDING -> true
+                else -> false
+            }
+
+    /** Resends left for a call whose texts went: what the sheet says. */
+    fun resendsLeft(c: WorkCallEntry): Int = MAX_REVISION - c.contentRevision
+
+    /**
+     * Pure: Send the transcript tapped. A call whose texts went waits for new ones with the next
+     * revision; any other is as it was - its first texts still go without one.
+     */
+    fun resend(c: WorkCallEntry): WorkCallEntry = when (Content.of(c.contentState)) {
+        Content.SENT_READY -> c.copy(contentState = Content.RESENDING.name, contentRevision = c.contentRevision + 1)
+        else -> c
+    }
 
     /**
      * Pure: Retry now, from Settings: a call waiting out a backoff (a failed try, so not the
@@ -108,5 +133,8 @@ object WorkCallMachine {
      */
     const val HOLD_MS = 2 * 60_000L
     const val CONTENT_DEADLINE_MS = 72L * 60 * 60_000
+
+    /** The API's highest `revision` (the stand, 2026-11-05: "an integer from 0 to 3"). */
+    const val MAX_REVISION = 3
     const val MAX_AGE_MS = 30L * 24 * 60 * 60_000 - 60 * 60_000
 }

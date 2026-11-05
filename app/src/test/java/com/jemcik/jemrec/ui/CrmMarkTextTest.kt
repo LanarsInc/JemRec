@@ -35,11 +35,12 @@ class CrmMarkTextTest {
     }
 
     /** §8: one real transcript may follow "failed"; not after one went, nor without a recording, nor past 30 days. */
-    @Test fun sendingAgainIsOfferedOnlyAfterFailed() {
+    /** After failed; and after sent, since revisions (LANARS, 2026-11-05: ResendTest). */
+    @Test fun sendingAgainIsOfferedAfterFailedOrSent() {
         val now = 10L * 24 * 60 * 60_000
         assertTrue(CallSheetUi.canResend(call("SENT", Content.SENT_FAILED), now))
         assertTrue(CallSheetUi.canResend(call("SENT", Content.FAILED_TO_SEND), now))
-        assertFalse(CallSheetUi.canResend(call("SENT", Content.SENT_READY), now))
+        assertTrue(CallSheetUi.canResend(call("SENT", Content.SENT_READY), now))
         assertFalse(CallSheetUi.canResend(call("SENT", Content.EXPECTED), now))
         assertFalse(CallSheetUi.canResend(call("SENT", Content.DONE), now))
         assertFalse(CallSheetUi.canResend(call("SENT", Content.SENT_FAILED).copy(recording = null), now))

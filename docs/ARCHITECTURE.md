@@ -1674,6 +1674,15 @@ transcript of Seller and Customer (2026-11-05). A transcript with no
 summary to follow, a failed one, a recording put in the trash, or nothing
 within 72 hours of the call sends *failed*. Never the recording.
 
+**Sent again.** A call whose texts went can be made again and sent in their
+place: the next `revision` (1 to 3) replaces the server's. What the stand
+answered on 2026-11-05: a higher revision replaces, the same one with the
+same texts is accepted again (a resend after a cut connection), the same
+one with other texts is 409, and a revision is taken only with `ready`. So
+the app spends a revision only when the seller asks (**Send the transcript
+again**), makes the transcript anew too, and gives the revision back if the
+texts cannot be made. Until they are sent, the server keeps what it has.
+
 **When the network is not there.** Taking calls needs none, so the
 notification shows in a dead zone too; sending waits for it, one request at a time, in a queue of
 its own (`crm.db`) outside the transcription chain, which must never fail. A

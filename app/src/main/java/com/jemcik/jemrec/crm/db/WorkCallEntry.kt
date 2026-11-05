@@ -1,5 +1,6 @@
 package com.jemcik.jemrec.crm.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -72,6 +73,13 @@ data class WorkCallEntry(
     /** The step-2 body, made once from the first finished transcript (FR-035). */
     val contentBody: String? = null,
     val contentDueAtMs: Long = 0,
+    /**
+     * How many times the texts were made again to replace the ones the server has: the API's
+     * `revision`, 0 to 3 (measured on the stand, 2026-11-05: higher replaces, the same with other
+     * texts is 409, 4 is refused).
+     */
+    @ColumnInfo(defaultValue = "0")
+    val contentRevision: Int = 0,
     val attempts: Int = 0,
     /** For the screen and diagnostics: an outcome's name or the server's `detail`; never a number or text. */
     val lastError: String? = null,

@@ -189,7 +189,12 @@ class CrmSync(
             )
             is ApiResult.Failed -> when (r.failure) {
                 // Other texts after ready, or failed after ready: the server keeps what it has (§8).
-                ApiFailure.Adopt -> refetch(c.copy(contentState = Content.DONE.name))
+                // A resend refused so keeps the call's first texts there, and says so.
+                ApiFailure.Adopt -> if (c.contentRevision > 0) {
+                    refetch(c.copy(contentState = Content.SENT_READY.name, lastError = "not replaced"))
+                } else {
+                    refetch(c.copy(contentState = Content.DONE.name))
+                }
                 is ApiFailure.Bug -> c.copy(contentState = Content.DONE.name, lastError = (r.failure as ApiFailure.Bug).detail)
                 else -> failed(c, r.failure)
             }
@@ -213,11 +218,15 @@ class CrmSync(
             contentState = content.name,
             attempts = 0,
             dueAtMs = now(),
-            // Kept only to tell the seller a logged call is changed in the web app; anything else is past.
-            lastError = c.lastError?.takeIf { it.startsWith("logged") },
+            // Kept only to tell the seller a logged call is changed in the web app, or that texts made
+            // again did not replace the server's; anything else is past.
+            lastError = c.lastError?.takeIf { it.startsWith("logged") || it == "not replaced" },
         ).let { adopted ->
-            // A content the server already has (a resend after a cut connection) is done.
-            if (s.contentStatus == ContentStatus.READY && Content.of(adopted.contentState) == Content.READY_TO_SEND) adopted.copy(contentState = Content.SENT_READY.name)
+            // A content the server already has (a resend after a cut connection) is done - but not
+            // texts made again to replace it, which the server has only once they are sent.
+            if (s.contentStatus == ContentStatus.READY && Content.of(adopted.contentState) == Content.READY_TO_SEND &&
+                adopted.contentRevision == 0
+            ) adopted.copy(contentState = Content.SENT_READY.name)
             else adopted
         }
     }
