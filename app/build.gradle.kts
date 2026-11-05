@@ -179,9 +179,9 @@ android {
     }
 
     // The CRM a build talks to: LANARS's test stand ("dev") or production
-    // ("prod"). Debug builds go to dev, so debugging never writes on real
-    // deals, and release builds to prod; JEMREC_SALES_ENGINE_ENV=dev makes a
-    // release build for testers that talks to the stand.
+    // ("prod"). Debug builds go to dev, always, so debugging never writes on
+    // real deals, and release builds to prod; JEMREC_SALES_ENGINE_ENV=dev makes
+    // a release build for testers that talks to the stand.
     //
     // Each value is read, first found wins, from: an environment variable
     // (JEMREC_SALES_ENGINE_DEV_URL, ...), local.properties (salesEngineDevUrl
@@ -203,15 +203,17 @@ android {
     }
     val forcedEnv = salesEngine("Env").lowercase()
     require(forcedEnv in setOf("", "dev", "prod")) { "salesEngineEnv must be dev or prod, not '$forcedEnv'" }
-    fun salesEngineFields(type: com.android.build.api.dsl.ApplicationBuildType, defaultEnv: String) {
-        val env = forcedEnv.ifEmpty { defaultEnv }
+    // Only a release build may be pointed elsewhere: production's Google client knows the release
+    // key alone (LANARS, 2026-11-05), so a debug build on production could never sign in.
+    fun salesEngineFields(type: com.android.build.api.dsl.ApplicationBuildType, defaultEnv: String, forcible: Boolean = false) {
+        val env = if (forcible) forcedEnv.ifEmpty { defaultEnv } else defaultEnv
         val suffix = env.replaceFirstChar { it.uppercase() }
         type.buildConfigField("String", "SALES_ENGINE_ENV", "\"$env\"")
         type.buildConfigField("String", "SALES_ENGINE_URL", "\"${salesEngine("${suffix}Url")}\"")
         type.buildConfigField("String", "SALES_ENGINE_WEB_CLIENT_ID", "\"${salesEngine("${suffix}WebClientId")}\"")
     }
     buildTypes {
-        getByName("release") { salesEngineFields(this, "prod") }
+        getByName("release") { salesEngineFields(this, "prod", forcible = true) }
         getByName("debug") { salesEngineFields(this, "dev") }
         // The emulator checks' build is debug's, so the stand (or the mock) as debug's is.
         getByName("shrunk") { salesEngineFields(this, "dev") }

@@ -121,7 +121,9 @@ or `local.properties` overrides each without a commit:
     JEMREC_SALES_ENGINE_DEV_WEB_CLIENT_ID=<id> ./gradlew assembleDebug
 
 `JEMREC_SALES_ENGINE_ENV=dev` makes a release build that talks to the stand,
-for testers. An empty address or client id means not set up: the Sales
+for testers; a debug build is never pointed at production, whose Google
+client knows only the release key (LANARS, 2026-11-05: one Web client id for
+both, production open once LANARS leaves Pipedrive). An empty address or client id means not set up: the Sales
 Engine settings say so and nothing is sent - an empty dev address never falls
 back to production. Debug builds show the stand's host in Settings > Sales
 Engine. Google gives a token only to the
