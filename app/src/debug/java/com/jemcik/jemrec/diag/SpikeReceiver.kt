@@ -267,6 +267,15 @@ class SpikeReceiver : BroadcastReceiver() {
                         report(appContext, "summarise", "queued $name")
                     }
 
+                    // A recording's own language, as its Transcript's Language row sets it; no lang
+                    // clears it to automatic. --es op language --es name <file> [--es lang <code>]
+                    "language" -> {
+                        val name = intent.getStringExtra("name").orEmpty()
+                        val lang = intent.getStringExtra("lang")
+                        TranscriptRepository.of(appContext).setLanguage(name, lang)
+                        report(appContext, "language", "$name: ${lang ?: "automatic"}")
+                    }
+
                     // A recording's summary as stored. --es op summary --es name <file>
                     "summary" -> {
                         val name = intent.getStringExtra("name").orEmpty()

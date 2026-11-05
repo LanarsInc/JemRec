@@ -1504,6 +1504,29 @@ the first minute (15-23 s: Opus decodes at about four times real time there)
 and 23 to 37 s a side. A Ukrainian phone call made with this in place came
 out Ukrainian (0.996), transcript and summary both.
 
+**A call is more than its first minute.** LANARS's stand, 2026-11-05: a
+274 s one-mix call opened with the answerer's Russian, then went on in
+English. Read from its first minute it was Russian (0.95), and pinned so,
+whisper wrote its English as Russian; pinned to English by hand, it left the
+Russian out, and 18 s of English answer too, where it had looped. So a call
+longer than two minutes is read at its start, its middle and its end - 10 s
+of speech from each in whisper's one window, one detection at the same cost;
+the middle and end are 30 s windows, as three minutes took 63 s to decode on
+the A24 - and came out English (0.99). Then **speech with no line is heard
+again** (GapFill): where the VAD kept 3 s or more of speech that no line
+covers, that stretch is transcribed again on its own, its language detected
+on its own. Two kinds of line do not count as covering: a loop whisper
+repeated, which the cleanup takes out later (it hid the 2:52-3:11 answer),
+and a line of fewer words than one in 2.5 s - the 1:10-1:40 line had six
+English words, "you answer", "English", over Russian - which goes when its
+stretch is heard again. What is still unwritten is looked for once more: the
+Russian heard to 1:35 left the seller's English at 1:37, found the second
+time. The same call came out Russian at 0:48-1:35 (0.999, as the user who
+heard it says) and English elsewhere, the seller's lines at 1:37 and 3:05
+under the seller; 28 lines became 37. It costs a detection and a decode a
+gap: 698 s became 985 s for that call, four gaps; a 5-minute English
+conversation had one, of 3 s.
+
 **What it costs, on a Galaxy A24** (Helio G99: two fast cores, six slow
 ones, 2026-10-29): Whisper small took 33.6 s for a 9 s call and 59.5 s for a
 16 s one split into its two sides - whisper processes 30 s at a time, so a

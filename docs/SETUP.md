@@ -519,10 +519,12 @@ describe your voice, never sound; **Delete** removes it.
 
 **The language.** JemRec finds it: each side's first minute is listened to
 before the call is transcribed, so a Norwegian call gets the model made for
-Norwegian, NB-Whisper, and two people speaking two languages each get theirs.
-Seventeen are offered. Settings → Transcripts can set one for every call
-instead, and **Change**, on a transcript, sets one for that call alone - worth
-it for a side of a few words, which is too little to tell.
+Norwegian, NB-Whisper, and two people speaking two languages each get theirs. A
+longer call is listened to at its start, middle and end, and a stretch in
+another language, or one whisper missed, is written again in its own. Seventeen
+are offered. Settings → Transcripts can set one for every call instead, and
+**Change**, on a transcript, sets one for that call alone - worth it for a side
+of a few words, which is too little to tell.
 
 **Summary**, beside Transcript, writes in English, whatever the call's
 language, why the call happened, what was said, and the points, decisions,

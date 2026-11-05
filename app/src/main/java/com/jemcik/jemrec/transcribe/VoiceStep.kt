@@ -119,6 +119,11 @@ object VoiceStep {
             (print?.let { p -> call.embeddings.joinToString(prefix = " (", postfix = ")") { "%.2f".format(VoiceLink.cosine(it, p.vector)) } } ?: ""))
         val named = VoiceSeam.apply(lines, call.turns, first, second)
         Log.i(TAG, "${lines.size} line(s) became ${named.size}")
+        // Times only, never words: what to read when a line holds two people (LANARS, 2026-11-05).
+        if (com.jemcik.jemrec.BuildConfig.DEBUG) {
+            Log.d(TAG, "turns: " + call.turns.joinToString(" ") { "${it.startMs}-${it.endMs}:${it.voice}" })
+            Log.d(TAG, "lines: " + lines.joinToString(" ") { "${it.startMs}-${it.endMs}:${it.words.size}w" })
+        }
         return VoiceResult(named, if (byPrint) VoiceSource.PRINT else VoiceSource.VOICES, VoiceModel.ID, call.embeddings)
     }
 
