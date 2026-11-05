@@ -30,7 +30,8 @@ one mix. Download the voice model to tell the two voices apart."
 A screen of its own: a short text in the app's language to read aloud, a
 level meter, a 30 s progress ring, **Start** / **Stop**, and "Kept as numbers
 that describe your voice, not as a recording. Never leaves the phone." The
-microphone permission is asked at **Start**, with why. Under 20 s of speech:
+microphone permission is asked at **Start**, with why. Under 12 s of speech
+(gaps between words counted in, VoiceSample.WORD_GAP_MS):
 "Too short - read it again." Done: back to Settings with the row updated.
 
 ## The transcript

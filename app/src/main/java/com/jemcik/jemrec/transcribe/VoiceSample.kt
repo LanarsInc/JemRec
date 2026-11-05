@@ -31,8 +31,15 @@ object VoiceSample {
     /** How long the owner reads for. */
     const val LENGTH_MS = 30_000L
 
-    /** Under this much speech in it, the sample is read again: a print from less says little. */
-    const val MIN_SPEECH_MS = 20_000L
+    /**
+     * Under this much speech in it, the sample is read again: a print from less says little.
+     * Not 20 s, the bar for a print from calls: the half-minute text read at a speaking pace
+     * for nearly the whole 30 s was counted as 14-15 s of speech (the owner, 2026-11-05), so
+     * 20 s turned every reading away. VoiceSilence names voices in a call
+     * from 10 s of speech; a little more than that here. With WORD_GAP_MS, the same
+     * reading was taken on the A24 (2026-11-05).
+     */
+    const val MIN_SPEECH_MS = 12_000L
 
     /** A 20 ms frame quieter than this is a pause, not speech (ChannelSides' line for silence). */
     const val SPEECH_DB = ChannelSides.SOUND_DB
@@ -40,12 +47,30 @@ object VoiceSample {
     const val RATE = 16_000
     private const val FRAME = RATE / 50
 
+    /**
+     * A quiet stretch this short between two loud frames is part of the speech: the gap between
+     * words, a stop consonant, a word's fading end. Counted as pauses, they took a sample read for
+     * nearly 30 s down to 14-15 s (the owner, 2026-11-05). Longer quiet - between sentences, a breath -
+     * is still dropped.
+     */
+    const val WORD_GAP_MS = 300L
+
     /** Only the frames with speech in them, one after the other. Plain arithmetic, tested off the phone. */
     fun speechOnly(pcm: FloatArray): FloatArray {
+        val frames = pcm.size / FRAME
+        val loud = BooleanArray(frames) { levelDb(pcm, it * FRAME, FRAME) >= SPEECH_DB }
+        val keep = loud.copyOf()
+        val maxGap = (WORD_GAP_MS * RATE / 1000 / FRAME).toInt()
+        var lastLoud = -1
+        for (f in 0 until frames) {
+            if (!loud[f]) continue
+            if (lastLoud >= 0 && f - lastLoud - 1 in 1..maxGap) keep.fill(true, lastLoud + 1, f)
+            lastLoud = f
+        }
         val out = FloatArray(pcm.size)
         var n = 0
-        for (f in 0 until pcm.size / FRAME) {
-            if (levelDb(pcm, f * FRAME, FRAME) < SPEECH_DB) continue
+        for (f in 0 until frames) {
+            if (!keep[f]) continue
             System.arraycopy(pcm, f * FRAME, out, n, FRAME)
             n += FRAME
         }
